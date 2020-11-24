@@ -1,0 +1,131 @@
+\documentclass[a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{url}
+
+\usepackage{color,soulutf8}
+\newcommand\todo{\hl{TO-DO:} }
+
+\title{
+  {\normalsize\sc Propuesta de Tesina\\ de Licenciatura en Ciencias de la
+    Computación}\\
+  Compilación de $\lambda$-cálculo con matrices densidad\\
+  en la máquina cuántica IBM-Q
+}
+\author{
+  Martín Villagra\\
+  \todo Legajo?\\
+  {\tt mvillagra0@gmail.com}
+}
+
+\date{\today}
+
+\newcommand\LambdaS{\textsf{Lambda-}$\mathcal S$}
+\newcommand\Lineal{\textsf{Lineal}}
+
+\begin{document}
+\maketitle
+\noindent  Director: Alejandro Díaz-Caro\\
+Investigador Adjunto en el Instituto de Ciencias de la Computación
+(UBA/CONICET)\\
+Profesor Adjunto en la Universidad Nacional de Quilmes\\
+{\tt adiazcaro@icc.fcen.uba.ar}\\[1ex]
+Codirector: Pablo E. Martínez López\\
+Profesor Titular en la Universidad Nacional de Quilmes\\
+{\tt fidel@unq.edu.ar}
+
+\section*{Introducción y estado del arte}
+La computación cuántica se puede entender como un modelo de cómputo novedoso,
+basado en las propiedades de la física, o como un formalismo matemático para
+describir la física cuántica. Desde el punto de vista de la tecnología, las
+computadoras cuánticas son dispositivos programables, y por tanto, existen
+diversos lenguajes de programación para las mismas. El más común, se basa en
+circuitos cuánticos (el análogo a los circuitos electrónicos). Desde el punto de
+vista más teórico, el estudio de fundamentos de lenguajes de programación para
+las computadoras cuánticas, no sólo tiene por objetivo el desarrollo de dichos
+lenguajes, sino también el estudio de propiedades de la física cuántica,
+puramente desde el formalismo matemático, en particular dada la conexión entre
+los fundamentos de lenguajes (y la teoría de tipos), con la lógica.
+
+En esta línea, existen diversas extensiones al cálculo lambda, y diversos
+sistemas de tipos, para lidiar con diferentes características de la computación
+cuántica. En particular, existen dos paradigmas muy diferenciados.
+
+Por un lado, está el paradigma de ``control clásico''~\cite{SelingerMSCS04}, el
+cual introduce en el lenguaje la posibilidad de describir circuitos cuánticos.
+Dichas descripciones son clásicas: las compuertas cuánticas se describen como
+cajas negras, y el flujo de control que dice qué compuerta aplicar a qué qubit,
+es clásico, en el sentido de que no existe superposición de flujos de control, o
+de programas. Dicho paradigma está justificado por el hecho de que las
+computadoras cuánticas se visualizan como dispositivos anexos a las computadoras
+clásicas, y son estas últimas las que instruyen a las primeras sobre las
+operaciones a realizar. Así, para programar, por ejemplo, la computadora
+cuántica IBM-Q\footnote{\url{https://www.ibm.com/quantum-computing/}}, con su
+SDK Qiskit\footnote{\url{https://qiskit.org}} (un conjunto de librerías de
+Python), se desarrolla un programa clásico en Python, con algunas instrucciones
+extra para instruir a la computadora cuántica qué circuito cuántico debe
+realizar. El código Qiskit puede correr tanto en la computadora cuántica, como
+en un simulador en una computadora clásica.
+
+Un paradigma alternativo es el de ``control
+cuántico''~\cite{AltenkirchGrattageLICS05,ArrighiDowekLMCS17,DiazcaroGuillermoMiquelValironLICS19}.
+La idea es que si queremos superar la etapa de circuitos (de la misma manera que
+lenguajes de alto nivel superaron la etapa de los circuitos electrónicos),
+debemos poder describir operaciones que, al ser compiladas, se transformen en
+circuitos cuánticos. Lo que se pretende es abrir la ``caja negra'' que
+representa a las operaciones cuánticas, y que la misma pueda ser descripta en el
+lenguaje. Para ello el lenguaje tiene que tener características cuánticas, como
+permitir la superposición de programas, o el enredo de los mismos. Sin embargo,
+el lenguaje deberá proveer una herramienta que asegure que lo que se escriba en
+el mismo, tenga una traducción (una compilación) directa a la computadora
+cuántica.
+
+Un paradigma intermedio, llamado ``control
+probabilístico''~\cite{DiazcaroAPLAS17}, consiste en utilizar el formalismo de
+las matrices densidad, que permite representar mezclas probabilísticas de
+estados cuánticos puros, generalizándolo a mezclas probabilísticas de programas.
+Las matrices densidad no son utilizadas usualmente para describir algoritmos,
+donde el output esperado es el resultado clásico de medir un estado cuántico.
+Sin embargo, el formalismo es utilizado ampliamente en teorías como la
+decoherencia cuántica. Desde el punto de vista de la computación cuántica como
+una descripción de la física, estudiar el paradigma del control probabilístico,
+y posibles simulaciones del mismo, es una herramienta más en el estudio de la
+mecánica cuántica.
+
+En~\cite{DiazcaroAPLAS17} se presentan dos extensiones al lambda cálculo para
+computación cuántica: $\lambda_\rho$ y $\lambda_\rho^\circ$. Ambas utilizan
+matrices densidad, sólo que en la primera, $\lambda_\rho$, si la matriz densidad representa a un
+estado puro al inicio del cálculo, terminará en un estado puro al finalizar, y,
+por lo tanto, $\lambda_\rho$ está en el paradigma del control clásico. En
+cambio, la segunda extensión, $\lambda_\rho^\circ$, introduce la noción de
+matriz densidad generalizada, dando posibilidad de llevar la evolución de
+estados mixtos. Por lo tanto, $\lambda_\rho^\circ$ está en el paradigma de
+control probabilístico.
+
+
+\section*{Objetivos y actividades}
+El objetivo de esta tesis es definir e implementar un compilador de
+$\lambda_\rho$ en código Qiskit, que corra tanto en el simulador como en la
+computadora cuántica IBM-Q, y definir e implementar un compilador de
+$\lambda_\rho^\circ$ que corra en una extensión, a programar, del simulador de
+Qiskit, a matrices densidad generalizadas.
+
+Para esto, se definen las siguientes actividades.
+\begin{itemize}
+\item El primer paso es el de definir una traducción desde $\lambda_\rho$ a
+  Qiskit. Dado que Qiskit es un conjunto de bibliotecas sobre Python, y Python
+  tiene expresiones lambda, es cuestión de traducir expresiones lambda a
+  expresiones lambda, matrices densidad a vectores, utilizando la técnica
+  conocida como purificación (\cite[Cap.~I, Sec.~2.5]{NielsenChuang10}).
+\item El segundo paso consiste en programar el compilador en Haskell.
+\item Luego se deberá estudiar y extender las bibliotecas Qiskit con
+  una estructura que permita llevar las matrices densidad generalizadas.
+\item El paso siguiente es formalizar la traducción de $\lambda_\rho^\circ$ a la
+  extensión a Qiskit.
+\item El último paso será programar el compilador de $\lambda_\rho^\circ$.
+\end{itemize}
+
+\bibliographystyle{alpha}
+\bibliography{biblio} 
+\end{document}
