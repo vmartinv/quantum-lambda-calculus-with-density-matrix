@@ -246,3 +246,4 @@ TSWLatexianTemp*
 
 *.swp
 
+.DS_Store
