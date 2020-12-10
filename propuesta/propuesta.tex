@@ -107,15 +107,23 @@ control probabilístico.
 
 \section*{Objetivos y actividades}
 El objetivo de esta tesina es definir e implementar un compilador de
-$\lambda_\rho$ en código QAsm, que corra tanto en el simulador como en la
+$\lambda_\rho$ en código Qiskit, que corra tanto en el simulador como en la
 computadora cuántica IBM-Q, y definir e implementar un compilador de
 $\lambda_\rho^\circ$ junto con un simulador del mismo que utilice matrices de densidad generalizadas.
-
+\\
+\\
+\\
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
 Para esto, se definen las siguientes actividades.
 \begin{enumerate}
 \item Definir una traducción desde $\lambda_\rho$ a
-  QAsm. Dado que QAsm es un lenguaje imperativo muy simple la traducción no es trivial, parte del trabajo es explorar las técnicas disponibles y escoger las convenientes.
-\item Programar un compilador en Haskell que siga la traducción especificada en el paso anterior. El objetivo es que el código QAsm generado pueda ser simulado/ejecutado utilizando la librería Qiskit.
+  Python que utilice la librería Qiskit. Parte del trabajo es explorar las técnicas disponibles y escoger las convenientes.
+\item Programar un compilador en Haskell que siga la traducción especificada en el paso anterior. El objetivo es que el código generado pueda ser simulado/ejecutado utilizando la librería Qiskit.
 \item Desarrollar una herramienta que permita simular los programas en $\lambda_\rho^\circ$ siguiendo la semántica especificada en ~\cite{DiazcaroAPLAS17}, mediante el uso de matrices de densidad. Esto involucra en primer medida la implementación de un compilador que procese el código de $\lambda_\rho^\circ$.
 \end{enumerate}
 
