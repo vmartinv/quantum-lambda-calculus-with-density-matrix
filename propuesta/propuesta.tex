@@ -3,9 +3,8 @@
 \usepackage[T1]{fontenc}
 \usepackage[spanish]{babel}
 \usepackage{url}
+\usepackage{amssymb}
 
-\usepackage{color,soulutf8}
-\newcommand\todo{\hl{TO-DO:} }
 
 \title{
   {\normalsize\sc Propuesta de Tesina\\ de Licenciatura en Ciencias de la
@@ -121,11 +120,22 @@ $\lambda_\rho^\circ$ junto con un simulador del mismo que utilice matrices de de
 \newline
 Para esto, se definen las siguientes actividades.
 \begin{enumerate}
-\item Definir una traducción desde $\lambda_\rho$ a
+\item\label{it:trad} Definir una traducción desde $\lambda_\rho$ a
   Python que utilice la librería Qiskit. Parte del trabajo es explorar las técnicas disponibles y escoger las convenientes.
-\item Programar un compilador en Haskell que siga la traducción especificada en el paso anterior. El objetivo es que el código generado pueda ser simulado/ejecutado utilizando la librería Qiskit.
-\item Desarrollar una herramienta que permita simular los programas en $\lambda_\rho^\circ$ siguiendo la semántica especificada en ~\cite{DiazcaroAPLAS17}, mediante el uso de matrices de densidad. Esto involucra en primer medida la implementación de un compilador que procese el código de $\lambda_\rho^\circ$.
+\item\label{it:lamrho} Programar un compilador en Haskell que siga la traducción especificada en el paso anterior. El objetivo es que el código generado pueda ser simulado/ejecutado utilizando la librería Qiskit.
+\item\label{it:lamrhoc} Desarrollar una herramienta que permita simular los programas en $\lambda_\rho^\circ$ siguiendo la semántica especificada en ~\cite{DiazcaroAPLAS17}, mediante el uso de matrices de densidad. Esto involucra en primer medida la implementación de un compilador que procese el código de $\lambda_\rho^\circ$.
 \end{enumerate}
+
+\paragraph{Cronograma de actividades}~
+
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|c|c|c|}\hline
+  Actividad\ Mes&1&2&3&4&5&6&7&8&9&10&11&12\\\hline
+  Tarea~\ref{it:trad} &&&\checkmark&&&&&&&&&\\\hline
+  Tarea~\ref{it:lamrho}&&&&&&\checkmark&&&&&&\\\hline
+  Tarea~\ref{it:lamrhoc}&&&&&&&&&&&\checkmark&\\\hline
+  Redacción &&&&&&&&&&&&\checkmark\\\hline
+\end{tabular}
+
 
 \bibliographystyle{alpha}
 \bibliography{biblio} 
