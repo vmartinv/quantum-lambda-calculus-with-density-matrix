@@ -3,7 +3,7 @@ module Grammar where
 import Tokens
 }
 
-%name parseLambdaRho
+%name parseLambdaRhoTokens
 %tokentype { Token }
 %error { parseError }
 
@@ -36,7 +36,8 @@ Exp : var                    { Var $1 }
     | gate Exp               { Gate $1 $2 }
     | PI Exp                 { Projector $2 }
     | Exp '*' Exp            { Times $1 $3 }
-    | letcase var '=' Exp in '{' CaseList '}' { LetCase $2 $4 $7 }
+    | '(' Exp ')'            { $2 }
+    | letcase var '=' Exp in '{' CaseList '}' { LetCase $2 $4 (reverse $7) }
 
 CaseList : Exp              { [$1] }
          | CaseList ',' Exp { $3 : $1 }
@@ -46,6 +47,9 @@ CaseList : Exp              { [$1] }
 parseError :: [Token] -> a
 parseError _ = error "Parse error"
 
+parseLambdaRho :: String -> Exp
+parseLambdaRho = parseLambdaRhoTokens.scanTokens
+
 data Exp = Var String
          | Lambda String Exp
          | FunApp Exp Exp
@@ -54,5 +58,5 @@ data Exp = Var String
          | Projector Exp
          | Times Exp Exp
          | LetCase String Exp [Exp]
-         deriving Show
+         deriving (Show,Eq)
 }
