@@ -47,3 +47,7 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - compiler
+    - tasty
+    - tasty-quickcheck
+    - tasty-smallcheck
+    - tasty-hunit
