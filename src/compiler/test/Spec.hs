@@ -25,23 +25,23 @@ qcProps = testGroup "(checked by QuickCheck)"
 
 unitTests = testGroup "Unit tests"
   [ testCase "Parsing var" $
-      parseLambdaRho "x" @?= (Var "x")
+      parseLambdaRho "x" @?= (PVar "x")
   , testCase "Parsing gates" $
-      parseLambdaRho "U x" @?= (Gate "U" (Var "x"))
+      parseLambdaRho "U x" @?= (PGate "U" (PVar "x"))
   , testCase "Parsing projector" $
-      parseLambdaRho "PI x" @?= (Projector (Var "x"))
+      parseLambdaRho "PI x" @?= (PProjector (PVar "x"))
   , testCase "Parsing single qubit" $
-      parseLambdaRho "|0>" @?= (Qubits "0")
+      parseLambdaRho "|0>" @?= (PQubits "0")
   , testCase "Parsing multiple qubits" $
-      parseLambdaRho "|01+->" @?= (Qubits "01+-")
+      parseLambdaRho "|01+->" @?= (PQubits "01+-")
   , testCase "Parsing otimes" $
-      parseLambdaRho "x * y" @?= (Times (Var "x") (Var "y"))
+      parseLambdaRho "x * y" @?= (PTimes (PVar "x") (PVar "y"))
   , testCase "Parsing lambda" $
-      parseLambdaRho "\\x.y" @?= (Lambda "x" (Var "y"))
+      parseLambdaRho "\\x.y" @?= (PLambda "x" (PVar "y"))
   , testCase "Parsing parenthesis" $
-      parseLambdaRho "(\\x.x)" @?= (Lambda "x" (Var "x"))
+      parseLambdaRho "(\\x.x)" @?= (PLambda "x" (PVar "x"))
   , testCase "Parsing function application" $
-      parseLambdaRho "(\\x.x) y" @?= (FunApp (Lambda "x" (Var "x")) (Var "y"))
+      parseLambdaRho "(\\x.x) y" @?= (PFunApp (PLambda "x" (PVar "x")) (PVar "y"))
   , testCase "Parsing letcase" $
-      parseLambdaRho "letcase x=PI y in {x,y}" @?= (LetCase "x" (Projector (Var "y")) [(Var "x"), (Var "y")])
+      parseLambdaRho "letcase x=PI y in {x,y}" @?= (PLetCase "x" (PProjector (PVar "y")) [(PVar "x"), (PVar "y")])
   ]
