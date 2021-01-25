@@ -22,14 +22,20 @@ description:         Please see the README on GitHub at <https://github.com/vmar
 dependencies:
 - base >= 4.7 && < 5
 - array
-- prettyprinter
+- prettyprinter >= 1.7.0
 - process
 - repline >= 0.3.0.0
 - mtl
 - haskeline >= 0.8.0.0
+- text
 
 library:
   source-dirs: src
+  when:
+  - condition: false
+    other-modules: Paths_compiler
+  default-extensions:
+    - OverloadedStrings
 
 executables:
   compiler-exe:
@@ -39,6 +45,8 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    default-extensions:
+      - OverloadedStrings
     dependencies:
     - compiler
 
@@ -50,6 +58,8 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    default-extensions:
+      - OverloadedStrings
     dependencies:
     - compiler
     - tasty

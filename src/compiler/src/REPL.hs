@@ -3,6 +3,7 @@ module REPL (repl) where
 import           Control.Monad.Trans
 import           Data.List              (isPrefixOf)
 import           Grammar
+import           Render
 import           System.Console.Repline
 import           System.Process         (callCommand)
 import           Translation
@@ -11,7 +12,7 @@ type Repl a = HaskelineT IO a
 
 -- Evaluation : handle each line user inputs
 cmd :: String -> Repl ()
-cmd = liftIO.print.translate.parseLambdaRho
+cmd = liftIO.print.render.translate.parseLambdaRho
 
 -- Tab Completion: return a completion for partial words entered
 completer :: Monad m => WordCompleter m

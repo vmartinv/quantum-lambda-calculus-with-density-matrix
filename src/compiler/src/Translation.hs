@@ -1,13 +1,13 @@
 module Translation where
-
+import           Data.Text (Text, pack)
 import           Grammar
 
-data PyExp = PyVar String
-          | PyLambda String PyExp
-          | PyFunName String
+data PyExp = PyVar Text
+          | PyLambda Text PyExp
+          | PyFunName Text
           | PyFunCall PyExp [PyExp]
-          | PyStr String
-          | PyDict [(String, PyExp)]
+          | PyStr Text
+          | PyDict [(Text, PyExp)]
           deriving (Show,Eq)
 
 translate :: PExp -> PyExp
@@ -20,4 +20,4 @@ translate (PProjector exp) = PyFunCall (PyFunName "apply_measure") [translate ex
 translate (PTimes exp1 exp2) = PyFunCall (PyFunName "tensor_product") [translate exp1, translate exp2]
 translate (PLetCase v exp exps) = PyFunCall (PyFunName "letcase") [translate exp, PyDict cases]
   where
-    cases = zip (show <$> [0::Int ..]) (translate <$> exps)
+    cases = zip (pack <$> show <$> [0::Int ..]) ((PyLambda v.translate) <$> exps)

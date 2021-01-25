@@ -1,6 +1,8 @@
 {
 module Grammar where
 import Tokens
+
+import Data.Text (Text, pack)
 }
 
 %name parseLambdaRhoTokens
@@ -29,15 +31,15 @@ import Tokens
 
 %%
 
-PExp : var                    { PVar $1 }
-    | '\\' var '.' PExp       { PLambda $2 $4 }
+PExp : var                    { PVar (pack $1) }
+    | '\\' var '.' PExp       { PLambda (pack $2) $4 }
     | PExp PExp               { PFunApp $1 $2 }
-    | qubits                  { PQubits $1 }
-    | gate PExp               { PGate $1 $2 }
+    | qubits                  { PQubits (pack $1) }
+    | gate PExp               { PGate (pack $1) $2 }
     | PI PExp                 { PProjector $2 }
     | PExp '*' PExp           { PTimes $1 $3 }
     | '(' PExp ')'            { $2 }
-    | letcase var '=' PExp in '{' CaseList '}' { PLetCase $2 $4 (reverse $7) }
+    | letcase var '=' PExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
 
 CaseList : PExp              { [$1] }
          | CaseList ',' PExp { $3 : $1 }
@@ -50,13 +52,13 @@ parseError _ = error "Parse error"
 parseLambdaRho :: String -> PExp
 parseLambdaRho = parseLambdaRhoTokens.scanTokens
 
-data PExp = PVar String
-         | PLambda String PExp
+data PExp = PVar Text
+         | PLambda Text PExp
          | PFunApp PExp PExp
-         | PQubits String
-         | PGate String PExp
+         | PQubits Text
+         | PGate Text PExp
          | PProjector PExp
          | PTimes PExp PExp
-         | PLetCase String PExp [PExp]
+         | PLetCase Text PExp [PExp]
          deriving (Show,Eq)
 }
