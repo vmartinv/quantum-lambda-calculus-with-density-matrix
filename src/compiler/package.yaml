@@ -49,6 +49,7 @@ executables:
       - OverloadedStrings
     dependencies:
     - compiler
+    - optparse-applicative
 
 tests:
   compiler-test:
