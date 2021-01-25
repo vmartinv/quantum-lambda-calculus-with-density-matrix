@@ -1,10 +1,10 @@
 name:                compiler
 version:             0.1.0.0
-github:              "githubuser/compiler"
+github:              "vmartinv/quantum-lambda-calculus-with-density-matrix"
 license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2021 Author name here"
+author:              "Martin Villagra"
+maintainer:          "mvillagra0@gmail.com"
+copyright:           "2021 Martin Villagra"
 
 extra-source-files:
 - README.md
