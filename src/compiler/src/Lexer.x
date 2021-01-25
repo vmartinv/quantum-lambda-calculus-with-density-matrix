@@ -1,5 +1,5 @@
 {
-module Tokens where
+module Lexer where
 }
 
 %wrapper "basic"

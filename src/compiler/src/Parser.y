@@ -1,6 +1,6 @@
 {
-module Grammar where
-import Tokens
+module Parser where
+import Lexer
 
 import Data.Text (Text, pack)
 }

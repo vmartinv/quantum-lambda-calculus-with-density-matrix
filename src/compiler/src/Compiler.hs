@@ -1,9 +1,9 @@
 module Compiler(compile) where
 import           Data.Text     (Text)
-import           Grammar
+import           Lexer
+import           Parser
 import           Prettyprinter
 import           Render
-import           Tokens
 import           Translation
 
 
