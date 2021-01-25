@@ -1,9 +1,5 @@
 module Main where
-import           Grammar
+import           REPL
 
 main :: IO ()
-main = do
-    s <- getLine
-    let ast = parseLambdaRho s
-    print ast
-    main
+main = repl
