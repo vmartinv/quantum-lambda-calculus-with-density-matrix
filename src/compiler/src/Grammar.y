@@ -5,7 +5,7 @@ import Tokens
 import Data.Text (Text, pack)
 }
 
-%name parseLambdaRhoTokens
+%name parseTokens
 %tokentype { Token }
 %error { parseError }
 
@@ -48,9 +48,6 @@ CaseList : PExp              { [$1] }
 
 parseError :: [Token] -> a
 parseError _ = error "Parse error"
-
-parseLambdaRho :: String -> PExp
-parseLambdaRho = parseLambdaRhoTokens.scanTokens
 
 data PExp = PVar Text
          | PLambda Text PExp
