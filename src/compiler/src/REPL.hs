@@ -5,12 +5,13 @@ import           Data.List              (isPrefixOf)
 import           Grammar
 import           System.Console.Repline
 import           System.Process         (callCommand)
+import           Translation
 
 type Repl a = HaskelineT IO a
 
 -- Evaluation : handle each line user inputs
 cmd :: String -> Repl ()
-cmd = liftIO.print.parseLambdaRho
+cmd = liftIO.print.translate.parseLambdaRho
 
 -- Tab Completion: return a completion for partial words entered
 completer :: Monad m => WordCompleter m
