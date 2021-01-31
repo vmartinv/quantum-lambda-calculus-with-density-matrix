@@ -3,8 +3,6 @@ module REPL (repl) where
 import           Compiler
 import           Control.Monad.Trans
 import           Data.List              (isPrefixOf)
-import           Grammar
-import           Render
 import           System.Console.Repline
 import           System.Process         (callCommand)
 

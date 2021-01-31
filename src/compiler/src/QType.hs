@@ -11,4 +11,7 @@ instance Show QType where
 
 prettyQType (QTQubits n) = parens $ pretty n
 prettyQType (QTMeasuredQubits n) = parens $ sep $ punctuate comma (pretty <$> [n, n])
-prettyQType (QTFun f x) = prettyQType f <+> "\\multimap" <+> prettyQType x
+prettyQType (QTFun f x) = smartParen f <+> "\\multimap" <+> smartParen x
+  where smartParen f@(QTQubits _)         = prettyQType f
+        smartParen f@(QTMeasuredQubits _) = prettyQType f
+        smartParen f@(QTFun _ _)          = parens $ prettyQType f
