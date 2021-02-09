@@ -28,6 +28,8 @@ dependencies:
 - mtl
 - haskeline >= 0.8.0.0
 - text
+- containers
+- either
 
 library:
   source-dirs: src
