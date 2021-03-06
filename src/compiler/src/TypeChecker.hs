@@ -14,8 +14,13 @@ import           QType
 
 type TypeState = Int
 
-data TypeError  = UnificationFail QType QType | InfiniteType T.Text QType | UnboundVariable T.Text
-            deriving (Show,Eq)
+data TypeError  = UnificationFail QType QType
+              | InfiniteType T.Text QType
+              | UnboundVariable T.Text
+              | InvalidType QType
+              | InvalidLetCaseVar QType
+              | InvalidLetCaseNumCases Int Int
+              deriving (Show,Eq)
 
 newtype TypeEnv = TypeEnv (M.Map T.Text Scheme)
 type Infer a = ExceptT TypeError (State TypeState) a
@@ -26,8 +31,12 @@ extend (TypeEnv env) (x, s) = TypeEnv $ M.insert x s env
 
 initTypeState = 0
 
-closeOver (s, t) = Forall (S.toList (ftv t')) t'
+closeOver (s, t) = Forall ftvs' t''
   where t' = apply s t
+        ftvs = S.toList (ftv t')
+        ftvs' = fst <$> zip letters ftvs
+        convert = M.fromList $ zip ftvs (QTVar <$> ftvs')
+        t'' = apply convert t'
 
 runInfer :: Infer (Subst, QType) -> Either TypeError Scheme
 runInfer m = case evalState (runExceptT m) initTypeState of
@@ -53,10 +62,9 @@ instance Substitutable QType where
   apply s t@(QTVar a)            = M.findWithDefault t a s
   apply s (t1 `QTFun` t2)        = apply s t1 `QTFun` apply s t2
 
-  ftv (QTQubits _)         = S.empty
-  ftv (QTMeasuredQubits _) = S.empty
-  ftv (QTVar a)            = S.singleton a
-  ftv (t1 `QTFun` t2)      = ftv t1 `S.union` ftv t2
+  ftv (QTVar v)     = S.singleton v
+  ftv (QTFun t1 t2) = ftv t1 `S.union` ftv t2
+  ftv _             = S.empty
 
 instance Substitutable Scheme where
   apply s (Forall as t)   = Forall as $ apply s' t
@@ -78,7 +86,7 @@ fresh :: Infer QType
 fresh = do
   s <- get
   put (s+1)
-  return.QTVar $ letters !! s
+  return $ QTVar (letters !! s)
 
 occursCheck ::  Substitutable a => T.Text -> a -> Bool
 occursCheck a t = a `S.member` ftv t
@@ -95,7 +103,7 @@ unify (QTQubits a) (QTQubits b) | a == b = return nullSubst
 unify (QTMeasuredQubits a) (QTMeasuredQubits b) | a == b = return nullSubst
 unify t1 t2 = throwError $ UnificationFail t1 t2
 
-bind ::  T.Text -> QType -> Infer Subst
+bind :: T.Text -> QType -> Infer Subst
 bind a t | t == QTVar a     = return nullSubst
          | occursCheck a t = throwError $ InfiniteType a t
          | otherwise       = return $ M.singleton a t
@@ -110,15 +118,15 @@ generalize :: TypeEnv -> QType -> Scheme
 generalize env t  = Forall as t
   where as = S.toList $ ftv t `S.difference` ftv env
 
-  -- data PExp = PVar Text
-  --          | PLambda Text PExp
-  --          | PFunApp PExp PExp
-  --          | PQubits Text
-  --          | PGate Text PExp
-  --          | PProjector PExp
-  --          | PTimes PExp PExp
-  --          | PLetCase Text PExp [PExp]
-  --          deriving (Show,Eq)
+unifyCompose :: [(Subst, QType)] -> Infer (Subst, QType)
+unifyCompose ts = foldr foldFun start ts
+  where foldFun (s', t') m = do
+          (s, t) <- m
+          sn <- unify t t'
+          return (s `compose` s' `compose` sn, apply sn t')
+        start = do
+          tv <- fresh
+          return (nullSubst, tv)
 
 infer :: TypeEnv -> PExp -> Infer (Subst, QType)
 infer env ex = case ex of
@@ -141,30 +149,41 @@ infer env ex = case ex of
     (s1, t1) <- infer env e
     let env' = apply s1 env
         t'   = generalize env' t1
-    (ss, ts) <- unzip <$> sequenceA (infer (env' `extend` (x, t')) <$> es)
-
-    return (foldr compose nullSubst ss, ts !! 0)
+    q <- case t' of
+      Forall [] (QTMeasuredQubits q) -> return q
+      otherwise                      -> throwError $ InvalidLetCaseVar t1
+    when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es) (2^q))
+    res <- sequenceA (infer (env' `extend` (x, t')) <$> es)
+    (ss, ts) <- unifyCompose res
+    return (s1 `compose` ss, ts)
 
   PTimes e1 e2 -> do
     (s1, t1) <- infer env e1
     (s2, t2) <- infer env e2
+    tl <- fresh
+    tr <- fresh
     tv <- fresh
-    s3 <- unify (QTFun t1 (QTFun t2 tv)) (QTFun (QTQubits 1) (QTFun (QTQubits 1) tv))
-    return (s1 `compose` s2 `compose` s3, apply s3 tv)
+    s3 <- case (t1, t2) of
+      (QTQubits q1, QTQubits q2) -> unify (QTQubits (q1+q2)) tv
+      otherwise                  -> return nullSubst
+    s4 <- unify (QTFun t1 (QTFun t2 tv)) (QTFun tl (QTFun tr tv))
+    return (s1 `compose` s2 `compose` s3 `compose` s4, apply s4 $ apply s3 tv)
 
   PProjector e -> do
     (s, t) <- infer env e
     tv <- fresh
-    s' <- unify (QTFun t tv) (QTFun (QTQubits 1) (QTMeasuredQubits 1))
+    s'<- case t of
+      QTQubits q -> unify (QTMeasuredQubits q) tv
+      otherwise  -> return nullSubst
     return (s `compose` s', apply s' tv)
 
   PGate g e -> do
     (s, t) <- infer env e
     tv <- fresh
-    s' <- unify (QTFun t tv) (QTFun (QTQubits 1) (QTQubits 1))
+    s' <- unify t tv
     return (s `compose` s', apply s' tv)
 
-  PQubits q -> return (nullSubst, QTQubits 1) -- TODO set number
+  PQubits q -> return (nullSubst, QTQubits (T.length q))
 
 lookupEnv :: TypeEnv -> T.Text -> Infer (Subst, QType)
 lookupEnv (TypeEnv env) x = do
@@ -172,39 +191,3 @@ lookupEnv (TypeEnv env) x = do
     Nothing -> throwError $ UnboundVariable x
     Just s  -> do t <- instantiate s
                   return (nullSubst, t)
-    -- data QType = QTQubits Int
-    --         | QTMeasuredQubits Int
-    --         | QTFun QType QType
-    --         | QTVar Text
-    --         deriving (Eq, Ord)
---
--- typeCheck :: PExp -> Either T.Text QType
--- typeCheck = typeCheckEnv M.empty
---
--- typeCheckEnv :: QTEnv -> PExp -> Either T.Text QType
--- typeCheckEnv env (PVar v) = maybeToRight "Undefined var" (M.lookup v env)
--- typeCheckEnv env (PLambda v exp) = Left "Not finished1" --TODO
--- typeCheckEnv env (PFunApp exp1 exp2) = Left "Not finished2" --TODO
--- typeCheckEnv env (PQubits qubits) = Right $ QTQubits (T.length qubits)
--- typeCheckEnv env (PGate g exp) = whenRight (typeCheckEnv env exp) validate
---   where validate t@(QTQubits _) = Right t
---         validate _              = Left "invalid gate"
--- typeCheckEnv env (PProjector exp) = whenRight (typeCheckEnv env exp) validate
---   where validate (QTQubits n) = Right (QTMeasuredQubits n)
---         validate _            = Left "invalid projector"
--- typeCheckEnv env (PTimes exp1 exp2) = do
---   texp1 <- typeCheckEnv env exp1
---   texp2 <- typeCheckEnv env exp2
---   validate texp1 texp2
---   where
---       validate (QTQubits n1) (QTQubits n2) = Right (QTQubits (n1+n2))
---       validate _ _                         = Left "times invalid type"
--- typeCheckEnv env (PLetCase v exp exps) = do
---   texp <- typeCheckEnv env exp
---   szVar <- validateVar texp
---   texps <- sequenceA (typeCheckEnv (M.insert v (QTQubits szVar) env) <$> exps)
---   validateCases texps
---   where
---       validateVar (QTMeasuredQubits n) = Right n
---       validateVar _                    = Left "invalid letcase var exp"
---       validateCases texps = Left "Not finished3"  --TODO

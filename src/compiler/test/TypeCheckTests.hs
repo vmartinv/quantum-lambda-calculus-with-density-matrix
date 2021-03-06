@@ -14,9 +14,11 @@ typeCheckTests = testGroup "Type Checker tests"
   , testCase "identity" $
       typeCheck (PLambda "x" (PVar "x")) @?= Right (Forall ["a"] $ QTFun (QTVar "a") (QTVar "a"))
   , testCase "lambda with gate" $
-      typeCheck (PLambda "x" (PGate "U" (PVar "x"))) @?= Right (Forall [] $  QTFun (QTQubits 1) (QTQubits 1))
+      typeCheck (PLambda "x" (PGate "U" (PVar "x"))) @?= Right (Forall ["a"] $  QTFun (QTVar "a") (QTVar "a"))
   , testCase "lambda with projector" $
-      typeCheck (PLambda "x" (PProjector (PVar "x"))) @?= Right (Forall [] $ QTFun (QTQubits 1) (QTMeasuredQubits 1))
+      typeCheck (PLambda "x" (PProjector (PVar "x"))) @?= Right (Forall ["a", "b"] $ QTFun (QTVar "a") (QTVar "b"))
+  , testCase "otimes" $
+      typeCheck (PTimes (PQubits "01+-") (PQubits "0")) @?= Right (Forall [] $ QTQubits 5)
   , testCase "Parsing function application" $
       typeCheck (PFunApp (PLambda "x" (PVar "x")) (PQubits "0")) @?= Right (Forall [] $ QTQubits 1)
   ]

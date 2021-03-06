@@ -6,10 +6,10 @@ data QType = QTQubits Int
         | QTMeasuredQubits Int
         | QTFun QType QType
         | QTVar Text
-        deriving (Eq, Ord)
+        deriving (Eq)
 
 data Scheme = Forall [Text] QType
-        deriving (Eq, Ord)
+        deriving (Eq)
 
 instance Show QType where
   show = show.mathEnv.prettyQType
