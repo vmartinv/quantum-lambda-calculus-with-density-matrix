@@ -27,7 +27,7 @@ unitTests = testGroup "Unit tests"
   , testCase "Parsing gates" $
       parseLambdaRho "U x" @?= (PGate "U" (PVar "x"))
   , testCase "Parsing projector" $
-      parseLambdaRho "PI x" @?= (PProjector (PVar "x"))
+      parseLambdaRho "\\pi x" @?= (PProjector (PVar "x"))
   , testCase "Parsing single qubit" $
       parseLambdaRho "|0>" @?= (PQubits "0")
   , testCase "Parsing multiple qubits" $
@@ -41,5 +41,5 @@ unitTests = testGroup "Unit tests"
   , testCase "Parsing function application" $
       parseLambdaRho "(\\x.x) y" @?= (PFunApp (PLambda "x" (PVar "x")) (PVar "y"))
   , testCase "Parsing letcase" $
-      parseLambdaRho "letcase x=PI y in {x,y}" @?= (PLetCase "x" (PProjector (PVar "y")) [(PVar "x"), (PVar "y")])
+      parseLambdaRho "letcase x=\\pi y in {x,y}" @?= (PLetCase "x" (PProjector (PVar "y")) [(PVar "x"), (PVar "y")])
   ]

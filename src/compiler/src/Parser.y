@@ -32,11 +32,11 @@ import Data.Text (Text, pack)
 %%
 
 PExp : var                    { PVar (pack $1) }
+    | PI PExp                 { PProjector $2 }
     | '\\' var '.' PExp       { PLambda (pack $2) $4 }
     | PExp PExp               { PFunApp $1 $2 }
     | qubits                  { PQubits (pack $1) }
     | gate PExp               { PGate (pack $1) $2 }
-    | PI PExp                 { PProjector $2 }
     | PExp '*' PExp           { PTimes $1 $3 }
     | '(' PExp ')'            { $2 }
     | letcase var '=' PExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }

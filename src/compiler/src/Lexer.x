@@ -13,8 +13,8 @@ tokens :-
 
   $white+                       ;
   "--".*                        ;
+  \\pi                          { \s -> TokenProjector }
   \\                            { \s -> TokenLambda }
-  PI                            { \s -> TokenProjector }
   letcase                       { \s -> TokenLetCase }
   \.                            { \s -> TokenDot }
   \|$qubits+\>                  { \s -> TokenQubits (stripSides s) }
