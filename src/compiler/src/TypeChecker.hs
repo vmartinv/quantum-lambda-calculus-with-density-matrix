@@ -1,7 +1,7 @@
 module TypeChecker where
 
-
 import           Control.Monad.Except
+import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Either.Combinators
 import           Data.List
@@ -12,49 +12,68 @@ import           Parser
 import           QType
 
 
+-------------------------------------------------------------------------------
+-- Classes
+-------------------------------------------------------------------------------
+
 type TypeState = Int
 
 data TypeError  = UnificationFail QType QType
-              | InfiniteType T.Text QType
+              | InfiniteType VariableId QType
               | UnboundVariable T.Text
               | InvalidType QType
               | InvalidLetCaseVar QType
-              | InvalidLetCaseNumCases Int Int
+              | InvalidLetCaseNumCases Int
+              | TypeNotQubits QType
+              | TypeNotMeasuredQubits QType
+              | UnificationMismatch [QType] [QType]
               deriving (Show,Eq)
 
-newtype TypeEnv = TypeEnv (M.Map T.Text Scheme)
-type Infer a = ExceptT TypeError (State TypeState) a
-type Subst = M.Map T.Text QType
+newtype TypeEnv = TypeEnv (M.Map T.Text QType)
+type ExceptInfer = Except TypeError
+-- | Hidley monad
+type HidleyM a = (ReaderT
+                  TypeEnv             -- Typing environment
+                  (StateT         -- Inference state
+                  TypeState
+                  ExceptInfer)
+                  a)              -- Result
+type Subst = M.Map VariableId QType
 
-extend :: TypeEnv -> (T.Text, Scheme) -> TypeEnv
-extend (TypeEnv env) (x, s) = TypeEnv $ M.insert x s env
+data TEq = SumSizeEq [QType] QType
+        | IsQubits QType
+        | IsMeasuredQubits QType
+        | TypeEq QType QType
 
 initTypeState = 0
 
-closeOver (s, t) = Forall ftvs' t''
-  where t' = apply s t
-        ftvs = S.toList (ftv t')
-        ftvs' = fst <$> zip letters ftvs
-        convert = M.fromList $ zip ftvs (QTVar <$> ftvs')
-        t'' = apply convert t'
+-- | Run the inference monad
+runHidleyM :: TypeEnv -> HidleyM a -> ExceptInfer a
+runHidleyM env m = evalStateT (runReaderT m env) initTypeState
 
-runInfer :: Infer (Subst, QType) -> Either TypeError Scheme
-runInfer m = case evalState (runExceptT m) initTypeState of
-  Left err  -> Left err
-  Right res -> Right $ closeOver res
+-- | Solve for the toplevel type of an expression
+typeCheck :: PExp -> Either TypeError QType
+typeCheck ex = runExcept $ do
+  (eqs, subst, t, closeOver) <- fullTypeCheck (TypeEnv M.empty) ex
+  return closeOver
 
-typeCheck :: PExp -> Either TypeError Scheme
-typeCheck = runInfer . (infer (TypeEnv M.empty))
+-- | Return the internal constraints besides type result
+fullTypeCheck :: TypeEnv -> PExp -> ExceptInfer ([TEq], Subst, QType, QType)
+fullTypeCheck env ex = do
+  (t, eqs) <- runHidleyM env (hindley ex)
+  subst <- robinson eqs
+  -- Todo instantiate vars with random type
+  return (eqs, subst, t, apply subst t)
 
-nullSubst :: Subst
-nullSubst = M.empty
+emptySubst :: Subst
+emptySubst = M.empty
 
 compose :: Subst -> Subst -> Subst
 s1 `compose` s2 = M.map (apply s1) s2 `M.union` s1
 
 class Substitutable a where
   apply :: Subst -> a -> a
-  ftv   :: a -> S.Set T.Text
+  ftv   :: a -> S.Set VariableId
 
 instance Substitutable QType where
   apply _ t@(QTQubits _)         = t
@@ -66,11 +85,6 @@ instance Substitutable QType where
   ftv (QTFun t1 t2) = ftv t1 `S.union` ftv t2
   ftv _             = S.empty
 
-instance Substitutable Scheme where
-  apply s (Forall as t)   = Forall as $ apply s' t
-                            where s' = foldr M.delete s as
-  ftv (Forall as t) = ftv t `S.difference` S.fromList as
-
 instance Substitutable a => Substitutable [a] where
   apply = fmap . apply
   ftv   = foldr (S.union . ftv) S.empty
@@ -79,115 +93,125 @@ instance Substitutable TypeEnv where
   apply s (TypeEnv env) =  TypeEnv $ M.map (apply s) env
   ftv (TypeEnv env) = ftv $ M.elems env
 
+instance Substitutable TEq where
+  apply s (SumSizeEq ts tr)    = SumSizeEq (map (apply s) ts) (apply s tr)
+  apply s (IsQubits t)         = IsQubits $ apply s t
+  apply s (IsMeasuredQubits t) = IsMeasuredQubits $ apply s t
+  apply s (TypeEq t1 t2)       = TypeEq (apply s t1) (apply s t2)
+  ftv (SumSizeEq ts tr)    = ftv (tr:ts)
+  ftv (IsQubits t)         = ftv t
+  ftv (IsMeasuredQubits t) = ftv t
+  ftv (TypeEq t1 t2)       = ftv [t1, t2]
+
 letters :: [T.Text]
 letters = T.pack <$> ([1..] >>= flip replicateM ['a'..'z'])
 
-fresh :: Infer QType
+fresh :: HidleyM QType
 fresh = do
   s <- get
   put (s+1)
-  return $ QTVar (letters !! s)
+  return $ QTVar s
 
-occursCheck ::  Substitutable a => T.Text -> a -> Bool
-occursCheck a t = a `S.member` ftv t
+equalTypes :: [QType] -> HidleyM (QType, [TEq])
+equalTypes (t1:ts) = return (t1, map (TypeEq t1) ts)
+equalTypes []      = throwError $ InvalidLetCaseNumCases 0
 
-unify ::  QType -> QType -> Infer Subst
-unify (l `QTFun` r) (l' `QTFun` r')  = do
-    s1 <- unify l l'
-    s2 <- unify (apply s1 r) (apply s1 r')
-    return (s2 `compose` s1)
+-- | Extend type environment
+inEnv :: (T.Text, QType) -> HidleyM a -> HidleyM a
+inEnv (x, t) = local scope
+  where scope (TypeEnv e) = TypeEnv $ M.insert x t e
 
-unify (QTVar a) t = bind a t
-unify t (QTVar a) = bind a t
-unify (QTQubits a) (QTQubits b) | a == b = return nullSubst
-unify (QTMeasuredQubits a) (QTMeasuredQubits b) | a == b = return nullSubst
-unify t1 t2 = throwError $ UnificationFail t1 t2
 
-bind :: T.Text -> QType -> Infer Subst
-bind a t | t == QTVar a     = return nullSubst
-         | occursCheck a t = throwError $ InfiniteType a t
-         | otherwise       = return $ M.singleton a t
+-- | Lookup type in the environment
+lookupEnv :: T.Text -> HidleyM QType
+lookupEnv x = do
+  (TypeEnv env) <- ask
+  case M.lookup x env of
+    Nothing -> throwError $ UnboundVariable x
+    Just s  -> return s
 
-instantiate ::  Scheme -> Infer QType
-instantiate (Forall as t) = do
-  as' <- mapM (const fresh) as
-  let s = M.fromList $ zip as as'
-  return $ apply s t
-
-generalize :: TypeEnv -> QType -> Scheme
-generalize env t  = Forall as t
-  where as = S.toList $ ftv t `S.difference` ftv env
-
-unifyCompose :: [(Subst, QType)] -> Infer (Subst, QType)
-unifyCompose ts = foldr foldFun start ts
-  where foldFun (s', t') m = do
-          (s, t) <- m
-          sn <- unify t t'
-          return (s `compose` s' `compose` sn, apply sn t')
-        start = do
-          tv <- fresh
-          return (nullSubst, tv)
-
-infer :: TypeEnv -> PExp -> Infer (Subst, QType)
-infer env ex = case ex of
-  PVar x -> lookupEnv env x
+hindley :: PExp -> HidleyM (QType, [TEq])
+hindley ex = case ex of
+  PVar x -> do
+    tv <- lookupEnv x
+    return (tv, [])
 
   PLambda x e -> do
     tv <- fresh
-    let env' = env `extend` (x, Forall [] tv)
-    (s1, t1) <- infer env' e
-    return (s1, apply s1 tv `QTFun` t1)
+    (t1, eq1) <- inEnv (x, tv) (hindley e)
+    return (tv `QTFun` t1, eq1)
 
   PFunApp e1 e2 -> do
     tv <- fresh
-    (s1, t1) <- infer env e1
-    (s2, t2) <- infer (apply s1 env) e2
-    s3       <- unify (apply s2 t1) (QTFun t2 tv)
-    return (s3 `compose` s2 `compose` s1, apply s3 tv)
+    (t1, eq1) <- hindley e1
+    (t2, eq2) <- hindley e2
+    return (tv, eq1 ++ eq2 ++ [TypeEq t1 (QTFun t2 tv)])
 
   PLetCase x e es -> do
-    (s1, t1) <- infer env e
-    let env' = apply s1 env
-        t'   = generalize env' t1
-    q <- case t' of
-      Forall [] (QTMeasuredQubits q) -> return q
-      otherwise                      -> throwError $ InvalidLetCaseVar t1
-    when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es) (2^q))
-    res <- sequenceA (infer (env' `extend` (x, t')) <$> es)
-    (ss, ts) <- unifyCompose res
-    return (s1 `compose` ss, ts)
+    tcase <- fresh
+    let hindley' e = inEnv (x, tcase) (hindley e)
+    (t1, eq1) <- hindley' e
+    (tts, eqcases) <- unzip <$> sequenceA (hindley' <$> es)
+    (tv, eqcasesr) <- equalTypes tts
+    let log2 = floor . logBase 2.0 . fromIntegral
+        q = log2 (length es)
+    when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
+    return (tv, eq1++concat eqcases ++ eqcasesr ++ [IsMeasuredQubits t1, SumSizeEq [t1] (QTQubits q)])
 
   PTimes e1 e2 -> do
-    (s1, t1) <- infer env e1
-    (s2, t2) <- infer env e2
-    tl <- fresh
-    tr <- fresh
     tv <- fresh
-    s3 <- case (t1, t2) of
-      (QTQubits q1, QTQubits q2) -> unify (QTQubits (q1+q2)) tv
-      otherwise                  -> return nullSubst
-    s4 <- unify (QTFun t1 (QTFun t2 tv)) (QTFun tl (QTFun tr tv))
-    return (s1 `compose` s2 `compose` s3 `compose` s4, apply s4 $ apply s3 tv)
+    (t1, eq1) <- hindley e1
+    (t2, eq2) <- hindley e2
+    return (tv, eq1++eq2++[IsQubits t1, IsQubits t2, IsQubits tv, SumSizeEq [t1, t2] tv])
 
   PProjector e -> do
-    (s, t) <- infer env e
     tv <- fresh
-    s'<- case t of
-      QTQubits q -> unify (QTMeasuredQubits q) tv
-      otherwise  -> return nullSubst
-    return (s `compose` s', apply s' tv)
+    (t, eq) <- hindley e
+    return (tv, eq++[IsQubits t, IsMeasuredQubits tv, SumSizeEq [t] tv])
 
   PGate g e -> do
-    (s, t) <- infer env e
     tv <- fresh
-    s' <- unify t tv
-    return (s `compose` s', apply s' tv)
+    (t, eq) <- hindley e
+    return (tv, eq++[TypeEq tv t, IsQubits t, IsQubits tv, SumSizeEq [t] tv])
 
-  PQubits q -> return (nullSubst, QTQubits (T.length q))
+  PQubits q -> return (QTQubits (T.length q), [])
 
-lookupEnv :: TypeEnv -> T.Text -> Infer (Subst, QType)
-lookupEnv (TypeEnv env) x = do
-  case M.lookup x env of
-    Nothing -> throwError $ UnboundVariable x
-    Just s  -> do t <- instantiate s
-                  return (nullSubst, t)
+occursCheck :: Substitutable a => VariableId -> a -> Bool
+occursCheck a t = a `S.member` ftv t
+
+bind :: VariableId -> QType -> ExceptInfer Subst
+bind a t | t == QTVar a     = return emptySubst
+       | occursCheck a t = throwError $ InfiniteType a t
+       | otherwise       = return $ M.singleton a t
+
+unifies :: QType -> QType -> ExceptInfer Subst
+unifies t1 t2                       | t1 == t2 = return emptySubst
+unifies (QTVar v) t                 = v `bind` t
+unifies t (QTVar v)                 = v `bind` t
+unifies (QTFun t1 t2) (QTFun t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies t1 t2                       = throwError $ UnificationFail t1 t2
+
+unifyMany :: [QType] -> [QType] -> ExceptInfer Subst
+unifyMany [] [] = return emptySubst
+unifyMany (t1 : ts1) (t2 : ts2) = do
+  su1 <- unifies t1 t2
+  su2 <- unifyMany (apply su1 ts1) (apply su1 ts2)
+  return (su2 `compose` su1)
+unifyMany t1 t2 = throwError $ UnificationMismatch t1 t2
+
+classCheck :: TEq -> ExceptInfer ()
+classCheck (IsQubits (QTQubits _)) = return ()
+classCheck (IsQubits (QTVar _)) = return ()
+classCheck (IsQubits t) = throwError $ TypeNotQubits t
+classCheck (IsMeasuredQubits (QTMeasuredQubits _)) = return ()
+classCheck (IsMeasuredQubits (QTVar _)) = return ()
+classCheck (IsMeasuredQubits t) = throwError $ TypeNotMeasuredQubits t
+classCheck _ = return ()
+
+robinson :: [TEq] -> ExceptInfer Subst
+robinson eqs = do
+  su1 <- uncurry unifyMany $ unzip [ (t1, t2) | TypeEq t1 t2 <- eqs]
+  let eqs' = apply su1 eqs
+  sequenceA $ classCheck <$> eqs'
+  -- SumSizeEq = gauss
+  return su1
