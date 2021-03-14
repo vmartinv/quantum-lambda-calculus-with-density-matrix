@@ -8,4 +8,4 @@ import           Translation
 
 
 compile :: String -> Doc ann
-compile = render.translate.parseTokens.scanTokens
+compile = render . translate . parseTokens . scanTokens
