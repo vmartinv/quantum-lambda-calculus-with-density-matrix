@@ -30,6 +30,9 @@ dependencies:
 - text
 - containers
 - either
+- matrix
+- vector
+- extra
 
 library:
   source-dirs: src
