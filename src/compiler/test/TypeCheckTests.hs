@@ -8,17 +8,17 @@ import           TypeChecker
 typeCheckTests :: TestTree
 typeCheckTests = testGroup "Type Checker tests"
   [ testCase "single qubit" $
-      typeCheck (PQubits "0") @?= Right (Forall [] $ QTQubits 1)
+      typeCheck (PQubits "0") @?= Right (QTQubits 1)
   , testCase "multiple qubits" $
-      typeCheck (PQubits "01+-") @?= Right (Forall [] $ QTQubits 4)
+      typeCheck (PQubits "01+-") @?= Right (QTQubits 4)
   , testCase "identity" $
-      typeCheck (PLambda "x" (PVar "x")) @?= Right (Forall ["a"] $ QTFun (QTVar "a") (QTVar "a"))
+      typeCheck (PLambda "x" (PVar "x")) @?= Right (QTFun (QTVar 0) (QTVar 0))
   , testCase "lambda with gate" $
-      typeCheck (PLambda "x" (PGate "U" (PVar "x"))) @?= Right (Forall ["a"] $  QTFun (QTVar "a") (QTVar "a"))
+      typeCheck (PLambda "x" (PGate "U" (PVar "x"))) @?= Right (QTFun (QTVar 0) (QTVar 0))
   , testCase "lambda with projector" $
-      typeCheck (PLambda "x" (PProjector (PVar "x"))) @?= Right (Forall ["a", "b"] $ QTFun (QTVar "a") (QTVar "b"))
+      typeCheck (PLambda "x" (PProjector (PVar "x"))) @?= Right (QTFun (QTVar 0) (QTVar 1))
   , testCase "otimes" $
-      typeCheck (PTimes (PQubits "01+-") (PQubits "0")) @?= Right (Forall [] $ QTQubits 5)
+      typeCheck (PTimes (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
   , testCase "Parsing function application" $
-      typeCheck (PFunApp (PLambda "x" (PVar "x")) (PQubits "0")) @?= Right (Forall [] $ QTQubits 1)
+      typeCheck (PFunApp (PLambda "x" (PVar "x")) (PQubits "0")) @?= Right (QTQubits 1)
   ]

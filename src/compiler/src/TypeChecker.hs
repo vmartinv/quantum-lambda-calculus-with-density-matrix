@@ -89,10 +89,6 @@ instance Substitutable a => Substitutable [a] where
   apply = fmap . apply
   ftv   = foldr (S.union . ftv) S.empty
 
-instance Substitutable TypeEnv where
-  apply s (TypeEnv env) =  TypeEnv $ M.map (apply s) env
-  ftv (TypeEnv env) = ftv $ M.elems env
-
 instance Substitutable TEq where
   apply s (SumSizeEq ts tr)    = SumSizeEq (map (apply s) ts) (apply s tr)
   apply s (IsQubits t)         = IsQubits $ apply s t
