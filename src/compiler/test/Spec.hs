@@ -1,9 +1,9 @@
-import           ParserTests      (parserTests)
-import           QTypeTests       (qTypeTests)
-import           SmithTests       (smithTests)
+import           ParserTests           (parserTests)
 import           Test.Tasty
 import           Test.Tasty.HUnit
-import           TypeCheckTests   (typeCheckTests)
+import           Typing.QTypeTests     (qTypeTests)
+import           Typing.SmithTests     (smithTests)
+import           Typing.TypeCheckTests (typeCheckTests)
 
 main :: IO ()
 main = defaultMain tests

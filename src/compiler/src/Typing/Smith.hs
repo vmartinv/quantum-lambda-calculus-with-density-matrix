@@ -1,4 +1,4 @@
-module Smith where
+module Typing.Smith where
 
 import           Control.Monad.Extra
 import           Control.Monad.State  as S
@@ -69,7 +69,7 @@ pivot = moveSmallest >> (whileM $ makeFstRowAndColZero >> performCase3) >> makeP
 makePositive :: Integral a => SmithM a ()
 makePositive = do
   a <- getA
-  when (getElem 1 1 a < 0) (Smith.swapSignRow 1)
+  when (getElem 1 1 a < 0) (Typing.Smith.swapSignRow 1)
 
 performCase3 :: Integral a => SmithM a Bool
 performCase3 = do
@@ -77,7 +77,7 @@ performCase3 = do
   let a_11 = getElem 1 1 a
       nonDivisible = L.find (\j -> not $ a_11 `dividesAll` (getRow j a))
                  [2..nrows a]
-      fix i = Smith.combineRows 1 1 i
+      fix i = Typing.Smith.combineRows 1 1 i
   whenJust nonDivisible fix
   return (isJust nonDivisible)
 
@@ -85,9 +85,9 @@ performCase3 = do
 makeFstRowAndColZero :: Integral a => SmithM a ()
 makeFstRowAndColZero = whileM $ do
   makeFstRowZero
-  Smith.transpose
+  Typing.Smith.transpose
   makeFstRowZero
-  Smith.transpose
+  Typing.Smith.transpose
   not <$> isFstRowZero
 
 isFstRowZero :: Integral a => SmithM a Bool
@@ -98,7 +98,7 @@ makeFstRowZero = do
     makeFstRowDivisible
     a <- getA
     let a_11     = getElem 1 1 a
-        fix j = when (a_1j/=0) (Smith.combineCols j (- a_1j `div` a_11) 1)
+        fix j = when (a_1j/=0) (Typing.Smith.combineCols j (- a_1j `div` a_11) 1)
             where a_1j = getElem 1 j a
     sequenceA (fix <$> [2..ncols a])
     return ()
@@ -114,7 +114,7 @@ makeFstRowDivisible = whileM $ do
               (s, t) = extendedEu a_11 a_1j
               b = s*a_11+t*a_1j
               (alpha, gamma) = (a_11 `div` b, a_1j `div` b)
-          Smith.l0Transform 1 j s t alpha gamma
+          Typing.Smith.l0Transform 1 j s t alpha gamma
     whenJust nonDivisibleFound fix
     return (isJust nonDivisibleFound)
 
@@ -154,8 +154,8 @@ getA = fst <$> get
 
 swap :: Integral a => (Int,Int) -> (Int,Int) -> SmithM a ()
 swap (i,j) (k,l) = do
-  Smith.switchCols j l
-  Smith.switchRows i k
+  Typing.Smith.switchCols j l
+  Typing.Smith.switchRows i k
 
 transpose :: SmithM a ()
 transpose = S.modify transposer
@@ -164,15 +164,15 @@ transpose = S.modify transposer
 
 switchCols :: Integral a => Int -> Int -> SmithM a ()
 switchCols i j = when (i/=j) $ do
-  Smith.transpose
-  Smith.switchRows i j
-  Smith.transpose
+  Typing.Smith.transpose
+  Typing.Smith.switchRows i j
+  Typing.Smith.transpose
 
 combineCols :: Integral a => Int -> a -> Int -> SmithM a ()
 combineCols i s j = do
-  Smith.transpose
-  Smith.combineRows i s j
-  Smith.transpose
+  Typing.Smith.transpose
+  Typing.Smith.combineRows i s j
+  Typing.Smith.transpose
 
 swapSignRow :: Integral a => Int -> SmithM a ()
 swapSignRow i = S.modify scaler

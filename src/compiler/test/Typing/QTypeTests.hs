@@ -1,8 +1,8 @@
-module QTypeTests(qTypeTests) where
+module Typing.QTypeTests(qTypeTests) where
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-import           QType
+import           Typing.QType
 
 qTypeTests :: TestTree
 qTypeTests = testGroup "QType tests"

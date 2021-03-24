@@ -1,12 +1,12 @@
-module SmithTests where
+module Typing.SmithTests where
 import           Data.Matrix
 import           Data.Vector           as V
-import           Smith
 import           Test.QuickCheck
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck as QC
 import           Test.Tasty.SmallCheck as SC
+import           Typing.Smith
 
 smithTests :: TestTree
 smithTests = testGroup "Smith tests" [properties, unitTests]
@@ -51,7 +51,7 @@ validateSmith a (d, (p, q)) = multStrassenMixed p (multStrassenMixed a q) == d
 
 
 diagDivides diag = fst $ V.foldl check (True, V.head diag) diag
-  where checkConsecutives x1 x2 = (x1 <= x2 || x2==0) &&  (x1==0 || x1 `SmithTests.divides` x2)
+  where checkConsecutives x1 x2 = (x1 <= x2 || x2==0) &&  (x1==0 || x1 `Typing.SmithTests.divides` x2)
         check (b, x1) x2 = (b && checkConsecutives x1 x2, x2)
 
 isSquare m = nrows m == ncols m

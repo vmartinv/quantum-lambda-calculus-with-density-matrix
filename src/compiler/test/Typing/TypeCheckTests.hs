@@ -1,9 +1,9 @@
-module TypeCheckTests(typeCheckTests) where
+module Typing.TypeCheckTests(typeCheckTests) where
 import           Parser
-import           QType
 import           Test.Tasty
 import           Test.Tasty.HUnit
-import           TypeChecker
+import           Typing.QType
+import           Typing.TypeChecker
 
 typeCheckTests :: TestTree
 typeCheckTests = testGroup "Type Checker tests"

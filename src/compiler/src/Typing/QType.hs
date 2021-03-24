@@ -1,4 +1,4 @@
-module QType where
+module Typing.QType where
 import           Data.Text     (Text)
 import           Prettyprinter
 
