@@ -1,6 +1,4 @@
-module Smith
-( getSmithForm
-) where
+module Smith where
 
 import           Control.Monad.Extra
 import           Control.Monad.State  as S
@@ -20,19 +18,19 @@ type SmithM a b = (State
                   b)
 
 getSmithForm :: Integral a => Matrix a -> SmithState a
-getSmithForm a = runSmith smith a
+getSmithForm a = execSmith smith a
 
-runSmith :: Integral a => SmithM a b -> Matrix a -> SmithState a
-runSmith m a = execState m (startState a)
+execSmith :: Integral a => SmithM a b -> Matrix a -> SmithState a
+execSmith m a = execState m (startState a)
 
-runSmith2 :: Integral a => SmithM a b -> Matrix a -> (b, SmithState a)
-runSmith2 m a = runState m (startState a)
+runSmith :: Integral a => SmithM a b -> Matrix a -> (b, SmithState a)
+runSmith m a = runState m (startState a)
 
 startState :: Integral a => Matrix a -> SmithState a
 startState a = (a, (p, q))
   where
-    p = identity (ncols a)
-    q = identity (nrows a)
+    p = identity (nrows a)
+    q = identity (ncols a)
 
 -- | a `divides` b <=> a | b
 divides :: Integral a => a -> a -> Bool
@@ -57,16 +55,16 @@ solveSmallerAndCombine :: Integral a => SmithState a -> SmithState a
 solveSmallerAndCombine (aBig, (pBig, qBig)) = (aRes, (pRes, qRes))
   where
       (tl,tr,bl,br) = splitBlocks 1 1 aBig
-      (aSmall, (pSmall, qSmall)) = runSmith smith br
+      (aSmall, (pSmall, qSmall)) = execSmith smith br
       aRes = M.joinBlocks (tl,tr,bl,aSmall)
-      pRes = multStrassenMixed pBig (extendElementary pSmall)
-      qRes = multStrassenMixed (extendElementary qSmall) qBig
+      pRes = multStrassenMixed (extendElementary pSmall) pBig
+      qRes = multStrassenMixed qBig (extendElementary qSmall)
 
 extendElementary :: Integral a => Matrix a -> Matrix a
 extendElementary a = M.joinBlocks (identity 1, zero 1 (ncols a), zero (nrows a) 1, a)
 
 pivot :: Integral a => SmithM a ()
-pivot = moveSmallest >> makePositive >> (whileM $ makeFstRowAndColZero >> performCase3)
+pivot = moveSmallest >> (whileM $ makeFstRowAndColZero >> performCase3) >> makePositive
 
 makePositive :: Integral a => SmithM a ()
 makePositive = do
@@ -129,15 +127,9 @@ l0Transform i j s t alpha gamma = S.modify transformer
                 ,(-gamma, (i, j))
                 ,(alpha, (j, j))
                 ]
-            coeffsInv = [(alpha, (i, i))
-                ,(-t, (j, i))
-                ,(gamma, (i, j))
-                ,(s, (j, j))
-                ]
-            eleM = L.foldr (uncurry M.setElem) (identity (ncols a')) coeffs
-            eleMInv = L.foldr (uncurry M.setElem) (identity (ncols a')) coeffsInv
+            eleM = L.foldr (uncurry M.setElem) (identity (ncols a)) coeffs
             a' = multStrassenMixed a eleM
-            q' = multStrassenMixed eleMInv q
+            q' = multStrassenMixed q eleM
 
 -- Given a,b return s,t such that as + bt = gcd(a,b).
 extendedEu :: Integral a => a -> a -> (a, a)
@@ -146,6 +138,10 @@ extendedEu a b = (t, s - q * t)
   where
     (q, r) = quotRem a b
     (s, t) = extendedEu b r
+
+extendedEuNeg :: Integral a => a -> a-> (a, a)
+extendedEuNeg a b = ((signum a)*s, (signum b)*t)
+  where (s, t) = extendedEu (abs a) (abs b)
 
 -- | moves the smallest non-zero element to (1,1), assumes a is non-zero.
 moveSmallest :: Integral a => SmithM a ()
@@ -183,24 +179,24 @@ swapSignRow i = S.modify scaler
   where scaler (a, (p, q)) = (a', (p', q))
           where
             a' = M.scaleRow (-1) i a
-            eleM = M.setElem (-1) (i, i) (identity (nrows a'))
-            p' = multStrassenMixed p eleM
+            eleM = M.setElem (-1) (i, i) (identity (nrows a))
+            p' = multStrassenMixed eleM p
 
 combineRows :: Integral a => Int -> a -> Int -> SmithM a ()
 combineRows i s j = S.modify combiner
   where combiner (a, (p, q)) = (a', (p', q))
           where
             a' = M.combineRows i s j a
-            eleM = M.setElem (-s) (i, j) (identity (nrows a'))
-            p' = multStrassenMixed p eleM
+            eleM = M.setElem s (i, j) (identity (nrows a))
+            p' = multStrassenMixed eleM p
 
 switchRows :: Integral a => Int -> Int -> SmithM a ()
 switchRows i j = when (i/=j) $ S.modify switcher
   where switcher (a, (p, q)) = (a', (p', q))
           where
             a' = M.switchRows i j a
-            eleM = M.switchRows i j (identity (nrows a'))
-            p' = multStrassenMixed p eleM
+            eleM = M.switchRows i j (identity (nrows a))
+            p' = multStrassenMixed eleM p
 
 
 -- | returns the index of the entry with the smallest (non-zero) magnitude.
