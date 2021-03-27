@@ -111,7 +111,7 @@ makeFstRowDivisible = whileM $ do
         nonDivisibleFound = (+2) <$> V.findIndex (not . (a_11 `divides`)) fstRow
         fix j = do
           let a_1j = getElem 1 j a
-              (s, t) = extendedEu a_11 a_1j
+              (s, t) = extendedEuNeg a_11 a_1j
               b = s*a_11+t*a_1j
               (alpha, gamma) = (a_11 `div` b, a_1j `div` b)
           Typing.Smith.l0Transform 1 j s t alpha gamma
@@ -195,7 +195,7 @@ switchRows i j = when (i/=j) $ S.modify switcher
   where switcher (a, (p, q)) = (a', (p', q))
           where
             a' = M.switchRows i j a
-            eleM = M.switchRows i j (identity (nrows a))
+            eleM = M.permMatrix (nrows a) i j
             p' = multStrassenMixed eleM p
 
 
