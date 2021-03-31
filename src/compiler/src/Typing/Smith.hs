@@ -104,7 +104,10 @@ makeFstRowZero = do
     return ()
 
 makeFstRowDivisible :: Integral a => SmithM a ()
-makeFstRowDivisible = whileM $ do
+makeFstRowDivisible = whileM makeFstRowDivisibleStep
+
+makeFstRowDivisibleStep :: Integral a => SmithM a Bool
+makeFstRowDivisibleStep = do
     a <- getA
     let a_11     = getElem 1 1 a
         fstRow = V.tail $ getRow 1 a
