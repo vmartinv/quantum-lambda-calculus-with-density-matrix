@@ -25,7 +25,7 @@ validateSmithAll a r@(d, (p, q)) = validateSmith a r
 
 genElem :: Gen Int
 genElem = frequency [
-    (10, return 0),
+    (3, return 0),
     (1, return 1)
   ]
 

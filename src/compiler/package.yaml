@@ -33,6 +33,7 @@ dependencies:
 - matrix
 - vector
 - extra
+- hmatrix-glpk
 
 library:
   source-dirs: src
