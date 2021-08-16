@@ -30,8 +30,8 @@ data TypeError  = UnificationFail QType QType
               | InvalidType QType
               | InvalidLetCaseVar QType
               | InvalidLetCaseNumCases Int
-              | TypeNotQubits QType
-              | TypeNotMeasuredQubits QType
+              | TypeNotQubits QType Int
+              | TypeNotMeasuredQubits QType Int
               | UnificationMismatch [QType] [QType]
               | BadSumEqSystem QType
               | InvalidOperatorSizes
@@ -205,35 +205,39 @@ unifyMany (t1 : ts1) (t2 : ts2) = do
   return (su2 `compose` su1)
 unifyMany t1 t2 = throwError $ UnificationMismatch t1 t2
 
-classCheck :: TEq -> ExceptInfer ()
-classCheck (IsQubits (QTQubits _)) = return ()
-classCheck (IsQubits (QTVar _)) = return ()
-classCheck (IsQubits t) = throwError $ TypeNotQubits t
-classCheck (IsMeasuredQubits (QTMeasuredQubits _)) = return ()
-classCheck (IsMeasuredQubits (QTVar _)) = return ()
-classCheck (IsMeasuredQubits t) = throwError $ TypeNotMeasuredQubits t
-classCheck _ = return ()
+classCheck :: Int -> TEq -> ExceptInfer ()
+classCheck _ (IsQubits (QTQubits _)) = return ()
+classCheck _ (IsQubits (QTVar _)) = return ()
+classCheck step (IsQubits t) = throwError $ TypeNotQubits t step
+classCheck _ (IsMeasuredQubits (QTMeasuredQubits _)) = return ()
+classCheck _ (IsMeasuredQubits (QTVar _)) = return ()
+classCheck step (IsMeasuredQubits t) = throwError $ TypeNotMeasuredQubits t step
+classCheck _ _ = return ()
 
 robinson :: [TEq] -> ExceptInfer Subst
 robinson eqs = do
   su1 <- uncurry unifyMany $ unzip [ (t1, t2) | TypeEq t1 t2 <- eqs]
   let eqs' = apply su1 eqs
-  sequenceA $ classCheck <$> eqs'
+  sequenceA $ classCheck 1 <$> eqs'
   let sumEqs = [(ls, r) | SumSizeEq ls r <- eqs']
       flatten (ls, r) = r:ls
       varList = concat (flatten <$> sumEqs)
   var2Cols <- execStateT (mapM createMap varList) (MatrixEnv M.empty)
   let rows = createRow var2Cols <$> sumEqs
       system = (fromListsFixed *** V.fromList) (unzip rows)
-      solution = traceShow ("solving system", "sumEqs=", sumEqs, "system=", system, "su1=", su1) $ solve system
+      solutionM = traceShow ("solving system", "sumEqs=", sumEqs, "system=", system, "su1=", su1) $ solve system
+  solution <- maybe (throwError $ InvalidOperatorSizes) return solutionM
+  let measured = S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs]
+  su2 <- addSolution su1 var2Cols measured solution
+  sequenceA $ classCheck 2 <$> (apply su2 eqs)
+  return su2
 
-  maybe (throwError $ InvalidOperatorSizes) (addSolution su1 var2Cols) solution
-
-addSolution :: Subst -> MatrixEnv -> V.Vector Int -> ExceptInfer Subst
-addSolution su (MatrixEnv var2Cols) solution = foldr compose su <$> (mapM f var2Cols)
+addSolution :: Subst -> MatrixEnv -> S.Set VariableId -> V.Vector Int -> ExceptInfer Subst
+addSolution su (MatrixEnv var2Cols) measureds solution = foldr compose su <$> (mapM f var2Cols)
   where
-      getSol var = solution V.! (M.findWithDefault (-1) var var2Cols)
-      f var = var `bind` (QTQubits (getSol var))
+      f var = var `bind` (kind sol)
+        where sol = solution V.! (M.findWithDefault (-1) var var2Cols)
+              kind = if var `S.member` measureds then QTMeasuredQubits else QTQubits
 
 createRow :: MatrixEnv -> ([QType], QType) -> ([Int], Int)
 createRow (MatrixEnv var2Cols) (ls, r) = (V.toList $ V.slice 0 numCols processed, processed V.! numCols)

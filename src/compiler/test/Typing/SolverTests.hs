@@ -10,24 +10,33 @@ import           Typing.Solver         as Solver
 
 solverTests :: TestTree
 solverTests = testGroup "SolverTests"
-  [ QC.testProperty "AX=B" $ withMaxSuccess 10000 $ QC.forAll genLinearSys $
+  [ QC.testProperty "AX=B" $ withMaxSuccess 100 $ QC.forAll genLinearSys $
       \(a, b) -> validateSolution a (Solver.solve (a, b)) b,
-    QC.testProperty "XbiggerThan1" $ withMaxSuccess 10000 $ QC.forAll genLinearSys $
+    QC.testProperty "XbiggerThan1" $ withMaxSuccess 100 $ QC.forAll genLinearSys $
       \(a, b) -> maybe True (V.all (>=1)) (Solver.solve (a, b))
   ]
 
 genElem :: Gen Int
 genElem = frequency [
-    (3, return 0),
+    (1, return 0),
+    (1, return (-1)),
     (1, return 1)
   ]
+
+genCol :: Int -> Gen (Vector Int)
+genCol r = do
+  idx <- choose (0, r-1)
+  val <- genElem
+  let f x | x==idx = val
+          | otherwise = 0
+  return (V.generate r f)
 
 genMat :: Gen (Matrix Int)
 genMat =  do
   r <- choose (1, 8)
   c <- choose (1, 8)
-  vals <- vectorOf r (vectorOf c genElem)
-  return (fromLists vals)
+  vals <- vectorOf c (V.toList <$> genCol r)
+  return $ transpose (fromLists vals)
 
 genVec :: Int -> Gen (Vector Int)
 genVec n = V.fromList <$> vectorOf n (choose (0, 10))

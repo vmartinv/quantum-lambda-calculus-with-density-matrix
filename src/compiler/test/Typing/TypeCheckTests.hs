@@ -16,7 +16,7 @@ typeCheckTests = testGroup "Type Checker tests"
   , testCase "lambda with gate" $
       typeCheck (PLambda "x" (PGate "U" (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
   , testCase "lambda with projector" $
-      typeCheck (PLambda "x" (PProjector (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTQubits 1))
+      typeCheck (PLambda "x" (PProjector (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
   , testCase "otimes" $
       typeCheck (PTimes (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
   , testCase "Parsing function application" $
