@@ -1,5 +1,5 @@
 module Typing.SmithTests where
-import           Data.Matrix
+import           Data.Matrix           as M
 import           Data.Vector           as V
 import           Test.QuickCheck
 import           Test.Tasty

@@ -3,14 +3,20 @@ module Typing.TypeChecker where
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
+import           Data.Coerce
 import           Data.Either.Combinators
-import           Data.List
 import qualified Data.Map                as M
+import qualified Data.Matrix             as Matrix
 import qualified Data.Set                as S
 import qualified Data.Text               as T
+import           Data.Tuple.Extra
+import qualified Data.Vector             as V
+import qualified Data.Vector.Mutable     as MV
+import           Debug.Trace
 import           Parser
 import           Typing.QType
-
+import           Typing.Solver
+import           Typing.Utils
 
 -------------------------------------------------------------------------------
 -- Classes
@@ -27,9 +33,12 @@ data TypeError  = UnificationFail QType QType
               | TypeNotQubits QType
               | TypeNotMeasuredQubits QType
               | UnificationMismatch [QType] [QType]
+              | BadSumEqSystem QType
+              | InvalidOperatorSizes
               deriving (Show,Eq)
 
 newtype TypeEnv = TypeEnv (M.Map T.Text QType)
+newtype MatrixEnv = MatrixEnv (M.Map VariableId Int)
 type ExceptInfer = Except TypeError
 -- | Hidley monad
 type HidleyM a = (ReaderT
@@ -44,6 +53,7 @@ data TEq = SumSizeEq [QType] QType
         | IsQubits QType
         | IsMeasuredQubits QType
         | TypeEq QType QType
+      deriving (Show)
 
 initTypeState = 0
 
@@ -168,7 +178,7 @@ hindley ex = case ex of
   PGate g e -> do
     tv <- fresh
     (t, eq) <- hindley e
-    return (tv, eq++[TypeEq tv t, IsQubits t, IsQubits tv, SumSizeEq [t] tv])
+    return (tv, eq++[TypeEq tv t, IsQubits t, IsQubits tv, TypeEq tv (QTQubits 2), SumSizeEq [t] tv])
 
   PQubits q -> return (QTQubits (T.length q), [])
 
@@ -209,5 +219,39 @@ robinson eqs = do
   su1 <- uncurry unifyMany $ unzip [ (t1, t2) | TypeEq t1 t2 <- eqs]
   let eqs' = apply su1 eqs
   sequenceA $ classCheck <$> eqs'
-  -- SumSizeEq = gauss
-  return su1
+  let sumEqs = [(ls, r) | SumSizeEq ls r <- eqs']
+      flatten (ls, r) = r:ls
+      varList = concat (flatten <$> sumEqs)
+  var2Cols <- execStateT (mapM createMap varList) (MatrixEnv M.empty)
+  let rows = createRow var2Cols <$> sumEqs
+      system = (fromListsFixed *** V.fromList) (unzip rows)
+      solution = traceShow ("solving system", "sumEqs=", sumEqs, "system=", system, "su1=", su1) $ solve system
+
+  maybe (throwError $ InvalidOperatorSizes) (addSolution su1 var2Cols) solution
+
+addSolution :: Subst -> MatrixEnv -> V.Vector Int -> ExceptInfer Subst
+addSolution su (MatrixEnv var2Cols) solution = foldr compose su <$> (mapM f var2Cols)
+  where
+      getSol var = solution V.! (M.findWithDefault (-1) var var2Cols)
+      f var = var `bind` (QTQubits (getSol var))
+
+createRow :: MatrixEnv -> ([QType], QType) -> ([Int], Int)
+createRow (MatrixEnv var2Cols) (ls, r) = (V.toList $ V.slice 0 numCols processed, processed V.! numCols)
+  where
+        numCols = (M.size var2Cols):: Int
+        addFalse t = (False, t)
+        flattened = (True, r):(addFalse <$> ls)
+        processed = V.accum (+) (V.replicate (numCols+1) 0) (processItem <$> flattened)
+        processItem :: (Bool, QType) -> (Int, Int)
+        processItem (False, (QTQubits q)) = (numCols, -q)
+        processItem (True, (QTQubits q)) = (numCols, q)
+        processItem (False, (QTVar v)) = (M.findWithDefault (-1) v var2Cols, 1)
+        processItem (True, (QTVar v)) = (M.findWithDefault (-1) v var2Cols, -1)
+
+createMap :: QType -> StateT MatrixEnv ExceptInfer ()
+createMap (QTQubits _) = return ()
+createMap (QTVar v)    = modify addVar
+  where
+      dontOverride = curry snd
+      addVar (MatrixEnv m) = MatrixEnv $ M.insertWith dontOverride v (M.size m) m
+createMap t            = throwError $ BadSumEqSystem t

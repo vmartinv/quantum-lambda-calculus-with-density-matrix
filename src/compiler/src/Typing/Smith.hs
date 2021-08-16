@@ -3,10 +3,11 @@ module Typing.Smith where
 import           Control.Monad.Extra
 import           Control.Monad.State  as S
 import           Control.Monad.Writer
-import           Data.List            as L
+import           Data.List
 import           Data.Matrix          as M
 import           Data.Maybe
-import           Data.Vector          as V
+import qualified Data.Vector          as V
+import           Typing.Utils
 
 -- Given a Matrix A, the smith normal form is a diagonal matrix in the form PAQ
 -- Complete definition https://en.wikipedia.org/wiki/Smith_normal_form
@@ -31,17 +32,6 @@ startState a = (a, (p, q))
   where
     p = identity (nrows a)
     q = identity (ncols a)
-
--- | a `divides` b <=> a | b
-divides :: Integral a => a -> a -> Bool
-divides a b = b `rem` a == 0
-
--- | checks whether a divides every element
-dividesAll :: (Foldable f, Integral a) => a -> f a -> Bool
-dividesAll a = L.all (divides a)
-
-isZero :: Integral a => Matrix a -> Bool
-isZero = L.all (==0)
 
 smith :: Integral a => SmithM a ()
 smith = getA >>= smith'
@@ -75,7 +65,7 @@ performCase3 :: Integral a => SmithM a Bool
 performCase3 = do
   a <- getA
   let a_11 = getElem 1 1 a
-      nonDivisible = L.find (\j -> not $ a_11 `dividesAll` (getRow j a))
+      nonDivisible = find (\j -> not $ a_11 `dividesAll` (getRow j a))
                  [2..nrows a]
       fix i = Typing.Smith.combineRows 1 1 i
   whenJust nonDivisible fix
@@ -130,7 +120,7 @@ l0Transform i j s t alpha gamma = S.modify transformer
                 ,(-gamma, (i, j))
                 ,(alpha, (j, j))
                 ]
-            eleM = L.foldr (uncurry M.setElem) (identity (ncols a)) coeffs
+            eleM = foldr (uncurry M.setElem) (identity (ncols a)) coeffs
             a' = multStrassenMixed a eleM
             q' = multStrassenMixed q eleM
 
@@ -205,7 +195,7 @@ switchRows i j = when (i/=j) $ S.modify switcher
 -- | returns the index of the entry with the smallest (non-zero) magnitude.
 --   will error if passed the zero matrix.
 smallestNonZeroIndex :: Integral a => Matrix a -> (Int,Int)
-smallestNonZeroIndex a = snd $ L.minimum $
+smallestNonZeroIndex a = snd $ minimum $
           [(abs $ getElem i j a, (i,j)) | i <- [1..m], j <- [1..n]
                                    , getElem i j a /= 0]
        where m = nrows a

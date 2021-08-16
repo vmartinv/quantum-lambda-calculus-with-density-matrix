@@ -10,4 +10,4 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "tests" [parserTests, qTypeTests, typeCheckTests, smithTests, solverTests]
+tests = testGroup "tests" [parserTests, qTypeTests, typeCheckTests]
