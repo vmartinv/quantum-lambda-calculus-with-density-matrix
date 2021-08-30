@@ -6,11 +6,13 @@ import Debug.Trace
 import Numeric.LinearProgramming
 import Typing.Utils
 
--- solves max x, Ax=b, x>=1, A totally unimodular, if there's a solution
-solve :: Show a => Integral a => Num a => LinSystem a -> Maybe (V.Vector a)
+-- solves AX=B, X>=1, if there's a solution
+solve :: Show a => Integral a => LinSystem a -> Maybe (V.Vector a)
 solve (a, b) | ncols a == 0 = return V.empty
-             | otherwise = V.map (+1) <$> solveInequality (a, b')
+             | otherwise =
   where
+      upperBound = V.maximum $ ((*) <$> zip (getCol 1 a) b) -
+
       delta = V.fromList $ (foldr (+) 0) <$> M.toLists a
       b' = V.zipWith (-) b delta
 

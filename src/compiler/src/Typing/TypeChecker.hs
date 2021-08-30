@@ -220,24 +220,75 @@ robinson eqs = do
   let eqs' = apply su1 eqs
   sequenceA $ classCheck 1 <$> eqs'
   let sumEqs = [(ls, r) | SumSizeEq ls r <- eqs']
-      flatten (ls, r) = r:ls
-      varList = concat (flatten <$> sumEqs)
-  var2Cols <- execStateT (mapM createMap varList) (MatrixEnv M.empty)
-  let rows = createRow var2Cols <$> sumEqs
-      system = (fromListsFixed *** V.fromList) (unzip rows)
-      solutionM = traceShow ("solving system", "sumEqs=", sumEqs, "system=", system, "su1=", su1) $ solve system
-  solution <- maybe (throwError $ InvalidOperatorSizes) return solutionM
-  let measured = S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs]
-  su2 <- addSolution su1 var2Cols measured solution
-  sequenceA $ classCheck 2 <$> (apply su2 eqs)
-  return su2
+      measured = S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs']
+  su2 <- solveSums sumEqs measured
+  let su = su1 `compose` su2
+  sequenceA $ classCheck 2 <$> (apply su eqs)
+  return su
+
+solveSums :: [([QType], QType)] -> S.Set VariableId -> ExceptInfer Subst
+solveSums sumEqs measured = do
+    let flatten (ls, r) = reverse (r:ls)
+        varList = concat (flatten <$> sumEqs)
+    let edgeList = createEdgeList sumEqs
+        invertEdge (p, q) = (q, p)
+        adjacencyList = createAdj edgeList
+        invertedAdj = createAdj (invertEdge <$> edgeList)
+        nodes = M.keys adjacencyList
+        lowerBounds = calcLowerBound adjacencyList <$> nodes
+        upperBounds = calcUpperBound adjacencyList <$> nodes
+        leafs = M.keys $ M.filter (==[]) invertedAdj
+        solveRec leafs lowerBounds upperBounds adjacencyList
+INFINITE :: Int
+INIFINITE = 1e9
+
+solveRec leafs lowerBounds upperBounds adjacencyList =
+  maybe tryAnotherValue adaptSolution subProblem
+  where
+    problem v = 
+    tryAnotherValue = problem (l+1) h
+    subProblem = solveRec (tail leafs) lowerBounds upperBounds adjacencyList
+    adaptSolution
+
+calcUpperBound :: M.Map Int Int -> Int -> Int
+calcUpperBound v m | v<0 = -v
+                   -- | (size (m M.! v)) == 0 = INFINITE
+                   | otherwise = maximum（calcUpperBound m <$> (m M.! v))
+
+ calcLowerBound :: M.Map Int Int -> Int -> Int
+ calcLowerBound v m | v<0 = -v
+                    | (size (m M.! v)) == 1 = head (calcLowerBound m <$> (m M.! v))
+                    | otherwise = 1
+
+createEdgeList :: [([QType], QType)] -> (Int, Int)
+createEdgeList sumEqs = concat (eqToEdges <$> sumEqs)
+  where
+        getVar (QTVar v) = v
+        getVar (QtQubits q) = -q
+        getEdge p q = (getVar p, getVar q)
+        eqToEdges (ls, r) = (flip getEdge) r <$> ls
+
+createAdj :: [(Int, Int)] -> M.Map Int [Int]
+createAdj edgeList = M.fromListWith (++) (conv <$> edgeList)
+  where
+        conv (p, q) = (p, [q])
+
+
 
 addSolution :: Subst -> MatrixEnv -> S.Set VariableId -> V.Vector Int -> ExceptInfer Subst
-addSolution su (MatrixEnv var2Cols) measureds solution = foldr compose su <$> (mapM f var2Cols)
+addSolution (MatrixEnv var2Ints) measureds solution = foldr compose emptySubst (mapM f var2Cols)
   where
       f var = var `bind` (kind sol)
         where sol = solution V.! (M.findWithDefault (-1) var var2Cols)
               kind = if var `S.member` measureds then QTMeasuredQubits else QTQubits
+
+
+              -- var2Ints <- execStateT (mapM createMap varList) (MatrixEnv M.empty)
+              -- let rows = createRow var2Ints <$> sumEqs
+              --     system = (fromListsFixed *** V.fromList) (unzip rows)
+              --     solutionM = traceShow ("solving system", "sumEqs=", sumEqs, "system=", system, "su1=", su1) $ solve system
+              -- solution <- maybe (throwError $ InvalidOperatorSizes) return solutionM
+              -- addSolution var2Ints measured solution
 
 createRow :: MatrixEnv -> ([QType], QType) -> ([Int], Int)
 createRow (MatrixEnv var2Cols) (ls, r) = (V.toList $ V.slice 0 numCols processed, processed V.! numCols)
