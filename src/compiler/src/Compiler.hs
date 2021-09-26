@@ -1,11 +1,17 @@
 module Compiler(compile) where
-import           Data.Text     (Text)
-import           Lexer
+import           Control.Monad.Except
+import           Data.Text            (Text)
 import           Parser
 import           Prettyprinter
 import           Render
 import           Translation
+import           Typing.QType
+import           Typing.TypeChecker
 
 
-compile :: String -> Doc ann
-compile = render . translate . parseTokens . scanTokens
+compile :: String -> Except String (QType, Doc ann)
+compile src = do
+  exp <- parseLambdaRho src
+  typ <- typeCheck exp
+  let result = render (translate exp)
+  return (typ, result)

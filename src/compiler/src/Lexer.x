@@ -1,5 +1,6 @@
 {
 module Lexer where
+import Control.Monad.Except
 }
 
 %wrapper "basic"
@@ -52,6 +53,16 @@ data Token = TokenLambda
 stripSides :: String -> String
 stripSides s = tail (init s)
 
-scanTokens = alexScanTokens
-
+-- https://www.haskell.org/alex/doc/html/basic-api.html
+scanTokens :: String -> Except String [Token]
+scanTokens str = go ('\n',[],str) where
+  go inp@(_,_bs,str) =
+    case alexScan inp 0 of
+     AlexEOF -> return []
+     AlexError _ -> throwError "Invalid lexeme."
+     AlexSkip  inp' len     -> go inp'
+     AlexToken inp' len act -> do
+      res <- go inp'
+      let rest = act (take len str)
+      return (rest : res)
 }

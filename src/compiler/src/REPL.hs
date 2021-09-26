@@ -1,16 +1,24 @@
 module REPL (repl) where
 
 import           Compiler
+import           Control.Monad.Except
 import           Control.Monad.Trans
 import           Data.List              (isPrefixOf)
 import           System.Console.Repline
 import           System.Process         (callCommand)
+import           Typing.TypeChecker
 
 type Repl a = HaskelineT IO a
 
 -- Evaluation : handle each line user inputs
 cmd :: String -> Repl ()
-cmd = liftIO.print.compile
+cmd src = liftIO $ putStrLn $ showResult $ pretty <$> compile src
+  where
+    pretty (typ, trans) = "Type: " ++ show typ ++ "\nTranslation:\n" ++ show trans
+
+
+showResult :: Except String String -> String
+showResult = (either ("Error: " ++) id).runExcept
 
 -- Tab Completion: return a completion for partial words entered
 completer :: Monad m => WordCompleter m
@@ -22,9 +30,13 @@ completer n = do
 help :: [String] -> Repl ()
 help args = liftIO $ print $ "Help: " ++ show args
 
+typeExp :: String -> Repl ()
+typeExp exp = liftIO $ print $ showResult $ show <$> fst <$> compile exp
+
 opts :: [(String, String -> Repl ())]
 opts =
-  [ ("help", help . words) -- :help
+  [ ("help", help . words), -- :help
+    ("type", typeExp) -- :type
   ]
 
 ini :: Repl ()

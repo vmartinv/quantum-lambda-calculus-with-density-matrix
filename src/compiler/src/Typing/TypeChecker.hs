@@ -5,10 +5,9 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Coerce
-import           Data.Either.Combinators
-import qualified Data.Map                as M
-import qualified Data.Set                as S
-import qualified Data.Text               as T
+import qualified Data.Map             as M
+import qualified Data.Set             as S
+import qualified Data.Text            as T
 import           Data.Tuple.Extra
 import           Debug.Trace
 import           Parser
@@ -59,9 +58,8 @@ runHidleyM :: TypeEnv -> HidleyM a -> ExceptInfer a
 runHidleyM env m = evalStateT (runReaderT m env) initTypeState
 
 -- | Solve for the toplevel type of an expression
-typeCheck :: PExp -> Either TypeError QType
-typeCheck ex = runExcept $ do
-  fullTypeCheck (TypeEnv M.empty) ex
+typeCheck :: PExp -> Except String QType
+typeCheck = (withExcept show).(fullTypeCheck (TypeEnv M.empty))
 
 fullTypeCheck :: TypeEnv -> PExp -> ExceptInfer QType
 fullTypeCheck env ex = do
@@ -232,7 +230,7 @@ solveSums sumEqs measureds = do
         varList = [v | QTVar v <- concat (flatten <$> sumEqs)]
         (vars, childs) = dprint "getChildren" $ getChildren sumEqs
         parents = dprint "getParents" $ getParents childs
-        unknowns = M.keys parents
+        unknowns = dprint "unknowns" $ M.keys parents
         solM = dprint "solveRec" $ solveRec unknowns childs parents
     solution <- maybe (throwError $ InvalidOperatorSizes) return solM
     let set1 x = (x, 1)
