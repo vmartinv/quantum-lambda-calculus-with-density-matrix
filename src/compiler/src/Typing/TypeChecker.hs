@@ -1,21 +1,18 @@
 module Typing.TypeChecker where
 
+import           Control.Applicative
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Coerce
 import           Data.Either.Combinators
 import qualified Data.Map                as M
-import qualified Data.Matrix             as Matrix
 import qualified Data.Set                as S
 import qualified Data.Text               as T
 import           Data.Tuple.Extra
-import qualified Data.Vector             as V
-import qualified Data.Vector.Mutable     as MV
 import           Debug.Trace
 import           Parser
 import           Typing.QType
-import           Typing.Solver
 import           Typing.Utils
 
 -------------------------------------------------------------------------------
@@ -64,16 +61,18 @@ runHidleyM env m = evalStateT (runReaderT m env) initTypeState
 -- | Solve for the toplevel type of an expression
 typeCheck :: PExp -> Either TypeError QType
 typeCheck ex = runExcept $ do
-  (eqs, subst, t, closeOver) <- fullTypeCheck (TypeEnv M.empty) ex
-  return closeOver
+  fullTypeCheck (TypeEnv M.empty) ex
 
--- | Return the internal constraints besides type result
-fullTypeCheck :: TypeEnv -> PExp -> ExceptInfer ([TEq], Subst, QType, QType)
+fullTypeCheck :: TypeEnv -> PExp -> ExceptInfer QType
 fullTypeCheck env ex = do
   (t, eqs) <- runHidleyM env (hindley ex)
   subst <- robinson eqs
-  -- Todo instantiate vars with random type
-  return (eqs, subst, t, apply subst t)
+  closeOver (apply subst t)
+
+closeOver :: QType -> ExceptInfer QType
+closeOver t = foldr apply t <$> mapM assign1 (S.toList (ftv t))
+  where
+    assign1 v = v `bind` (QTQubits 1)
 
 emptySubst :: Subst
 emptySubst = M.empty
@@ -126,7 +125,6 @@ equalTypes []      = throwError $ InvalidLetCaseNumCases 0
 inEnv :: (T.Text, QType) -> HidleyM a -> HidleyM a
 inEnv (x, t) = local scope
   where scope (TypeEnv e) = TypeEnv $ M.insert x t e
-
 
 -- | Lookup type in the environment
 lookupEnv :: T.Text -> HidleyM QType
@@ -219,94 +217,84 @@ robinson eqs = do
   su1 <- uncurry unifyMany $ unzip [ (t1, t2) | TypeEq t1 t2 <- eqs]
   let eqs' = apply su1 eqs
   sequenceA $ classCheck 1 <$> eqs'
-  let sumEqs = [(ls, r) | SumSizeEq ls r <- eqs']
+  let sumEqs = dprint "sumEqs" $ [(ls, r) | SumSizeEq ls r <- eqs']
       measured = S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs']
   su2 <- solveSums sumEqs measured
   let su = su1 `compose` su2
-  sequenceA $ classCheck 2 <$> (apply su eqs)
+  sequenceA $ classCheck 2 <$> apply su eqs
   return su
 
+dprint s v = traceShow (s, v) v
+
 solveSums :: [([QType], QType)] -> S.Set VariableId -> ExceptInfer Subst
-solveSums sumEqs measured = do
+solveSums sumEqs measureds = do
     let flatten (ls, r) = reverse (r:ls)
-        varList = concat (flatten <$> sumEqs)
-    let edgeList = createEdgeList sumEqs
-        invertEdge (p, q) = (q, p)
-        adjacencyList = createAdj edgeList
-        invertedAdj = createAdj (invertEdge <$> edgeList)
-        nodes = M.keys adjacencyList
-        lowerBounds = calcLowerBound adjacencyList <$> nodes
-        upperBounds = calcUpperBound adjacencyList <$> nodes
-        leafs = M.keys $ M.filter (==[]) invertedAdj
-        solveRec leafs lowerBounds upperBounds adjacencyList
-INFINITE :: Int
-INIFINITE = 1e9
+        varList = [v | QTVar v <- concat (flatten <$> sumEqs)]
+        (vars, childs) = dprint "getChildren" $ getChildren sumEqs
+        parents = dprint "getParents" $ getParents childs
+        unknowns = M.keys parents
+        solM = dprint "solveRec" $ solveRec unknowns childs parents
+    solution <- maybe (throwError $ InvalidOperatorSizes) return solM
+    let set1 x = (x, 1)
+        preSol = (M.fromList (zip unknowns solution)) `M.union` (M.fromList (set1 <$> varList))
+        calc (v, (q, xs)) m = M.insert v (q + (foldr (+) 0 (getValue <$> S.toList xs))) m
+          where
+            getValue x = M.findWithDefault 0 x m
+        fullSol = foldr calc preSol (reverse vars)
+    substSolution measureds fullSol
 
-solveRec leafs lowerBounds upperBounds adjacencyList =
-  maybe tryAnotherValue adaptSolution subProblem
+substSolution :: S.Set VariableId -> M.Map VariableId Int -> ExceptInfer Subst
+substSolution measureds solution = foldr compose emptySubst <$> (mapM f (M.toList solution))
   where
-    problem v = 
-    tryAnotherValue = problem (l+1) h
-    subProblem = solveRec (tail leafs) lowerBounds upperBounds adjacencyList
-    adaptSolution
+      f (var, sol) = var `bind` (kind sol)
+        where kind = if var `S.member` measureds then QTMeasuredQubits else QTQubits
 
-calcUpperBound :: M.Map Int Int -> Int -> Int
-calcUpperBound v m | v<0 = -v
-                   -- | (size (m M.! v)) == 0 = INFINITE
-                   | otherwise = maximum（calcUpperBound m <$> (m M.! v))
-
- calcLowerBound :: M.Map Int Int -> Int -> Int
- calcLowerBound v m | v<0 = -v
-                    | (size (m M.! v)) == 1 = head (calcLowerBound m <$> (m M.! v))
-                    | otherwise = 1
-
-createEdgeList :: [([QType], QType)] -> (Int, Int)
-createEdgeList sumEqs = concat (eqToEdges <$> sumEqs)
+solveRec :: [VariableId] -> M.Map Int (Int, S.Set VariableId) ->  M.Map VariableId (S.Set Int) -> Maybe [Int]
+solveRec (x:unknowns) childs parents = tryVal l
   where
-        getVar (QTVar v) = v
-        getVar (QtQubits q) = -q
-        getEdge p q = (getVar p, getVar q)
-        eqToEdges (ls, r) = (flip getEdge) r <$> ls
+    getBounds p | S.size xs == 1 = (1 `max` q, q)
+                | otherwise = (1, q - S.size xs + 1)
+      where
+          (q, xs) = M.findWithDefault (0, S.empty) p childs
+    maxV = foldr max 1 (fst.snd <$> M.toList childs)
+    combineBound (l1, h1) (l2, h2) = (l1 `max` l2, h1 `min` h2)
+    combineBounds = foldr combineBound (1, maxV)
+    xparents = S.toList (M.findWithDefault S.empty x parents)
+    (l, h) = combineBounds $ getBounds <$> xparents
+    tryVal v | v>h = Nothing
+             | otherwise = ((v:) <$> subsol) <|> (tryVal (v+1))
+      where
+        updater (q, xs) = (q-v, S.delete x xs)
+        mapUpdater p = M.adjust updater p
+        childs' = foldr mapUpdater childs xparents
+        subsol = solveRec unknowns childs' parents
+solveRec [] childs parents | all (==(0, S.empty)) (M.elems childs) = Just []
+                           | otherwise = Nothing
 
-createAdj :: [(Int, Int)] -> M.Map Int [Int]
-createAdj edgeList = M.fromListWith (++) (conv <$> edgeList)
+getChildren :: [([QType], QType)] -> ([(VariableId, (Int, S.Set VariableId))], M.Map Int (Int, S.Set VariableId))
+getChildren sumEqs = convert $ foldr eqToAdj (M.empty, [], []) (zip [1..] sumEqs)
   where
-        conv (p, q) = (p, [q])
+        convert (a, a', b) = (a', M.fromList b)
+        getVar m (QTVar v) = M.findWithDefault (0, S.singleton v) v m
+        getVar m (QTQubits q) = (q, S.empty)
+        getVar m (QTMeasuredQubits q) = (q, S.empty)
+        combine (q1, xs1) (q2, xs2) = (q1+q2, xs1 `S.union` xs2)
+        combineLst = foldr combine (0, S.empty)
+        eqToAdj (idx, (ls, (QTVar v))) (vars, varsL, children) = (vars', varsL', children)
+          where
+            ls' = combineLst $ getVar vars <$> ls
+            vars' = M.insert v ls' vars
+            varsL' = (v, ls'):varsL
+        eqToAdj (idx, (ls, r)) (vars, varsL, children) = (vars, varsL, children')
+          where
+            (q, ls') = combineLst $ getVar vars <$> ls
+            (rq, _) = getVar vars r
+            children' = (idx, (rq-q, ls')):children
 
-
-
-addSolution :: Subst -> MatrixEnv -> S.Set VariableId -> V.Vector Int -> ExceptInfer Subst
-addSolution (MatrixEnv var2Ints) measureds solution = foldr compose emptySubst (mapM f var2Cols)
+getParents :: M.Map Int (Int, S.Set VariableId) -> M.Map VariableId (S.Set Int)
+getParents children = foldr processEdge M.empty edgeList
   where
-      f var = var `bind` (kind sol)
-        where sol = solution V.! (M.findWithDefault (-1) var var2Cols)
-              kind = if var `S.member` measureds then QTMeasuredQubits else QTQubits
-
-
-              -- var2Ints <- execStateT (mapM createMap varList) (MatrixEnv M.empty)
-              -- let rows = createRow var2Ints <$> sumEqs
-              --     system = (fromListsFixed *** V.fromList) (unzip rows)
-              --     solutionM = traceShow ("solving system", "sumEqs=", sumEqs, "system=", system, "su1=", su1) $ solve system
-              -- solution <- maybe (throwError $ InvalidOperatorSizes) return solutionM
-              -- addSolution var2Ints measured solution
-
-createRow :: MatrixEnv -> ([QType], QType) -> ([Int], Int)
-createRow (MatrixEnv var2Cols) (ls, r) = (V.toList $ V.slice 0 numCols processed, processed V.! numCols)
-  where
-        numCols = (M.size var2Cols):: Int
-        addFalse t = (False, t)
-        flattened = (True, r):(addFalse <$> ls)
-        processed = V.accum (+) (V.replicate (numCols+1) 0) (processItem <$> flattened)
-        processItem :: (Bool, QType) -> (Int, Int)
-        processItem (False, (QTQubits q)) = (numCols, -q)
-        processItem (True, (QTQubits q)) = (numCols, q)
-        processItem (False, (QTVar v)) = (M.findWithDefault (-1) v var2Cols, 1)
-        processItem (True, (QTVar v)) = (M.findWithDefault (-1) v var2Cols, -1)
-
-createMap :: QType -> StateT MatrixEnv ExceptInfer ()
-createMap (QTQubits _) = return ()
-createMap (QTVar v)    = modify addVar
-  where
-      dontOverride = curry snd
-      addVar (MatrixEnv m) = MatrixEnv $ M.insertWith dontOverride v (M.size m) m
-createMap t            = throwError $ BadSumEqSystem t
+    edge idx x = (x, idx)
+    edges (idx, (_q, xs)) = edge idx <$> (S.toList xs)
+    edgeList = concat $ edges <$> M.toList children
+    processEdge (a, b) = M.insertWith (S.union) a (S.singleton b)

@@ -12,7 +12,7 @@ typeCheckTests = testGroup "Type Checker tests"
   , testCase "multiple qubits" $
       typeCheck (PQubits "01+-") @?= Right (QTQubits 4)
   , testCase "identity" $
-      typeCheck (PLambda "x" (PVar "x")) @?= Right (QTFun (QTVar 0) (QTVar 0))
+      typeCheck (PLambda "x" (PVar "x")) @?= Right (QTFun (QTQubits 1) (QTQubits 1))
   , testCase "lambda with gate" $
       typeCheck (PLambda "x" (PGate "U" (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
   , testCase "lambda with projector" $

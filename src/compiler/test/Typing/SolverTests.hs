@@ -6,7 +6,7 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck as QC
 import           Test.Tasty.SmallCheck as SC
-import           Typing.Solver         as Solver
+import           Typing.SolverBad      as Solver
 
 solverTests :: TestTree
 solverTests = testGroup "SolverTests"

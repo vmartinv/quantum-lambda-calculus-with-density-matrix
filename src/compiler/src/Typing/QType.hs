@@ -16,7 +16,7 @@ instance Show QType where
 mathEnv = enclose "$" "$"
 
 prettyQType (QTQubits n) = parens $ pretty n
-prettyQType (QTVar v) = pretty v
+prettyQType (QTVar v) = "V" <> pretty v
 prettyQType (QTMeasuredQubits n) = parens $ sep $ punctuate comma (pretty <$> [n, n])
 prettyQType (QTFun f x) = smartParen f <+> "\\multimap" <+> smartParen x
   where smartParen f@(QTQubits _)         = prettyQType f
