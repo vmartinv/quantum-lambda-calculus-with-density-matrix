@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Typing.TypeChecker where
 
 import           Control.Applicative
@@ -5,11 +6,12 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Coerce
+import           Data.List
 import qualified Data.Map             as M
+import           Data.Maybe
 import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Data.Tuple.Extra
-import           Debug.Trace
 import           Parser
 import           Typing.QType
 import           Typing.Utils
@@ -23,18 +25,16 @@ type TypeState = Int
 data TypeError  = UnificationFail QType QType
               | InfiniteType VariableId QType
               | UnboundVariable T.Text
-              | InvalidType QType
-              | InvalidLetCaseVar QType
               | InvalidLetCaseNumCases Int
-              | TypeNotQubits QType Int
-              | TypeNotMeasuredQubits QType Int
+              | TypeNotQubits QType
+              | TypeNotMeasuredQubits QType
               | UnificationMismatch [QType] [QType]
-              | BadSumEqSystem QType
               | InvalidOperatorSizes
+              | VariableAlreadyInScope T.Text
+              | VariablesUsedMoreThanOnce (S.Set T.Text)
               deriving (Show,Eq)
 
 newtype TypeEnv = TypeEnv (M.Map T.Text QType)
-newtype MatrixEnv = MatrixEnv (M.Map VariableId Int)
 type ExceptInfer = Except TypeError
 -- | Hidley monad
 type HidleyM a = (ReaderT
@@ -77,6 +77,16 @@ emptySubst = M.empty
 
 compose :: Subst -> Subst -> Subst
 s1 `compose` s2 = M.map (apply s1) s2 `M.union` s1
+
+ftvExp :: PExp -> S.Set T.Text
+ftvExp (PVar v)         = S.singleton v
+ftvExp (PLambda v e)    = v `S.delete` (ftvExp e)
+ftvExp (PFunApp t r)    = (ftvExp t) `S.union` (ftvExp r)
+ftvExp (PQubits _)      = S.empty
+ftvExp (PGate _ e)      = ftvExp e
+ftvExp (PProjector e)   = ftvExp e
+ftvExp (PTimes t r)     = (ftvExp t) `S.union` (ftvExp r)
+ftvExp (PLetCase v e _) = v `S.delete` (ftvExp e)
 
 class Substitutable a where
   apply :: Subst -> a -> a
@@ -125,45 +135,65 @@ inEnv (x, t) = local scope
   where scope (TypeEnv e) = TypeEnv $ M.insert x t e
 
 -- | Lookup type in the environment
-lookupEnv :: T.Text -> HidleyM QType
+lookupEnv :: T.Text -> HidleyM (Maybe QType)
 lookupEnv x = do
   (TypeEnv env) <- ask
-  case M.lookup x env of
-    Nothing -> throwError $ UnboundVariable x
-    Just s  -> return s
+  return (M.lookup x env)
+
+-- this function is used to partition envs when required
+-- to maintain the system affine
+partitionEnv :: S.Set T.Text -> S.Set T.Text -> HidleyM (TypeEnv, TypeEnv)
+partitionEnv s1 s2 = do
+  (TypeEnv env) <- ask
+  let
+    common = s1 `S.intersection` s2
+    inE1 v _ = v `S.member` s1
+    (env1, env2) = M.partitionWithKey inE1 env
+  when (not (S.null common)) (throwError $ VariablesUsedMoreThanOnce common)
+  return (TypeEnv env1, TypeEnv env2)
 
 hindley :: PExp -> HidleyM (QType, [TEq])
 hindley ex = case ex of
   PVar x -> do
     tv <- lookupEnv x
-    return (tv, [])
+    tv' <- maybe (throwError $ UnboundVariable x) return tv
+    return (tv', [])
 
   PLambda x e -> do
     tv <- fresh
+    inCtx <- lookupEnv x
+    when (isJust inCtx) (throwError $ VariableAlreadyInScope x)
     (t1, eq1) <- inEnv (x, tv) (hindley e)
     return (tv `QTFun` t1, eq1)
 
   PFunApp e1 e2 -> do
     tv <- fresh
-    (t1, eq1) <- hindley e1
-    (t2, eq2) <- hindley e2
+    (env1, env2) <- partitionEnv (ftvExp e1) (ftvExp e2)
+    (t1, eq1) <- local (const env1) $ hindley e1
+    (t2, eq2) <- local (const env2) $ hindley e2
     return (tv, eq1 ++ eq2 ++ [TypeEq t1 (QTFun t2 tv)])
 
   PLetCase x e es -> do
     tcase <- fresh
-    let hindley' e = inEnv (x, tcase) (hindley e)
-    (t1, eq1) <- hindley' e
+    (t1, eq1) <- hindley e
+    -- the cases should have a context with only the conditional variable defined
+    let
+      newEnv = TypeEnv (M.singleton x tcase)
+      hindley' e = local (const newEnv) (hindley e)
     (tts, eqcases) <- unzip <$> sequenceA (hindley' <$> es)
     (tv, eqcasesr) <- equalTypes tts
+    -- validate number is cases is a power of two
+    -- also infers the number of qubits of the conditional
     let log2 = floor . logBase 2.0 . fromIntegral
         q = log2 (length es)
     when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
-    return (tv, eq1++concat eqcases ++ eqcasesr ++ [IsMeasuredQubits t1, SumSizeEq [t1] (QTQubits q)])
+    return (tv, eq1++concat eqcases ++ eqcasesr ++ [TypeEq t1 (QTMeasuredQubits q)])
 
   PTimes e1 e2 -> do
     tv <- fresh
-    (t1, eq1) <- hindley e1
-    (t2, eq2) <- hindley e2
+    (env1, env2) <- partitionEnv (ftvExp e1) (ftvExp e2)
+    (t1, eq1) <- local (const env1) $ hindley e1
+    (t2, eq2) <- local (const env2) $ hindley e2
     return (tv, eq1++eq2++[IsQubits t1, IsQubits t2, IsQubits tv, SumSizeEq [t1, t2] tv])
 
   PProjector e -> do
@@ -174,7 +204,7 @@ hindley ex = case ex of
   PGate g e -> do
     tv <- fresh
     (t, eq) <- hindley e
-    return (tv, eq++[TypeEq tv t, IsQubits t, IsQubits tv, TypeEq tv (QTQubits 2), SumSizeEq [t] tv])
+    return (tv, eq++[TypeEq tv t, TypeEq tv (QTQubits 2)])
 
   PQubits q -> return (QTQubits (T.length q), [])
 
@@ -201,98 +231,68 @@ unifyMany (t1 : ts1) (t2 : ts2) = do
   return (su2 `compose` su1)
 unifyMany t1 t2 = throwError $ UnificationMismatch t1 t2
 
-classCheck :: Int -> TEq -> ExceptInfer ()
-classCheck _ (IsQubits (QTQubits _)) = return ()
-classCheck _ (IsQubits (QTVar _)) = return ()
-classCheck step (IsQubits t) = throwError $ TypeNotQubits t step
-classCheck _ (IsMeasuredQubits (QTMeasuredQubits _)) = return ()
-classCheck _ (IsMeasuredQubits (QTVar _)) = return ()
-classCheck step (IsMeasuredQubits t) = throwError $ TypeNotMeasuredQubits t step
-classCheck _ _ = return ()
+classCheck :: TEq -> ExceptInfer ()
+classCheck (IsQubits (QTQubits _)) = return ()
+classCheck (IsQubits (QTVar _)) = return ()
+classCheck (IsQubits t) = throwError $ TypeNotQubits t
+classCheck (IsMeasuredQubits (QTMeasuredQubits _)) = return ()
+classCheck (IsMeasuredQubits (QTVar _)) = return ()
+classCheck (IsMeasuredQubits t) = throwError $ TypeNotMeasuredQubits t
+classCheck _ = return ()
 
 robinson :: [TEq] -> ExceptInfer Subst
 robinson eqs = do
   su1 <- uncurry unifyMany $ unzip [ (t1, t2) | TypeEq t1 t2 <- eqs]
   let eqs' = apply su1 eqs
-  sequenceA $ classCheck 1 <$> eqs'
-  let sumEqs = dprint "sumEqs" $ [(ls, r) | SumSizeEq ls r <- eqs']
-      measured = S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs']
-  su2 <- solveSums sumEqs measured
-  let su = su1 `compose` su2
-  sequenceA $ classCheck 2 <$> apply su eqs
-  return su
+      sumEqs = dprint "sumEqs" $ [(ls, r) | SumSizeEq ls r <- eqs']
+  sol <- solveSums sumEqs
+  su2 <- assignValues eqs' sol
+  sequence_ $ classCheck <$> apply su2 eqs'
+  return $ su1 `compose` su2
 
-dprint s v = traceShow (s, v) v
-
-solveSums :: [([QType], QType)] -> S.Set VariableId -> ExceptInfer Subst
-solveSums sumEqs measureds = do
-    let flatten (ls, r) = reverse (r:ls)
-        varList = [v | QTVar v <- concat (flatten <$> sumEqs)]
-        (vars, childs) = dprint "getChildren" $ getChildren sumEqs
-        parents = dprint "getParents" $ getParents childs
-        unknowns = dprint "unknowns" $ M.keys parents
-        solM = dprint "solveRec" $ solveRec unknowns childs parents
-    solution <- maybe (throwError $ InvalidOperatorSizes) return solM
-    let set1 x = (x, 1)
-        preSol = (M.fromList (zip unknowns solution)) `M.union` (M.fromList (set1 <$> varList))
-        calc (v, (q, xs)) m = M.insert v (q + (foldr (+) 0 (getValue <$> S.toList xs))) m
-          where
-            getValue x = M.findWithDefault 0 x m
-        fullSol = foldr calc preSol (reverse vars)
-    substSolution measureds fullSol
-
-substSolution :: S.Set VariableId -> M.Map VariableId Int -> ExceptInfer Subst
-substSolution measureds solution = foldr compose emptySubst <$> (mapM f (M.toList solution))
+assignValues :: [TEq] -> M.Map VariableId Int -> ExceptInfer Subst
+assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol)
   where
-      f (var, sol) = var `bind` (kind sol)
-        where kind = if var `S.member` measureds then QTMeasuredQubits else QTQubits
+    measureds = dprint "measureds" $ S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs]
+    cons v | S.member v measureds = QTMeasuredQubits
+           | otherwise = QTQubits
+    bindv (v, q) = v `bind` cons v q
 
-solveRec :: [VariableId] -> M.Map Int (Int, S.Set VariableId) ->  M.Map VariableId (S.Set Int) -> Maybe [Int]
-solveRec (x:unknowns) childs parents = tryVal l
+solveSums :: [([QType], QType)] -> ExceptInfer (M.Map VariableId Int)
+solveSums sumEqs = sndPass $ foldr fstPass init_state (reverse sumEqs)
   where
-    getBounds p | S.size xs == 1 = (1 `max` q, q)
-                | otherwise = (1, q - S.size xs + 1)
+    ftvEqs (ls, r) = foldr S.union (ftv r) $ ftv <$> ls
+    set1 = M.fromList ((,1) <$> S.toList (foldr S.union S.empty $ ftvEqs <$> sumEqs))
+    init_state = ([], return set1)
+    getVar m (QTVar v)            = maybe (0, S.singleton v) snd (find ((==v).fst) m)
+    getVar m (QTQubits q)         = (q, S.empty)
+    getVar m (QTMeasuredQubits q) = (q, S.empty)
+    combine (q1, xs1) (q2, xs2) = (q1+q2, xs1 `S.union` xs2)
+    combineLst = foldr combine (0, S.empty)
+    num (QTQubits q)         = q
+    num (QTMeasuredQubits q) = q
+    fstPass (ls, (QTVar v)) (vars, su) = (vars', su)
       where
-          (q, xs) = M.findWithDefault (0, S.empty) p childs
-    maxV = foldr max 1 (fst.snd <$> M.toList childs)
-    combineBound (l1, h1) (l2, h2) = (l1 `max` l2, h1 `min` h2)
-    combineBounds = foldr combineBound (1, maxV)
-    xparents = S.toList (M.findWithDefault S.empty x parents)
-    (l, h) = combineBounds $ getBounds <$> xparents
-    tryVal v | v>h = Nothing
-             | otherwise = ((v:) <$> subsol) <|> (tryVal (v+1))
+        ls' = combineLst $ getVar vars <$> ls
+        vars' = (v, ls'):vars
+    fstPass (ls, q) (vars, su) = (vars, su')
       where
-        updater (q, xs) = (q-v, S.delete x xs)
-        mapUpdater p = M.adjust updater p
-        childs' = foldr mapUpdater childs xparents
-        subsol = solveRec unknowns childs' parents
-solveRec [] childs parents | all (==(0, S.empty)) (M.elems childs) = Just []
-                           | otherwise = Nothing
-
-getChildren :: [([QType], QType)] -> ([(VariableId, (Int, S.Set VariableId))], M.Map Int (Int, S.Set VariableId))
-getChildren sumEqs = convert $ foldr eqToAdj (M.empty, [], []) (zip [1..] sumEqs)
-  where
-        convert (a, a', b) = (a', M.fromList b)
-        getVar m (QTVar v) = M.findWithDefault (0, S.singleton v) v m
-        getVar m (QTQubits q) = (q, S.empty)
-        getVar m (QTMeasuredQubits q) = (q, S.empty)
-        combine (q1, xs1) (q2, xs2) = (q1+q2, xs1 `S.union` xs2)
-        combineLst = foldr combine (0, S.empty)
-        eqToAdj (idx, (ls, (QTVar v))) (vars, varsL, children) = (vars', varsL', children)
+        ls' = combineLst $ getVar vars <$> ls
+        su' = do
+          (v, q) <- solveSingle ls' (num q)
+          M.insert v q <$> su
+    sndPass (vars, su) = fold <$> su
+      where
+        fold su = (foldr f su (reverse vars))::M.Map VariableId Int
+        f (v, (q, vs)) su = M.insert v (q'::Int) su
           where
-            ls' = combineLst $ getVar vars <$> ls
-            vars' = M.insert v ls' vars
-            varsL' = (v, ls'):varsL
-        eqToAdj (idx, (ls, r)) (vars, varsL, children) = (vars, varsL, children')
-          where
-            (q, ls') = combineLst $ getVar vars <$> ls
-            (rq, _) = getVar vars r
-            children' = (idx, (rq-q, ls')):children
+            q' = q + (foldr (+) 0 ((flip (M.findWithDefault 1)) su <$> S.toList vs))
 
-getParents :: M.Map Int (Int, S.Set VariableId) -> M.Map VariableId (S.Set Int)
-getParents children = foldr processEdge M.empty edgeList
+
+solveSingle :: (Int, S.Set VariableId) -> Int -> ExceptInfer (VariableId, Int)
+solveSingle (qf, vs) qt | qf + S.size vs > qt = throwError InvalidOperatorSizes
+                        | qf < qt && S.null vs = throwError InvalidOperatorSizes
+                        | otherwise = return sol
   where
-    edge idx x = (x, idx)
-    edges (idx, (_q, xs)) = edge idx <$> (S.toList xs)
-    edgeList = concat $ edges <$> M.toList children
-    processEdge (a, b) = M.insertWith (S.union) a (S.singleton b)
+    v = head $ S.toList vs
+    sol = (v, qt - qf - S.size vs + 1)

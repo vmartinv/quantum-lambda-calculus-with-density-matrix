@@ -3,11 +3,14 @@ module Typing.Utils where
 import           Data.Matrix as M
 import           Data.Maybe
 import qualified Data.Vector as V
+import           Debug.Trace
 
 type LinSystem a = (Matrix a, V.Vector a)
 
 data VarSol a = Value a | AnyValue
   deriving (Eq, Show)
+
+dprint s v = traceShow (s, v) v
 
 unVarSol :: VarSol a -> Maybe a
 unVarSol AnyValue  = Nothing

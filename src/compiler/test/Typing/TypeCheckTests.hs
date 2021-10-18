@@ -27,8 +27,20 @@ typeCheckTests = testGroup "Type Checker tests"
       testExp (PFunApp (PLambda "x" (PVar "x")) (PQubits "0")) @?= Right (QTQubits 1)
   , testCase "Solve EQ" $
       testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x * y), U (y * z), U (x * z), U (x * z)}" @?=
-        Right (QTFun (QTQubits 1) ((QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 2)))))
+        Left "UnboundVariable \"x\""
+  , testCase "Solve invalid EQ" $
+      testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x * y), U (y * z), x, z}" @?=
+        Left "UnboundVariable \"x\""
+  , testCase "Unbound variable" $
+      testStr "x" @?=
+        Left "UnboundVariable \"x\""
+  , testCase "Invalid num cases" $
+      testStr "\\x.letcase xm=\\pi x in {xm, xm, xm}" @?=
+        Left "InvalidLetCaseNumCases 3"
+  , testCase "Invalid num cases 2" $
+      testStr "letcase xm=\\pi |+> in {|0>, |0>, |0>, |0>}" @?=
+        Left "InvalidOperatorSizes"
   , testCase "No-cloning theorem" $
       testStr "\\x.x*x" @?=
-        Right (QTFun (QTQubits 1) (QTQubits 2))
+         Left "VariablesUsedMoreThanOnce (fromList [\"x\"])"
   ]
