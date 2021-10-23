@@ -31,6 +31,8 @@ unitTests = testGroup "Unit tests"
       testStr "|0>" @?= Right (PQubits "0")
   , testCase "Parsing multiple qubits" $
       testStr "|01+->" @?= Right (PQubits "01+-")
+  , testCase "Parsing invalid qubits" $
+      testStr "|2>" @?= Left "Invalid lexeme"
   , testCase "Parsing otimes" $
       testStr "x * y" @?= Right (PTimes (PVar "x") (PVar "y"))
   , testCase "Parsing lambda" $
@@ -49,4 +51,7 @@ unitTests = testGroup "Unit tests"
       testStr "U" @?= Left "Unexpected end of Input"
   , testCase "Parsing invalid expression" $
       testStr "\\ |+>" @?= Left "TokenQubits \"+\""
+  , testCase "Parsing nested letcase" $
+      testStr "\\x.\\y. letcase ym=\\pi (letcase zz=\\pi (x*y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}"
+        @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector (PLetCase "zz" (PProjector (PTimes (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
   ]

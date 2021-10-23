@@ -42,5 +42,35 @@ typeCheckTests = testGroup "Type Checker tests"
         Left "InvalidOperatorSizes"
   , testCase "No-cloning theorem" $
       testStr "\\x.x*x" @?=
-         Left "VariablesUsedMoreThanOnce (fromList [\"x\"])"
+        Left "VariablesUsedMoreThanOnce (fromList [\"x\"])"
+  , testCase "In scope error" $
+     testStr "\\x.\\x.x" @?=
+        Left "VariableAlreadyInScope \"x\""
+  , testCase "Invalid app" $
+      testStr "(\\x.x |0>) |0>" @?=
+        Left "UnificationFail $(1) \\multimap V2$ $(1)$"
+  , testCase "let not measured" $
+     testStr "letcase ym=|+> in {|1>, |0>}" @?=
+        Left "UnificationFail $(1)$ $(1, 1)$"
+  , testCase "let ok" $
+      testStr "letcase ym=\\pi |+> in {|1>, |0>}" @?=
+        Right (QTQubits 1)
+  , testCase "let ok fun" $
+     testStr "letcase ym=\\pi |+> in {\\x.\\y.x, \\x.\\y.y}" @?=
+        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1)))
+  , testCase "times by measured" $
+      testStr "|+> * \\pi |0>" @?=
+        Left "TypeNotQubits $(1, 1)$"
+  , testCase "times by fun" $
+     testStr "|+> * (\\x.x)" @?=
+        Left "TypeNotQubits $V1 \\multimap V1$"
+  , testCase "Solve EQ" $
+      testStr "\\x.\\y.\\z. letcase ym=\\pi (x*y*z) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1))))
+  , testCase "Solve EQ2" $
+      testStr "\\x.\\y. letcase ym=\\pi (x*y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+        Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
+  , testCase "Nested let" $
+      testStr "\\x.\\y. letcase ym=\\pi (letcase zz=\\pi (x*y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}" @?=
+        Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
   ]

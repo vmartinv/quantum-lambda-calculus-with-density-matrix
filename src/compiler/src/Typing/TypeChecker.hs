@@ -130,8 +130,8 @@ equalTypes (t1:ts) = return (t1, map (TypeEq t1) ts)
 equalTypes []      = throwError $ InvalidLetCaseNumCases 0
 
 -- | Extend type environment
-inEnv :: (T.Text, QType) -> HidleyM a -> HidleyM a
-inEnv (x, t) = local scope
+addToEnv :: (T.Text, QType) -> HidleyM a -> HidleyM a
+addToEnv (x, t) = local scope
   where scope (TypeEnv e) = TypeEnv $ M.insert x t e
 
 -- | Lookup type in the environment
@@ -163,7 +163,7 @@ hindley ex = case ex of
     tv <- fresh
     inCtx <- lookupEnv x
     when (isJust inCtx) (throwError $ VariableAlreadyInScope x)
-    (t1, eq1) <- inEnv (x, tv) (hindley e)
+    (t1, eq1) <- addToEnv (x, tv) (hindley e)
     return (tv `QTFun` t1, eq1)
 
   PFunApp e1 e2 -> do
@@ -174,6 +174,11 @@ hindley ex = case ex of
     return (tv, eq1 ++ eq2 ++ [TypeEq t1 (QTFun t2 tv)])
 
   PLetCase x e es -> do
+    -- validate number is cases is a power of two
+    -- also infers the number of qubits of the conditional
+    let log2 = floor . logBase 2.0 . fromIntegral
+        q = log2 (length es)
+    when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
     tcase <- fresh
     (t1, eq1) <- hindley e
     -- the cases should have a context with only the conditional variable defined
@@ -182,11 +187,6 @@ hindley ex = case ex of
       hindley' e = local (const newEnv) (hindley e)
     (tts, eqcases) <- unzip <$> sequenceA (hindley' <$> es)
     (tv, eqcasesr) <- equalTypes tts
-    -- validate number is cases is a power of two
-    -- also infers the number of qubits of the conditional
-    let log2 = floor . logBase 2.0 . fromIntegral
-        q = log2 (length es)
-    when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
     return (tv, eq1++concat eqcases ++ eqcasesr ++ [TypeEq t1 (QTMeasuredQubits q)])
 
   PTimes e1 e2 -> do
@@ -208,12 +208,9 @@ hindley ex = case ex of
 
   PQubits q -> return (QTQubits (T.length q), [])
 
-occursCheck :: Substitutable a => VariableId -> a -> Bool
-occursCheck a t = a `S.member` ftv t
-
 bind :: VariableId -> QType -> ExceptInfer Subst
 bind a t | t == QTVar a     = return emptySubst
-       | occursCheck a t = throwError $ InfiniteType a t
+       | a `S.member` ftv t = throwError $ InfiniteType a t
        | otherwise       = return $ M.singleton a t
 
 unifies :: QType -> QType -> ExceptInfer Subst
@@ -245,11 +242,14 @@ robinson eqs = do
   su1 <- uncurry unifyMany $ unzip [ (t1, t2) | TypeEq t1 t2 <- eqs]
   let eqs' = apply su1 eqs
       sumEqs = dprint "sumEqs" $ [(ls, r) | SumSizeEq ls r <- eqs']
+  sequence_ $ classCheck <$> eqs'
   sol <- solveSums sumEqs
   su2 <- assignValues eqs' sol
   sequence_ $ classCheck <$> apply su2 eqs'
   return $ su1 `compose` su2
 
+-- given the solution to the sum of equations
+-- it creates the corresponding substition based on them
 assignValues :: [TEq] -> M.Map VariableId Int -> ExceptInfer Subst
 assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol)
   where
@@ -258,6 +258,7 @@ assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList
            | otherwise = QTQubits
     bindv (v, q) = v `bind` cons v q
 
+-- given the sum equations returns a map from variables to their assigned size
 solveSums :: [([QType], QType)] -> ExceptInfer (M.Map VariableId Int)
 solveSums sumEqs = sndPass $ foldr fstPass init_state (reverse sumEqs)
   where
@@ -288,10 +289,12 @@ solveSums sumEqs = sndPass $ foldr fstPass init_state (reverse sumEqs)
           where
             q' = q + (foldr (+) 0 ((flip (M.findWithDefault 1)) su <$> S.toList vs))
 
-
+-- finds v_1,...v_n / v_1+...+v_n+q_f=q_t, if it exists
+-- by fixing v_2,..., v_n to 1 and returning (v_1, value)
 solveSingle :: (Int, S.Set VariableId) -> Int -> ExceptInfer (VariableId, Int)
 solveSingle (qf, vs) qt | qf + S.size vs > qt = throwError InvalidOperatorSizes
-                        | qf < qt && S.null vs = throwError InvalidOperatorSizes
+                        | qf /= qt && S.null vs = throwError InvalidOperatorSizes
+                        | qf == qt && S.null vs = return (-1, 0) --solution no vars
                         | otherwise = return sol
   where
     v = head $ S.toList vs
