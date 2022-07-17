@@ -26,7 +26,7 @@ unitTests = testGroup "Unit tests"
   , testCase "Parsing gates" $
       testStr "U x" @?= Right (PGate "U" (PVar "x"))
   , testCase "Parsing projector" $
-      testStr "\\pi x" @?= Right (PProjector (PVar "x"))
+      testStr "\\pi^10 x" @?= Right (PProjector 10 (PVar "x"))
   , testCase "Parsing single qubit" $
       testStr "|0>" @?= Right (PQubits "0")
   , testCase "Parsing multiple qubits" $
@@ -42,7 +42,7 @@ unitTests = testGroup "Unit tests"
   , testCase "Parsing function application" $
       testStr "(\\x.x) y" @?= Right (PFunApp (PLambda "x" (PVar "x")) (PVar "y"))
   , testCase "Parsing letcase" $
-      testStr "letcase x=\\pi y in {x,y}" @?= Right (PLetCase "x" (PProjector (PVar "y")) [(PVar "x"), (PVar "y")])
+      testStr "letcase x=\\pi^5 y in {x,y}" @?= Right (PLetCase "x" (PProjector 5 (PVar "y")) [(PVar "x"), (PVar "y")])
   , testCase "Parsing unknown token" $
       testStr "x | y" @?= Left "Invalid lexeme"
   , testCase "Parsing unfinished expression" $
@@ -52,6 +52,6 @@ unitTests = testGroup "Unit tests"
   , testCase "Parsing invalid expression" $
       testStr "\\ |+>" @?= Left "TokenQubits \"+\""
   , testCase "Parsing nested letcase" $
-      testStr "\\x.\\y. letcase ym=\\pi (letcase zz=\\pi (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}"
-        @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector (PLetCase "zz" (PProjector (PTimes (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
+      testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}"
+        @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector 1 (PLetCase "zz" (PProjector 3 (PTimes (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
   ]

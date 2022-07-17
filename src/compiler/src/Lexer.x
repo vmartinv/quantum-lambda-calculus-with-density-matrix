@@ -29,6 +29,8 @@ tokens :-
   \,                            { \s -> TokenComma }
   $lower+                       { \s -> TokenVar s }
   $upper+                       { \s -> TokenGate s }
+  \^                            { \s -> TokenPower }
+  $digit+                       { \s -> TokenInt (read s) }
 
 {
 
@@ -48,6 +50,8 @@ data Token = TokenLambda
            | TokenLBrace
            | TokenRBrace
            | TokenComma
+           | TokenPower
+           | TokenInt Int
            deriving (Eq,Show)
 
 stripSides :: String -> String

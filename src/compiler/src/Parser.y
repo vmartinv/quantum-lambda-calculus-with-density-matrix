@@ -27,6 +27,8 @@ import Data.Text (Text, pack)
     '{' { TokenLBrace }
     '}' { TokenRBrace }
     ',' { TokenComma }
+    '^' { TokenPower }
+    int { TokenInt $$ }
 
 %right in
 %left OTIMES ','
@@ -34,7 +36,7 @@ import Data.Text (Text, pack)
 %%
 
 PExp : var                    { PVar (pack $1) }
-    | PI PExp                 { PProjector $2 }
+    | PI '^' int PExp        { PProjector $3 $4 }
     | '\\' var '.' PExp       { PLambda (pack $2) $4 }
     | PExp PExp               { PFunApp $1 $2 }
     | qubits                  { PQubits (pack $1) }
@@ -52,7 +54,7 @@ data PExp = PVar Text
          | PFunApp PExp PExp
          | PQubits Text
          | PGate Text PExp
-         | PProjector PExp
+         | PProjector Int PExp
          | PTimes PExp PExp
          | PLetCase Text PExp [PExp]
          deriving (Show,Eq)

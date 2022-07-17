@@ -20,26 +20,26 @@ typeCheckTests = testGroup "Type Checker tests"
   , testCase "lambda with gate" $
       testExp (PLambda "x" (PGate "U" (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
   , testCase "lambda with projector" $
-      testExp (PLambda "x" (PProjector (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
+      testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
   , testCase "otimes" $
       testExp (PTimes (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
   , testCase "Parsing function application" $
       testExp (PFunApp (PLambda "x" (PVar "x")) (PQubits "0")) @?= Right (QTQubits 1)
   , testCase "Solve EQ" $
-      testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x \\otimes y), U (y \\otimes z), U (x \\otimes z), U (x \\otimes z)}" @?=
+      testStr "\\x.\\y.\\z. letcase ym=\\pi^2 y in {U (x \\otimes y), U (y \\otimes z), U (x \\otimes z), U (x \\otimes z)}" @?=
         Left "UnboundVariable \"x\""
   , testCase "Solve invalid EQ" $
-      testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x \\otimes y), U (y \\otimes z), x, z}" @?=
+      testStr "\\x.\\y.\\z. letcase ym=\\pi^2 y in {U (x \\otimes y), U (y \\otimes z), x, z}" @?=
         Left "UnboundVariable \"x\""
   , testCase "Unbound variable" $
       testStr "x" @?=
         Left "UnboundVariable \"x\""
   , testCase "Invalid num cases" $
-      testStr "\\x.letcase xm=\\pi x in {xm, xm, xm}" @?=
+      testStr "\\x.letcase xm=\\pi^2 x in {xm, xm, xm}" @?=
         Left "InvalidLetCaseNumCases 3"
   , testCase "Invalid num cases 2" $
-      testStr "letcase xm=\\pi |+> in {|0>, |0>, |0>, |0>}" @?=
-        Left "InvalidOperatorSizes"
+      testStr "letcase xm=\\pi^1 |+> in {|0>, |0>, |0>, |0>}" @?=
+        Left "UnificationFail $(2, 2)$ $(1, 1)$"
   , testCase "No-cloning theorem" $
       testStr "\\x.x \\otimes x" @?=
         Left "VariablesUsedMoreThanOnce (fromList [\"x\"])"
@@ -53,24 +53,24 @@ typeCheckTests = testGroup "Type Checker tests"
      testStr "letcase ym=|+> in {|1>, |0>}" @?=
         Left "UnificationFail $(1)$ $(1, 1)$"
   , testCase "let ok" $
-      testStr "letcase ym=\\pi |+> in {|1>, |0>}" @?=
+      testStr "letcase ym=\\pi^1 |+> in {|1>, |0>}" @?=
         Right (QTQubits 1)
   , testCase "let ok fun" $
-     testStr "letcase ym=\\pi |+> in {\\x.\\y.x, \\x.\\y.y}" @?=
+     testStr "letcase ym=\\pi^1 |+> in {\\x.\\y.x, \\x.\\y.y}" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1)))
   , testCase "times by measured" $
-      testStr "|+> \\otimes \\pi |0>" @?=
+      testStr "|+> \\otimes \\pi^1 |0>" @?=
         Left "TypeNotQubits $(1, 1)$"
   , testCase "times by fun" $
      testStr "|+> \\otimes (\\x.x)" @?=
         Left "TypeNotQubits $V1 \\multimap V1$"
   , testCase "Solve EQ" $
-      testStr "\\x.\\y.\\z. letcase ym=\\pi (x \\otimes y \\otimes z) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+      testStr "\\x.\\y.\\z. letcase ym=\\pi^3 (x \\otimes y \\otimes z) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1))))
   , testCase "Solve EQ2" $
-      testStr "\\x.\\y. letcase ym=\\pi (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+      testStr "\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
   , testCase "Nested let" $
-      testStr "\\x.\\y. letcase ym=\\pi (letcase zz=\\pi (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}" @?=
+      testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
   ]

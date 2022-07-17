@@ -84,7 +84,7 @@ ftvExp (PLambda v e)    = v `S.delete` (ftvExp e)
 ftvExp (PFunApp t r)    = (ftvExp t) `S.union` (ftvExp r)
 ftvExp (PQubits _)      = S.empty
 ftvExp (PGate _ e)      = ftvExp e
-ftvExp (PProjector e)   = ftvExp e
+ftvExp (PProjector _ e) = ftvExp e
 ftvExp (PTimes t r)     = (ftvExp t) `S.union` (ftvExp r)
 ftvExp (PLetCase v e _) = v `S.delete` (ftvExp e)
 
@@ -196,10 +196,10 @@ hindley ex = case ex of
     (t2, eq2) <- local (const env2) $ hindley e2
     return (tv, eq1++eq2++[IsQubits t1, IsQubits t2, IsQubits tv, SumSizeEq [t1, t2] tv])
 
-  PProjector e -> do
+  PProjector d e -> do
     tv <- fresh
     (t, eq) <- hindley e
-    return (tv, eq++[IsQubits t, IsMeasuredQubits tv, SumSizeEq [t] tv])
+    return (tv, eq++[TypeEq tv (QTMeasuredQubits d), IsQubits t, IsMeasuredQubits tv, SumSizeEq [t] tv])
 
   PGate g e -> do
     tv <- fresh
