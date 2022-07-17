@@ -26,10 +26,10 @@ typeCheckTests = testGroup "Type Checker tests"
   , testCase "Parsing function application" $
       testExp (PFunApp (PLambda "x" (PVar "x")) (PQubits "0")) @?= Right (QTQubits 1)
   , testCase "Solve EQ" $
-      testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x * y), U (y * z), U (x * z), U (x * z)}" @?=
+      testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x \\otimes y), U (y \\otimes z), U (x \\otimes z), U (x \\otimes z)}" @?=
         Left "UnboundVariable \"x\""
   , testCase "Solve invalid EQ" $
-      testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x * y), U (y * z), x, z}" @?=
+      testStr "\\x.\\y.\\z. letcase ym=\\pi y in {U (x \\otimes y), U (y \\otimes z), x, z}" @?=
         Left "UnboundVariable \"x\""
   , testCase "Unbound variable" $
       testStr "x" @?=
@@ -41,7 +41,7 @@ typeCheckTests = testGroup "Type Checker tests"
       testStr "letcase xm=\\pi |+> in {|0>, |0>, |0>, |0>}" @?=
         Left "InvalidOperatorSizes"
   , testCase "No-cloning theorem" $
-      testStr "\\x.x*x" @?=
+      testStr "\\x.x \\otimes x" @?=
         Left "VariablesUsedMoreThanOnce (fromList [\"x\"])"
   , testCase "In scope error" $
      testStr "\\x.\\x.x" @?=
@@ -59,18 +59,18 @@ typeCheckTests = testGroup "Type Checker tests"
      testStr "letcase ym=\\pi |+> in {\\x.\\y.x, \\x.\\y.y}" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1)))
   , testCase "times by measured" $
-      testStr "|+> * \\pi |0>" @?=
+      testStr "|+> \\otimes \\pi |0>" @?=
         Left "TypeNotQubits $(1, 1)$"
   , testCase "times by fun" $
-     testStr "|+> * (\\x.x)" @?=
+     testStr "|+> \\otimes (\\x.x)" @?=
         Left "TypeNotQubits $V1 \\multimap V1$"
   , testCase "Solve EQ" $
-      testStr "\\x.\\y.\\z. letcase ym=\\pi (x*y*z) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+      testStr "\\x.\\y.\\z. letcase ym=\\pi (x \\otimes y \\otimes z) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1))))
   , testCase "Solve EQ2" $
-      testStr "\\x.\\y. letcase ym=\\pi (x*y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+      testStr "\\x.\\y. letcase ym=\\pi (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
   , testCase "Nested let" $
-      testStr "\\x.\\y. letcase ym=\\pi (letcase zz=\\pi (x*y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}" @?=
+      testStr "\\x.\\y. letcase ym=\\pi (letcase zz=\\pi (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
   ]

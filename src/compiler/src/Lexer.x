@@ -19,7 +19,7 @@ tokens :-
   letcase                       { \s -> TokenLetCase }
   \.                            { \s -> TokenDot }
   \|$qubits+\>                  { \s -> TokenQubits (stripSides s) }
-  \*                            { \s -> TokenTimes }
+  \\otimes                      { \s -> TokenTimes }
   in                            { \s -> TokenIn }
   \=                            { \s -> TokenEq }
   \(                            { \s -> TokenLParen }
