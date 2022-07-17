@@ -11,9 +11,9 @@ qTypeTests = testGroup "QType tests"
   , testCase "Show measured bits" $
       show (QTMeasuredQubits 4) @?= "$(4, 4)$"
   , testCase "Show simple fun" $
-      show (QTFun (QTQubits 1) (QTMeasuredQubits 2)) @?= "$(1) \\multimap (2, 2)$"
+      show (QTFun (QTQubits 1) (QTMeasuredQubits 2)) @?= "$(1) -> (2, 2)$"
   , testCase "Show high-order fun left" $
-      show (QTFun (QTFun (QTQubits 1) (QTQubits 3)) (QTMeasuredQubits 2)) @?= "$((1) \\multimap (3)) \\multimap (2, 2)$"
+      show (QTFun (QTFun (QTQubits 1) (QTQubits 3)) (QTMeasuredQubits 2)) @?= "$((1) -> (3)) -> (2, 2)$"
   , testCase "Show high-order fun right" $
-      show (QTFun (QTMeasuredQubits 2) (QTFun (QTQubits 1) (QTQubits 3))) @?= "$(2, 2) \\multimap ((1) \\multimap (3))$"
+      show (QTFun (QTMeasuredQubits 2) (QTFun (QTQubits 1) (QTQubits 3))) @?= "$(2, 2) -> ((1) -> (3))$"
   ]

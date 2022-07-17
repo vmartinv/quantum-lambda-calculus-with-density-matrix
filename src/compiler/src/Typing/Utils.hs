@@ -5,8 +5,6 @@ import           Data.Maybe
 import qualified Data.Vector as V
 import           Debug.Trace
 
-type LinSystem a = (Matrix a, V.Vector a)
-
 data VarSol a = Value a | AnyValue
   deriving (Eq, Show)
 

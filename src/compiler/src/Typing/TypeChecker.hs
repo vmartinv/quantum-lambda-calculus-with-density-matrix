@@ -46,6 +46,7 @@ type HidleyM a = (ReaderT
 type Subst = M.Map VariableId QType
 
 data TEq = SumSizeEq [QType] QType
+        | AtLeastSizeEq [QType] QType
         | IsQubits QType
         | IsMeasuredQubits QType
         | TypeEq QType QType
@@ -108,13 +109,15 @@ instance Substitutable a => Substitutable [a] where
 
 instance Substitutable TEq where
   apply s (SumSizeEq ts tr)    = SumSizeEq (map (apply s) ts) (apply s tr)
+  apply s (AtLeastSizeEq ts tr)    = AtLeastSizeEq (map (apply s) ts) (apply s tr)
   apply s (IsQubits t)         = IsQubits $ apply s t
   apply s (IsMeasuredQubits t) = IsMeasuredQubits $ apply s t
   apply s (TypeEq t1 t2)       = TypeEq (apply s t1) (apply s t2)
-  ftv (SumSizeEq ts tr)    = ftv (tr:ts)
-  ftv (IsQubits t)         = ftv t
-  ftv (IsMeasuredQubits t) = ftv t
-  ftv (TypeEq t1 t2)       = ftv [t1, t2]
+  ftv (SumSizeEq ts tr)     = ftv (tr:ts)
+  ftv (AtLeastSizeEq ts tr) = ftv (tr:ts)
+  ftv (IsQubits t)          = ftv t
+  ftv (IsMeasuredQubits t)  = ftv t
+  ftv (TypeEq t1 t2)        = ftv [t1, t2]
 
 letters :: [T.Text]
 letters = T.pack <$> ([1..] >>= flip replicateM ['a'..'z'])
@@ -199,7 +202,7 @@ hindley ex = case ex of
   PProjector d e -> do
     tv <- fresh
     (t, eq) <- hindley e
-    return (tv, eq++[TypeEq tv (QTMeasuredQubits d), IsQubits t, IsMeasuredQubits tv, SumSizeEq [t] tv])
+    return (tv, eq++[TypeEq tv (QTMeasuredQubits d), IsQubits t, IsMeasuredQubits tv, AtLeastSizeEq [t] tv])
 
   PGate g e -> do
     tv <- fresh
@@ -239,7 +242,7 @@ robinson eqs = do
   let eqs' = apply su1 eqs
       sumEqs = dprint "sumEqs" $ [(ls, r) | SumSizeEq ls r <- eqs']
   sequence_ $ classCheck <$> eqs'
-  sol <- solveSums sumEqs
+  sol <- solveSums eqs'
   su2 <- assignValues eqs' sol
   sequence_ $ classCheck <$> apply su2 eqs'
   return $ su1 `compose` su2
@@ -254,44 +257,58 @@ assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList
            | otherwise = QTQubits
     bindv (v, q) = v `bind` cons v q
 
+
 -- given the sum equations returns a map from variables to their assigned size
-solveSums :: [([QType], QType)] -> ExceptInfer (M.Map VariableId Int)
-solveSums sumEqs = sndPass $ foldr fstPass init_state (reverse sumEqs)
+solveSums :: [TEq] -> ExceptInfer (M.Map VariableId Int)
+solveSums eqs = sndPass $ foldr fstPass init_state (reverse eqs)
   where
-    ftvEqs (ls, r) = foldr S.union (ftv r) $ ftv <$> ls
-    set1 = M.fromList ((,1) <$> S.toList (foldr S.union S.empty $ ftvEqs <$> sumEqs))
+    set1 = M.fromList ((,1) <$> S.toList (foldr S.union S.empty $ ftv <$> eqs))
     init_state = ([], return set1)
-    getVar m (QTVar v)            = maybe (0, S.singleton v) snd (find ((==v).fst) m)
-    getVar m (QTQubits q)         = (q, S.empty)
-    getVar m (QTMeasuredQubits q) = (q, S.empty)
-    combine (q1, xs1) (q2, xs2) = (q1+q2, xs1 `S.union` xs2)
-    combineLst = foldr combine (0, S.empty)
+    getVar m (QTVar v)            = maybe (0, [v]) snd (find ((==v).fst) m)
+    getVar m (QTQubits q)         = (q, [])
+    getVar m (QTMeasuredQubits q) = (q, [])
+    combine (q1, xs1) (q2, xs2) = (q1+q2, xs1 ++ xs2)
+    combineLst = foldr combine (0, [])
     num (QTQubits q)         = q
     num (QTMeasuredQubits q) = q
-    fstPass (ls, (QTVar v)) (vars, su) = (vars', su)
+    fstPass (SumSizeEq ls (QTVar v)) (vars, su) = (vars', su)
       where
         ls' = combineLst $ getVar vars <$> ls
         vars' = (v, ls'):vars
-    fstPass (ls, q) (vars, su) = (vars, su')
+    fstPass (SumSizeEq ls q) (vars, su) = (vars, su')
       where
         ls' = combineLst $ getVar vars <$> ls
         su' = do
-          (v, q) <- solveSingle ls' (num q)
+          (v, q) <- solveSingleEq ls' (num q)
           M.insert v q <$> su
+    fstPass (AtLeastSizeEq ls q) (vars, su) = (vars, su')
+      where
+        ls' = combineLst $ getVar vars <$> ls
+        su' = do
+          (v, q) <- solveSingleIneq ls' (num q)
+          M.insert v q <$> su
+    fstPass _ (vars, su) = (vars, su)
+
     sndPass (vars, su) = fold <$> su
       where
         fold su = (foldr f su (reverse vars))::M.Map VariableId Int
         f (v, (q, vs)) su = M.insert v (q'::Int) su
           where
-            q' = q + (foldr (+) 0 ((flip (M.findWithDefault 1)) su <$> S.toList vs))
+            q' = q + (foldr (+) 0 ((flip (M.findWithDefault 1)) su <$> vs))
+
+-- finds v_1,...v_n / v_1+...+v_n+q_f>=q_t, if it exists
+-- by fixing v_2,..., v_n to 1 and returning (v_1, value)
+solveSingleIneq :: (Int, [VariableId]) -> Int -> ExceptInfer (VariableId, Int)
+solveSingleIneq (qf, vs) qt | qf < qt && null vs = throwError InvalidOperatorSizes
+                        | null vs = return (-1, 0) --solution no vars
+                        | otherwise = return sol
+  where
+    v = head vs
+    sol = (v, max 1 (qt - qf - length vs + 1))
 
 -- finds v_1,...v_n / v_1+...+v_n+q_f=q_t, if it exists
 -- by fixing v_2,..., v_n to 1 and returning (v_1, value)
-solveSingle :: (Int, S.Set VariableId) -> Int -> ExceptInfer (VariableId, Int)
-solveSingle (qf, vs) qt | qf + S.size vs > qt = throwError InvalidOperatorSizes
-                        | qf /= qt && S.null vs = throwError InvalidOperatorSizes
-                        | qf == qt && S.null vs = return (-1, 0) --solution no vars
-                        | otherwise = return sol
-  where
-    v = head $ S.toList vs
-    sol = (v, qt - qf - S.size vs + 1)
+solveSingleEq :: (Int, [VariableId]) -> Int -> ExceptInfer (VariableId, Int)
+solveSingleEq (qf, vs) qt | qf + length vs > qt = throwError InvalidOperatorSizes
+                        | qf /= qt && null vs = throwError InvalidOperatorSizes
+                        | otherwise = solveSingleIneq (qf, vs) qt
