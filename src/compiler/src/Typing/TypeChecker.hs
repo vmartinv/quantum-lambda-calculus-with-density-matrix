@@ -217,16 +217,12 @@ unifies :: QType -> QType -> ExceptInfer Subst
 unifies t1 t2                       | t1 == t2 = return emptySubst
 unifies (QTVar v) t                 = v `bind` t
 unifies t (QTVar v)                 = v `bind` t
-unifies (QTFun t1 t2) (QTFun t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies (QTFun t1 t2) (QTFun t3 t4) = unifyMany [(t1, t3), (t2, t4)]
 unifies t1 t2                       = throwError $ UnificationFail t1 t2
 
-unifyMany :: [QType] -> [QType] -> ExceptInfer Subst
-unifyMany [] [] = return emptySubst
-unifyMany (t1 : ts1) (t2 : ts2) = do
-  su1 <- unifies t1 t2
-  su2 <- unifyMany (apply su1 ts1) (apply su1 ts2)
-  return (su2 `compose` su1)
-unifyMany t1 t2 = throwError $ UnificationMismatch t1 t2
+unifyMany :: [(QType, QType)] -> ExceptInfer Subst
+unifyMany teqs = foldM f emptySubst (reverse teqs)
+  where f su (t1, t2) = compose su <$> unifies (apply su t1) (apply su t2)
 
 classCheck :: TEq -> ExceptInfer ()
 classCheck (IsQubits (QTQubits _)) = return ()
@@ -239,7 +235,7 @@ classCheck _ = return ()
 
 robinson :: [TEq] -> ExceptInfer Subst
 robinson eqs = do
-  su1 <- uncurry unifyMany $ unzip [ (t1, t2) | TypeEq t1 t2 <- eqs]
+  su1 <- unifyMany [ (t1, t2) | TypeEq t1 t2 <- eqs]
   let eqs' = apply su1 eqs
       sumEqs = dprint "sumEqs" $ [(ls, r) | SumSizeEq ls r <- eqs']
   sequence_ $ classCheck <$> eqs'

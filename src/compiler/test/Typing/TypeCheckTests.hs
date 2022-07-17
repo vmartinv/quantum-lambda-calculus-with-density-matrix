@@ -48,7 +48,7 @@ typeCheckTests = testGroup "Type Checker tests"
         Left "VariableAlreadyInScope \"x\""
   , testCase "Invalid app" $
       testStr "(\\x.x |0>) |0>" @?=
-        Left "UnificationFail $(1) \\multimap V2$ $(1)$"
+        Left "UnificationFail $(1)$ $(1) \\multimap V0$"
   , testCase "let not measured" $
      testStr "letcase ym=|+> in {|1>, |0>}" @?=
         Left "UnificationFail $(1)$ $(1, 1)$"
