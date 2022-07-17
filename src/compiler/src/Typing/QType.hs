@@ -1,5 +1,6 @@
 module Typing.QType where
-import           Data.Text     (Text)
+import qualified Data.Map      as M
+import qualified Data.Text     as T
 import           Prettyprinter
 
 type VariableId = Int
@@ -12,6 +13,8 @@ data QType = QTQubits Int
 
 instance Show QType where
   show = show.mathEnv.prettyQType
+
+newtype TypeEnv = TypeEnv (M.Map T.Text QType)
 
 mathEnv = enclose "$" "$"
 
