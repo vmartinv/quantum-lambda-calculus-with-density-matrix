@@ -19,7 +19,6 @@ import           Typing.Robinson
 import           Typing.Subst
 import           Typing.TypeEq
 import           Typing.TypeError
-import           Typing.Utils
 
 -- | Solve for the toplevel type of an expression
 typeCheck :: PExp -> Except String QType

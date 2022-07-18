@@ -3,21 +3,15 @@ module Typing.Robinson where
 
 import           Control.Applicative
 import           Control.Monad.Except
-import           Control.Monad.Reader
 import           Control.Monad.State
-import           Data.Coerce
-import           Data.List
 import qualified Data.Map             as M
 import           Data.Maybe
 import qualified Data.Set             as S
-import qualified Data.Text            as T
-import           Data.Tuple.Extra
-import           Parser
 import           Typing.QType
 import           Typing.Subst
 import           Typing.TypeEq
 import           Typing.TypeError
-import           Typing.Utils
+import           Utils
 
 -- returns a susbstitution to replace a variable with a given type
 bind :: VariableId -> QType -> ExceptInfer Subst
@@ -72,6 +66,7 @@ assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList
 
 -- Given that the sum equations form a tree and are given in topological order
 -- this function transform the equations into a flatten tree
+-- it does a map over the list of equations while keeping a state
 flattenTree :: [TypeEq] -> [TypeEq]
 flattenTree eqs = evalState (sequence (f <$> eqs)) M.empty
   where

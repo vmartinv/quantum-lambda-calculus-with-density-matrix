@@ -18,7 +18,6 @@ import           Typing.Robinson
 import           Typing.Subst
 import           Typing.TypeEq
 import           Typing.TypeError
-import           Typing.Utils
 
 type TypeState = Int
 

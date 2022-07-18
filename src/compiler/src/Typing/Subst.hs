@@ -4,7 +4,6 @@ import qualified Data.Map      as M
 import qualified Data.Set      as S
 import           Typing.QType
 import           Typing.TypeEq
-import           Typing.Utils
 
 type Subst = M.Map VariableId QType
 
