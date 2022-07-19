@@ -23,8 +23,20 @@ testStr = runExcept.parseLambdaRho
 unitTests = testGroup "Unit tests"
   [ testCase "Parsing var" $
       testStr "x" @?= Right (PVar "x")
-  , testCase "Parsing gates" $
-      testStr "U x" @?= Right (PGate "U" (PVar "x"))
+  , testCase "Parsing gate with no arguments" $
+      testStr "U x" @?= Right (PGate "U" [] (PVar "x"))
+  , testCase "Parsing gate with single argument" $
+      testStr "ZC^9 x" @?= Right (PGate "ZC" [9.0] (PVar "x"))
+  , testCase "Parsing gate with int arguments" $
+      testStr "I^{0,1} x" @?= Right (PGate "I" [0.0,1.0] (PVar "x"))
+  , testCase "Parsing gate with negative argument" $
+      testStr "UFZ^{-99} x" @?= Right (PGate "UFZ" [-99.0] (PVar "x"))
+  , testCase "Parsing gate with negative arguments" $
+      testStr "UFZ^{-3,-0, 1} x" @?= Right (PGate "UFZ" [-3.0, 0.0, 1.0] (PVar "x"))
+  , testCase "Parsing gate with exp argument" $
+      testStr "X^{1e3,1.1e3, -2.1e3, 4e-4, 4.4e-12, -5.03e-8} x" @?= Right (PGate "X" [1e3,1.1e3, -2.1e3, 4e-4, 4.4e-12, -5.03e-8] (PVar "x"))
+  , testCase "Parsing gate with mixed arguments" $
+      testStr "ASDFXX^{1e3,-3,4.4, 0} x" @?= Right (PGate "ASDFXX" [1e3,-3.0,4.4,0] (PVar "x"))
   , testCase "Parsing projector" $
       testStr "\\pi^10 x" @?= Right (PProjector 10 (PVar "x"))
   , testCase "Parsing single qubit" $

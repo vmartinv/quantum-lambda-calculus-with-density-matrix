@@ -17,7 +17,7 @@ import Data.Text (Text, pack)
     '.' { TokenDot }
     qubits { TokenQubits $$ }
     gate { TokenGate $$ }
-    OTIMES { TokenTimes }
+    OTIMES { TokenOtimes }
     PI { TokenProjector }
     letcase { TokenLetCase }
     in { TokenIn }
@@ -29,21 +29,37 @@ import Data.Text (Text, pack)
     ',' { TokenComma }
     '^' { TokenPower }
     int { TokenInt $$ }
+    double { TokenDouble $$ }
 
-%right in
+%nonassoc '{' '}'
+%nonassoc '(' ')'
+%nonassoc GAT PROJ OTIM APP LAMB
+%nonassoc var PI '\\' qubits gate letcase
 %left OTIMES ','
 
 %%
 
-PExp : var                    { PVar (pack $1) }
-    | PI '^' int PExp        { PProjector $3 $4 }
-    | '\\' var '.' PExp       { PLambda (pack $2) $4 }
-    | PExp PExp               { PFunApp $1 $2 }
-    | qubits                  { PQubits (pack $1) }
-    | gate PExp               { PGate (pack $1) $2 }
-    | PExp OTIMES PExp        { PTimes $1 $3 }
-    | '(' PExp ')'            { $2 }
+-- pack :: String -> Text
+
+PExp : var                              { PVar (pack $1) }
+    | PI '^' int PExp %prec PROJ        { PProjector $3 $4 }
+    | '\\' var '.' PExp %prec LAMB      { PLambda (pack $2) $4 }
+    | PExp PExp %prec APP               { PFunApp $1 $2 }
+    | qubits                            { PQubits (pack $1) }
+    | Gate PExp %prec GAT               { $1 $2 }
+    | PExp OTIMES PExp %prec OTIM       { PTimes $1 $3 }
+    | '(' PExp ')'                      { $2 }
     | letcase var '=' PExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
+
+Gate : gate '^' NumExp                { PGate (pack $1) [$3] }
+    | gate                            { PGate (pack $1) [] }
+    | gate '^' '{' GateParamList '}'  { PGate (pack $1) (reverse $4) }
+
+GateParamList : NumExp         { [$1] }
+    | GateParamList ',' NumExp { $3 : $1 }
+
+NumExp : double                { $1 }
+  | int                        { fromIntegral $1 }
 
 CaseList : PExp              { [$1] }
          | CaseList ',' PExp { $3 : $1 }
@@ -53,7 +69,7 @@ data PExp = PVar Text
          | PLambda Text PExp
          | PFunApp PExp PExp
          | PQubits Text
-         | PGate Text PExp
+         | PGate Text [Double] PExp
          | PProjector Int PExp
          | PTimes PExp PExp
          | PLetCase Text PExp [PExp]

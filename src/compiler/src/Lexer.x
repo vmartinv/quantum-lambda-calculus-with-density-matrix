@@ -6,6 +6,12 @@ import Control.Monad.Except
 %wrapper "basic"
 
 $digit = 0-9
+@prettynumber = $digit+ ([_] $digit+)*
+@integer      = [\-]? @prettynumber
+@decimal      = $digit+
+@exponent     = [eE] [\-]? @decimal
+@double       = [\-]? @decimal (\. @decimal)? @exponent?
+
 $qubits = [01\+\-]
 $lower = [a-z]
 $upper = [A-Z]
@@ -19,7 +25,7 @@ tokens :-
   letcase                       { \s -> TokenLetCase }
   \.                            { \s -> TokenDot }
   \|$qubits+\>                  { \s -> TokenQubits (stripSides s) }
-  \\otimes                      { \s -> TokenTimes }
+  \\otimes                      { \s -> TokenOtimes }
   in                            { \s -> TokenIn }
   \=                            { \s -> TokenEq }
   \(                            { \s -> TokenLParen }
@@ -30,7 +36,8 @@ tokens :-
   $lower+                       { \s -> TokenVar s }
   $upper+                       { \s -> TokenGate s }
   \^                            { \s -> TokenPower }
-  $digit+                       { \s -> TokenInt (read s) }
+  @decimal                      { \s -> TokenInt (read s) }
+  @double                       { \s -> TokenDouble (read s) }
 
 {
 
@@ -40,7 +47,7 @@ data Token = TokenLambda
            | TokenDot
            | TokenQubits String
            | TokenGate String
-           | TokenTimes
+           | TokenOtimes
            | TokenProjector
            | TokenLetCase
            | TokenIn
@@ -52,6 +59,7 @@ data Token = TokenLambda
            | TokenComma
            | TokenPower
            | TokenInt Int
+           | TokenDouble Double
            deriving (Eq,Show)
 
 stripSides :: String -> String
