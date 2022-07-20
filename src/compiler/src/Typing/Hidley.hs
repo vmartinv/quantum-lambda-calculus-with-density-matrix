@@ -12,7 +12,7 @@ import           Data.Maybe
 import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Data.Tuple.Extra
-import           Parser
+import           Typing.PExp
 import           Typing.QType
 import           Typing.Robinson
 import           Typing.Subst

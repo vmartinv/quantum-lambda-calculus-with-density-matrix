@@ -2,8 +2,9 @@
 module Parser where
 import Lexer
 import Control.Monad.Except
+import Typing.PExp
 
-import Data.Text (Text, pack)
+import Data.Text (pack)
 }
 
 %name parseTokens
@@ -65,16 +66,6 @@ CaseList : PExp              { [$1] }
          | CaseList ',' PExp { $3 : $1 }
 
 {
-data PExp = PVar Text
-         | PLambda Text PExp
-         | PFunApp PExp PExp
-         | PQubits Text
-         | PGate Text [Double] PExp
-         | PProjector Int PExp
-         | POtimes PExp PExp
-         | PLetCase Text PExp [PExp]
-         deriving (Show,Eq)
-
 parseError :: [Token] -> Except String a
 parseError (l:ls) = throwError (show l)
 parseError [] = throwError "Unexpected end of Input"

@@ -1,6 +1,6 @@
 module Translation where
-import           Data.Text (Text, pack)
-import           Parser
+import           Data.Text   (Text, pack)
+import           Typing.PExp
 
 data PyExp = PyVar Text
           | PyLambda Text PyExp

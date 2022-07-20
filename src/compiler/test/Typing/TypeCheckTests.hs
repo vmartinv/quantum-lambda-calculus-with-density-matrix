@@ -3,6 +3,7 @@ import           Control.Monad.Except
 import           Parser
 import           Test.Tasty
 import           Test.Tasty.HUnit
+import           Typing.PExp
 import           Typing.QType
 import           Typing.TypeChecker
 
