@@ -22,7 +22,7 @@ typeCheckTests = testGroup "Type Checker tests"
   , testCase "Lambda with projector" $
       testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
   , testCase "Otimes" $
-      testExp (PTimes (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
+      testExp (POtimes (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
   , testCase "Parsing function application" $
       testExp (PFunApp (PLambda "x" (PVar "x")) (PQubits "0")) @?= Right (QTQubits 1)
   , testCase "Use external scope in cases" $

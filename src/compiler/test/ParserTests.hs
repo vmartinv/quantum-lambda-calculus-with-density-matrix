@@ -46,7 +46,7 @@ unitTests = testGroup "Unit tests"
   , testCase "Parsing invalid qubits" $
       testStr "|2>" @?= Left "Invalid lexeme"
   , testCase "Parsing otimes" $
-      testStr "x \\otimes y" @?= Right (PTimes (PVar "x") (PVar "y"))
+      testStr "x \\otimes y" @?= Right (POtimes (PVar "x") (PVar "y"))
   , testCase "Parsing lambda" $
       testStr "\\x.y" @?= Right (PLambda "x" (PVar "y"))
   , testCase "Parsing parenthesis" $
@@ -65,5 +65,5 @@ unitTests = testGroup "Unit tests"
       testStr "\\ |+>" @?= Left "TokenQubits \"+\""
   , testCase "Parsing nested letcase" $
       testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}"
-        @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector 1 (PLetCase "zz" (PProjector 3 (PTimes (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
+        @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector 1 (PLetCase "zz" (PProjector 3 (POtimes (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
   ]

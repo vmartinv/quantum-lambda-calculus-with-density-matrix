@@ -47,7 +47,7 @@ PExp : var                              { PVar (pack $1) }
     | PExp PExp %prec APP               { PFunApp $1 $2 }
     | qubits                            { PQubits (pack $1) }
     | Gate PExp %prec GAT               { $1 $2 }
-    | PExp OTIMES PExp %prec OTIM       { PTimes $1 $3 }
+    | PExp OTIMES PExp %prec OTIM       { POtimes $1 $3 }
     | '(' PExp ')'                      { $2 }
     | letcase var '=' PExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
 
@@ -71,7 +71,7 @@ data PExp = PVar Text
          | PQubits Text
          | PGate Text [Double] PExp
          | PProjector Int PExp
-         | PTimes PExp PExp
+         | POtimes PExp PExp
          | PLetCase Text PExp [PExp]
          deriving (Show,Eq)
 
