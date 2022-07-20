@@ -12,6 +12,7 @@ import           Data.Maybe
 import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Data.Tuple.Extra
+import           Typing.GateCheck
 import           Typing.PExp
 import           Typing.QType
 import           Typing.Robinson
@@ -44,7 +45,7 @@ ftvExp (PVar v)         = S.singleton v
 ftvExp (PLambda v e)    = v `S.delete` (ftvExp e)
 ftvExp (PFunApp t r)    = (ftvExp t) `S.union` (ftvExp r)
 ftvExp (PQubits _)      = S.empty
-ftvExp (PGate _ _ e)    = ftvExp e
+ftvExp (PGate _ e)      = ftvExp e
 ftvExp (PProjector _ e) = ftvExp e
 ftvExp (POtimes t r)    = (ftvExp t) `S.union` (ftvExp r)
 ftvExp (PLetCase v e _) = v `S.delete` (ftvExp e)
@@ -134,9 +135,10 @@ hindley ex = case ex of
     (t, eq) <- hindley e
     return (tv, eq++[TypeEq tv (QTMeasuredQubits d), IsQubits t, IsMeasuredQubits tv, AtLeastSizeEq [t] tv])
 
-  PGate g _params e -> do
+  PGate gdefs e -> do
     tv <- fresh
     (t, eq) <- hindley e
-    return (tv, eq++[TypeEq tv t, TypeEq tv (QTQubits 2)])
+    sz <- (lift . lift) (getGateSize gdefs)
+    return (tv, eq++[TypeEq tv t, TypeEq tv (QTQubits sz)])
 
   PQubits q -> return (QTQubits (T.length q), [])

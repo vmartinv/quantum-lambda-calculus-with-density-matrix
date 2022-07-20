@@ -14,6 +14,8 @@ render (PyFunCall exp1 exps) = callee exp1 <> parens (args exps)
       args [x@(PyStr s)] = render x
       args xs  = enclose line line $ indent 4 $ vsep $ punctuate comma $ (render <$> xs)
 render (PyStr s) = squotes $ pretty s
+render (PyInt n) = pretty n
+render (PyFloat f) = pretty f
 render (PyDict cases) = braces $ enclose line line $ indent 4 $ sep $ (prettyCase <$> cases)
   where
     prettyCase (label, exp) = render (PyStr label) <> colon <+> render exp <> comma

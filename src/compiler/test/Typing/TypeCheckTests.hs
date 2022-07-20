@@ -19,7 +19,11 @@ typeCheckTests = testGroup "Type Checker tests"
   , testCase "Identity" $
       testExp (PLambda "x" (PVar "x")) @?= Right (QTFun (QTQubits 1) (QTQubits 1))
   , testCase "Lambda with gate" $
-      testExp (PLambda "x" (PGate "U" [] (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
+      testExp (PLambda "x" (PGate [PGateDef "SWAP" []] (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
+  , testCase "Lambda with gate with arguments" $
+      testExp (PLambda "x" (PGate [PGateDef "UC" [1,2,3]] (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
+  , testCase "Lambda with gate with otimes" $
+      testExp (PLambda "x" (PGate [PGateDef "SWAP" [], PGateDef "I" [5], PGateDef "UC" [1,2,3]] (PVar "x"))) @?= Right (QTFun (QTQubits 9) (QTQubits 9))
   , testCase "Lambda with projector" $
       testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
   , testCase "Otimes" $

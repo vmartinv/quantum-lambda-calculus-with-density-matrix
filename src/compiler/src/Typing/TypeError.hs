@@ -15,6 +15,9 @@ data TypeError  = UnificationFail QType QType
               | InvalidOperatorSizes
               | VariableAlreadyInScope T.Text
               | VariablesUsedMoreThanOnce (S.Set T.Text)
+              | UnknownGate T.Text
+              | IdentityGateIsNotIntegerSize Double
+              | GateReceivedWrongNumberOfArguments Int Int
               deriving (Show,Eq)
 
 type ExceptInfer = Except TypeError
