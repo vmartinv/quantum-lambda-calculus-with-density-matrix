@@ -2,7 +2,7 @@ module Render where
 
 import           Data.List
 import           Prettyprinter
-import           Translation
+import           PyExp
 
 render :: PyExp -> Doc ann
 render (PyVar v)            = pretty v

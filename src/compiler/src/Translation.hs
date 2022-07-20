@@ -1,18 +1,9 @@
 module Translation where
 import           Control.Monad.State
 import           Data.Text           (Text, pack, toLower)
+import           PyExp
 import           Typing.GateCheck
 import           Typing.PExp
-
-data PyExp = PyVar Text
-          | PyLambda Text PyExp
-          | PyFunName Text
-          | PyFunCall PyExp [PyExp]
-          | PyStr Text
-          | PyFloat Double
-          | PyInt Int
-          | PyDict [(Text, PyExp)]
-          deriving (Show,Eq)
 
 translate :: PExp -> PyExp
 translate (PVar v) = PyVar v
