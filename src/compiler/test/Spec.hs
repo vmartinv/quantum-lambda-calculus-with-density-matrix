@@ -1,4 +1,4 @@
-import           ParserTests           (parserTests)
+import           Parsing.ParserTests   (parserTests)
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Typing.QTypeTests     (qTypeTests)

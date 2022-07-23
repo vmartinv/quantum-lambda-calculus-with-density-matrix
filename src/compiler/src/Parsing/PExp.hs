@@ -1,4 +1,4 @@
-module Typing.PExp where
+module Parsing.PExp where
 
 
 import           Data.Text (Text)

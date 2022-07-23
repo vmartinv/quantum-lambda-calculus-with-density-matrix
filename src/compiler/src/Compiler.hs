@@ -1,10 +1,10 @@
 module Compiler(compile) where
 import           Control.Monad.Except
-import           Data.Text            (Text)
-import           Parser
+import           Data.Text               (Text)
+import           Parsing.Parser
 import           Prettyprinter
-import           Render
-import           Translation
+import           Translation.Render
+import           Translation.Translation
 import           Typing.QType
 import           Typing.TypeChecker
 

@@ -1,9 +1,9 @@
-module Translation where
+module Translation.Translation where
 import           Control.Monad.State
 import           Data.Text           (Text, pack, toLower)
-import           PyExp
+import           Parsing.PExp
+import           Translation.PyExp
 import           Typing.GateCheck
-import           Typing.PExp
 
 translate :: PExp -> PyExp
 translate (PVar v) = PyVar v

@@ -1,8 +1,8 @@
 {
-module Parser where
-import Lexer
+module Parsing.Parser where
+import Parsing.Lexer
 import Control.Monad.Except
-import Typing.PExp
+import Parsing.PExp
 
 import Data.Text (pack)
 }

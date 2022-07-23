@@ -1,11 +1,11 @@
-module ParserTests(parserTests) where
+module Parsing.ParserTests(parserTests) where
 import           Control.Monad.Except
-import           Parser
+import           Parsing.Parser
+import           Parsing.PExp
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck as QC
 import           Test.Tasty.SmallCheck as SC
-import           Typing.PExp
 
 parserTests :: TestTree
 parserTests = testGroup "Lexer/Parser tests" [properties, unitTests]

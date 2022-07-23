@@ -1,8 +1,8 @@
-module Render where
+module Translation.Render where
 
 import           Data.List
 import           Prettyprinter
-import           PyExp
+import           Translation.PyExp
 
 render :: PyExp -> Doc ann
 render (PyVar v)            = pretty v
