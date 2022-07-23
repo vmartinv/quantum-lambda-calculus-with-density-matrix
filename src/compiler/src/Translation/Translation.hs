@@ -1,6 +1,6 @@
 module Translation.Translation where
 import           Control.Monad.State
-import           Data.Text           (Text, pack, toLower)
+import qualified Data.Text                as T
 import           Parsing.PExp
 import           Translation.PyExp
 import           Typing.GateChecker
@@ -15,7 +15,7 @@ translate (PProjector _ exp) = PyFunCall (PyFunName "apply_measure") [translate 
 translate (POtimes exp1 exp2) = PyFunCall (PyFunName "tensor_product") [translate exp1, translate exp2]
 translate (PLetCase v exp exps) = PyFunCall (PyFunName "letcase") [translate exp, PyDict cases]
   where
-    cases = zip (pack <$> show <$> [0::Int ..]) ((PyLambda v.translate) <$> exps)
+    cases = zip (T.pack <$> show <$> [0::Int ..]) ((PyLambda v.translate) <$> exps)
 
 translateGate :: PyExp -> PGate -> State Int PyExp
 translateGate pyexp (PGateOtimes g1 g2) = do
@@ -33,5 +33,5 @@ translateGate pyexp gdef@(PGate name params) = do
   modify (+gateSize)
   return $ PyFunCall (PyFunName "apply_gate") [gate, pyexp]
 
-translateGateName :: Text -> Text
-translateGateName = toLower
+translateGateName :: T.Text -> T.Text
+translateGateName = T.toLower
