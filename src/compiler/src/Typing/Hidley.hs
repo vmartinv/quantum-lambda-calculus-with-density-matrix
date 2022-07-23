@@ -19,6 +19,7 @@ import           Typing.Robinson
 import           Typing.Subst
 import           Typing.TypeEq
 import           Typing.TypeError
+import           Utils
 
 type TypeState = Int
 
@@ -151,7 +152,3 @@ hindley ex = case ex of
     when ((2^q) /= n) (throwError $ MatrixIsNotAPowerOfTwo m)
     when (q==0) (throwError $ MatrixHasZeroQubits m)
     return (QTQubits q, [])
-
--- logarithm in base 2, rounded
-log2 :: Int -> Int
-log2 = floor . logBase 2.0 . fromIntegral
