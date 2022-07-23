@@ -47,15 +47,15 @@ PExp : var                              { PVar (pack $1) }
     | '\\' var '.' PExp %prec LAMB      { PLambda (pack $2) $4 }
     | PExp PExp %prec APP               { PFunApp $1 $2 }
     | qubits                            { PQubits (pack $1) }
-    | Gate PExp %prec GAT               { PGate $1 $2 }
+    | Gate PExp %prec GAT               { PGateApp $1 $2 }
     | PExp OTIMES PExp %prec OTIM       { POtimes $1 $3 }
     | '(' PExp ')'                      { $2 }
     | letcase var '=' PExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
 
-Gate : gate '^' NumExp                { [ PGateDef (pack $1) [$3] ] }
-    | gate                            { [ PGateDef (pack $1) [] ] }
-    | gate '^' '{' GateParamList '}'  { [ PGateDef (pack $1) (reverse $4) ] }
-    | Gate OTIMES Gate                { $1 ++ $3 }
+Gate : gate '^' NumExp                { PGate (pack $1) [$3] }
+    | gate                            { PGate (pack $1) [] }
+    | gate '^' '{' GateParamList '}'  { PGate (pack $1) (reverse $4) }
+    | Gate OTIMES Gate                { PGateOtimes $1 $3 }
     | '(' Gate ')'                    { $2 }
 
 GateParamList : NumExp         { [$1] }
