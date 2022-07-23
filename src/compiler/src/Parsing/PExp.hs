@@ -13,6 +13,7 @@ data PExp = PVar Text
          | PFunApp PExp PExp
          | PQubits Text
          | PGateApp PGate PExp
+         | PMatrix [[Double]]
          | POtimesGate PExp PExp
          | PProjector Int PExp
          | POtimes PExp PExp

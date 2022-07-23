@@ -18,6 +18,9 @@ data TypeError  = UnificationFail QType QType
               | UnknownGate T.Text
               | IdentityGateIsNotIntegerSize Double
               | GateReceivedWrongNumberOfArguments Int Int
+              | MatrixIsNotSquare [[Double]]
+              | MatrixIsNotAPowerOfTwo [[Double]]
+              | MatrixHasZeroQubits [[Double]]
               deriving (Show,Eq)
 
 type ExceptInfer = Except TypeError

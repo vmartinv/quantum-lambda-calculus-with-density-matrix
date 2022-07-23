@@ -71,4 +71,14 @@ unitTests = testGroup "Unit tests"
   , testCase "Parsing nested letcase" $
       testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}"
         @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector 1 (PLetCase "zz" (PProjector 3 (POtimes (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
+  , testCase "Parsing empty matrix" $
+      testStr "[[]]" @?= Left "TokenRBracket"
+  , testCase "Parsing matrix size 1" $
+      testStr "[[1]]" @?= Right (PMatrix [[1.0]])
+  , testCase "Parsing matrix size 2" $
+      testStr "[[1,2],[3,4]]" @?= Right (PMatrix [[1.0, 2.0], [3.0, 4.0]])
+  , testCase "Parsing non-square matrix" $
+      testStr "[[1,2,3]]" @?= Right (PMatrix [[1.0,2.0,3.0]])
+  , testCase "Parsing matrix in expression" $
+      testStr "I^100 [[1,2,3]]" @?= Right (PGateApp (PGate "I" [100.0]) (PMatrix [[1.0,2.0,3.0]]))
   ]

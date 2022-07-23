@@ -110,8 +110,7 @@ hindley ex = case ex of
   PLetCase x e es -> do
     -- validate number is cases is a power of two
     -- also infers the number of qubits of the conditional
-    let log2 = floor . logBase 2.0 . fromIntegral
-        q = log2 (length es)
+    let q = log2 (length es)
     when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
     tcase <- fresh
     (t1, eq1) <- hindley e
@@ -142,3 +141,17 @@ hindley ex = case ex of
     return (tv, eq++[TypeEq tv t, TypeEq tv (QTQubits sz)])
 
   PQubits q -> return (QTQubits (T.length q), [])
+
+  PMatrix m -> do
+    let n = length m
+    -- the parser already guarantees that is not empty
+    when (not $ all (==n) (length <$> m)) (throwError $ MatrixIsNotSquare m)
+    -- validate number of rows is a power of two
+    let q = log2 n
+    when ((2^q) /= n) (throwError $ MatrixIsNotAPowerOfTwo m)
+    when (q==0) (throwError $ MatrixHasZeroQubits m)
+    return (QTQubits q, [])
+
+-- logarithm in base 2, rounded
+log2 :: Int -> Int
+log2 = floor . logBase 2.0 . fromIntegral

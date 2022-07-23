@@ -32,6 +32,8 @@ tokens :-
   \)                            { \s -> TokenRParen }
   \{                            { \s -> TokenLBrace }
   \}                            { \s -> TokenRBrace }
+  \[                            { \s -> TokenLBracket }
+  \]                            { \s -> TokenRBracket }
   \,                            { \s -> TokenComma }
   $lower+                       { \s -> TokenVar s }
   $upper+                       { \s -> TokenGate s }
@@ -56,6 +58,8 @@ data Token = TokenLambda
            | TokenRParen
            | TokenLBrace
            | TokenRBrace
+           | TokenLBracket
+           | TokenRBracket
            | TokenComma
            | TokenPower
            | TokenInt Int
