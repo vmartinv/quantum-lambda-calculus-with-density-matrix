@@ -1,4 +1,4 @@
-module Typing.GateCheck where
+module Typing.GateChecker where
 
 import           Control.Monad.Except
 import qualified Data.Text            as T

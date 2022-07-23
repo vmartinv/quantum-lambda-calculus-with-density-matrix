@@ -3,7 +3,7 @@ import           Control.Monad.State
 import           Data.Text           (Text, pack, toLower)
 import           Parsing.PExp
 import           Translation.PyExp
-import           Typing.GateCheck
+import           Typing.GateChecker
 
 translate :: PExp -> PyExp
 translate (PVar v) = PyVar v

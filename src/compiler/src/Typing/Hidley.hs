@@ -13,7 +13,7 @@ import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Data.Tuple.Extra
 import           Parsing.PExp
-import           Typing.GateCheck
+import           Typing.GateChecker
 import           Typing.QType
 import           Typing.Robinson
 import           Typing.Subst
