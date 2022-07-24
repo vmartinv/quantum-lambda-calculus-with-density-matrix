@@ -1,4 +1,4 @@
-module Translation.PyExp where
+module Python.PyExp where
 
 import           Data.Text (Text)
 

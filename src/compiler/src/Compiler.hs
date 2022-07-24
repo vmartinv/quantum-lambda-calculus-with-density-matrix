@@ -3,7 +3,7 @@ import           Control.Monad.Except
 import           Data.Text               (Text)
 import           Parsing.Parser
 import           Prettyprinter
-import           Translation.Render
+import           Python.Render
 import           Translation.Translation
 import           Typing.QType
 import           Typing.TypeChecker

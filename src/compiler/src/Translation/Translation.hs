@@ -2,8 +2,8 @@ module Translation.Translation where
 import           Control.Monad.State
 import qualified Data.Text                as T
 import           Parsing.PExp
+import           Python.PyExp
 import           Translation.Purification
-import           Translation.PyExp
 import           Translation.StateBuilder
 import           Typing.GateChecker
 
