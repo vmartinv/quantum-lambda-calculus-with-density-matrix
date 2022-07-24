@@ -20,7 +20,8 @@ getGateSize (PGate name@"CCNOT" params) = assertParamSize name 0 params *> retur
 getGateSize (PGate name@"CSWAP" params) = assertParamSize name 0 params *> return 3
 getGateSize (PGate name@"I" params) = do
   assertParamSize name 1 params
-  when (not (isInt nf)) (throwError $ IdentityGateIsNotIntegerSize nf)
+  when (not (isInt nf)) (throwError $ IdentityGateIsNotIntegerSize name nf)
+  when (n < 0) (throwError $ IdentityGateIsNotIntegerSize name nf)
   return n
   where
     nf = head params
@@ -29,4 +30,4 @@ getGateSize (PGate name _params) = throwError $ UnknownGate name
 
 assertParamSize :: T.Text -> Int -> [a] -> ExceptInfer ()
 assertParamSize gate n ls =
-  when (n/=length ls) (throwError $ GateReceivedWrongNumberOfArguments n (length ls))
+  when (n/=length ls) (throwError $ GateReceivedWrongNumberOfArguments gate n (length ls))

@@ -16,8 +16,8 @@ data TypeError  = UnificationFail QType QType
               | VariableAlreadyInScope T.Text
               | VariablesUsedMoreThanOnce (S.Set T.Text)
               | UnknownGate T.Text
-              | IdentityGateIsNotIntegerSize Double
-              | GateReceivedWrongNumberOfArguments Int Int
+              | IdentityGateIsNotIntegerSize T.Text Double
+              | GateReceivedWrongNumberOfArguments T.Text Int Int
               | MatrixIsNotSquare [[Double]]
               | MatrixIsNotAPowerOfTwo [[Double]]
               | MatrixHasZeroQubits [[Double]]

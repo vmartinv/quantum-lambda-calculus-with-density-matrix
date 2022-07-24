@@ -22,6 +22,16 @@ typeCheckTests = testGroup "Type Checker tests"
       testExp (PLambda "x" (PGateApp (PGate "SWAP" []) (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
   , testCase "Lambda with gate with arguments" $
       testExp (PLambda "x" (PGateApp (PGate "UC" [1,2,3]) (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
+  , testCase "Lambda with gate with too many arguments" $
+      testExp (PLambda "x" (PGateApp (PGate "UC" [1,2,3,4]) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"UC\" 3 4"
+  , testCase "Lambda with gate with too few arguments" $
+      testExp (PLambda "x" (PGateApp (PGate "UC" [1,2]) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"UC\" 3 2"
+  , testCase "Lambda with identity of negative size" $
+      testExp (PLambda "x" (PGateApp (PGate "I" [-1]) (PVar "x"))) @?= Left "IdentityGateIsNotIntegerSize \"I\" (-1.0)"
+  , testCase "Lambda with identity of zero size" $
+      testExp (PLambda "x" (PGateApp (PGate "I" [0]) (PVar "x"))) @?= Right (QTFun (QTQubits 0) (QTQubits 0))
+  , testCase "Lambda with identity of zero size otimes fixed" $
+      testExp (PLambda "x" (PGateApp (PGateOtimes (PGate "I" [0]) (PGate "I" [2])) (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
   , testCase "Lambda with gate with otimes" $
       testExp (PLambda "x" (PGateApp (PGateOtimes (PGateOtimes (PGate "SWAP" []) (PGate "I" [5])) (PGate "UC" [1,2,3])) (PVar "x"))) @?= Right (QTFun (QTQubits 9) (QTQubits 9))
   , testCase "Lambda with projector" $
