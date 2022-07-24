@@ -2,7 +2,9 @@ module Translation.Translation where
 import           Control.Monad.State
 import qualified Data.Text                as T
 import           Parsing.PExp
+import           Translation.Purification
 import           Translation.PyExp
+import           Translation.StateBuilder
 import           Typing.GateChecker
 
 translate :: PExp -> PyExp
@@ -10,6 +12,7 @@ translate (PVar v) = PyVar v
 translate (PLambda v exp) = PyLambda v (translate exp)
 translate (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translate exp2]
 translate (PQubits qbits) = PyFunCall (PyFunName "make_pure") [PyStr qbits]
+translate (PMatrix m) = translateMatrix m
 translate (PGateApp gate exp) = evalState (translateGate (translate exp) gate) 0
 translate (PProjector _ exp) = PyFunCall (PyFunName "apply_measure") [translate exp]
 translate (POtimes exp1 exp2) = PyFunCall (PyFunName "tensor_product") [translate exp1, translate exp2]
@@ -35,3 +38,8 @@ translateGate pyexp gdef@(PGate name params) = do
 
 translateGateName :: T.Text -> T.Text
 translateGateName = T.toLower
+
+translateMatrix :: [[Double]] -> PyExp
+translateMatrix m = translate (circuitForState purified)
+  where
+    purified = purify m
