@@ -8,23 +8,15 @@ import           Test.Tasty.QuickCheck         as QC
 import           Test.Tasty.SmallCheck         as SC
 import           Translation.StateBuilder
 
-stateBuilderTests :: TestTree
-stateBuilderTests = testGroup "StateBuilder tests" [properties, unitTests]
+stateBuilderTests = testGroup "stateBuilderTests" [bitManipulation]
 
-properties :: TestTree
-properties = testGroup "Properties" [scProps, qcProps]
-
-scProps = testGroup "(checked by SmallCheck)"
-  []
-
-qcProps = testGroup "(checked by QuickCheck)"
-  []
-
-unitTests = testGroup "Bit manipulation"
+bitManipulation = testGroup "bitManipulation"
   [ testCase "binaryToGray vals" $
       (binaryToGray <$> [0..15]) @?= [0, 1, 3, 2, 6, 7, 5, 4, 12, 13, 15, 14, 10, 11, 9, 8]
   , testCase "grayDiffNext vals" $
       (grayDiffNext <$> [0..15]) @?= [0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4]
+  , QC.testProperty "|(gray x+1)-(gray x)|==2^(grayDiffNext x)" $
+      (\x -> abs (binaryToGray (x+1) - binaryToGray (x :: Int)) ==  2^(grayDiffNext x)) . QC.getNonZero
   , testCase "getBit first vals" $
       ((flip getBit) 0 <$> [0..33]) @?= [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]
   , testCase "getBit second vals" $

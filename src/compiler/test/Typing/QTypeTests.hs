@@ -1,11 +1,9 @@
 module Typing.QTypeTests(qTypeTests) where
 import           Test.Tasty
 import           Test.Tasty.HUnit
-
 import           Typing.QType
 
-qTypeTests :: TestTree
-qTypeTests = testGroup "QType tests"
+qTypeTests = testGroup "qTypeTests"
   [ testCase "Show qubits" $
       show (QTQubits 5) @?= "$(5)$"
   , testCase "Show measured bits" $
