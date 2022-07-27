@@ -48,7 +48,7 @@ ftvExp (PFunApp t r)    = (ftvExp t) `S.union` (ftvExp r)
 ftvExp (PQubits _)      = S.empty
 ftvExp (PGateApp _ e)   = ftvExp e
 ftvExp (PProjector _ e) = ftvExp e
-ftvExp (POtimes t r)    = (ftvExp t) `S.union` (ftvExp r)
+ftvExp (POtimesExp t r) = (ftvExp t) `S.union` (ftvExp r)
 ftvExp (PLetCase v e _) = v `S.delete` (ftvExp e)
 
 letters :: [T.Text]
@@ -123,7 +123,7 @@ hindley ex = case ex of
     (tv, eqcasesr) <- equalTypes tts
     return (tv, eq1++concat eqcases ++ eqcasesr ++ [TypeEq t1 (QTMeasuredQubits q)])
 
-  POtimes e1 e2 -> do
+  POtimesExp e1 e2 -> do
     tv <- fresh
     (env1, env2) <- partitionEnv (ftvExp e1) (ftvExp e2)
     (t1, eq1) <- local (const env1) $ hindley e1

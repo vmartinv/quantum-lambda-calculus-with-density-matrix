@@ -52,7 +52,7 @@ PExp : var                              { PVar (pack $1) }
     | qubits                            { PQubits (pack $1) }
     | '[' Matrix ']'  %prec MAT         { PMatrix (reverse $2) }
     | Gate PExp %prec GAT               { PGateApp $1 $2 }
-    | PExp OTIMES PExp %prec OTIM       { POtimes $1 $3 }
+    | PExp OTIMES PExp %prec OTIM       { POtimesExp $1 $3 }
     | '(' PExp ')'                      { $2 }
     | letcase var '=' PExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
 

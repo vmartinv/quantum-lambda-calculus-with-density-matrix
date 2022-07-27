@@ -15,7 +15,7 @@ translate (PQubits qbits) = PyFunCall (PyFunName "make_pure") [PyStr qbits]
 translate (PMatrix m) = translateMatrix m
 translate (PGateApp gate exp) = evalState (translateGate (translate exp) gate) 0
 translate (PProjector _ exp) = PyFunCall (PyFunName "apply_measure") [translate exp]
-translate (POtimes exp1 exp2) = PyFunCall (PyFunName "tensor_product") [translate exp1, translate exp2]
+translate (POtimesExp exp1 exp2) = PyFunCall (PyFunName "tensor_product") [translate exp1, translate exp2]
 translate (PLetCase v exp exps) = PyFunCall (PyFunName "letcase") [translate exp, PyDict cases]
   where
     cases = zip (T.pack <$> show <$> [0::Int ..]) ((PyLambda v.translate) <$> exps)

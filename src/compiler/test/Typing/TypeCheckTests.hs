@@ -100,7 +100,7 @@ letcaseTests = testGroup "letcaseTests"
 
 otimesTests = testGroup "otimesTests"
   [ testCase "Otimes" $
-      testExp (POtimes (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
+      testExp (POtimesExp (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
   , testCase "Otimes with measured" $
       testStr "|+> \\otimes \\pi^1 |0>" @?=
         Left "TypeNotQubits $(1, 1)$"

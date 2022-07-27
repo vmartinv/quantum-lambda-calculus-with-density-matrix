@@ -14,8 +14,7 @@ data PExp = PVar Text
          | PQubits Text
          | PGateApp PGate PExp
          | PMatrix [[Double]]
-         | POtimesGate PExp PExp
          | PProjector Int PExp
-         | POtimes PExp PExp
+         | POtimesExp PExp PExp
          | PLetCase Text PExp [PExp]
          deriving (Show,Eq)
