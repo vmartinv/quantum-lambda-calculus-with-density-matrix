@@ -31,13 +31,13 @@ lambdaAppTests = testGroup "lambdaAppTests"
      testStr "\\x.\\x.x" @?=
         Left "VariableAlreadyInScope \"x\""
   , testCase "Invalid app" $
-      testStr "(\\x.x |0>) |0>" @?=
+      testStr "(\\x.x \\ket{0}) \\ket{0}" @?=
         Left "UnificationFail $(1)$ $(1) -> V0$"
   ]
 
 projectorTests = testGroup "projectorTests"
   [ testCase "Double projector" $
-    testStr "\\pi^1 \\pi^1 |0>" @?=
+    testStr "\\pi^1 \\pi^1 \\ket{0}" @?=
       Left "TypeNotQubits $(1, 1)$"
   , testCase "Lambda with projector" $
       testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
@@ -48,7 +48,7 @@ noCloningTests = testGroup "noCloningTests"
     testStr "\\x.x \\otimes x" @?=
       Left "VariablesUsedMoreThanOnce (fromList [\"x\"])"
   , testCase "No-cloning theorem letcase" $
-    testStr "\\x. (letcase xm=\\pi^1 x in {|0>, |1>}) \\otimes (letcase xm=\\pi^1 x in {|0>, |1>}) " @?=
+    testStr "\\x. (letcase xm=\\pi^1 x in {\\ket{0}, \\ket{1}}) \\otimes (letcase xm=\\pi^1 x in {\\ket{0}, \\ket{1}}) " @?=
       Left "VariablesUsedMoreThanOnce (fromList [\"x\"])"
   ]
 
@@ -73,22 +73,22 @@ gateParamsTests = testGroup "gateParamsTests"
 
 letcaseTests = testGroup "letcaseTests"
   [ testCase "letcase not measured" $
-     testStr "letcase ym=|+> in {|1>, |0>}" @?=
+     testStr "letcase ym=\\ket{+} in {\\ket{1}, \\ket{0}}" @?=
         Left "UnificationFail $(1)$ $(1, 1)$"
   , testCase "letcase ok" $
-      testStr "letcase ym=\\pi^1 |+> in {|1>, |0>}" @?=
+      testStr "letcase ym=\\pi^1 \\ket{+} in {\\ket{1}, \\ket{0}}" @?=
         Right (QTQubits 1)
   , testCase "Invalid num cases" $
       testStr "\\x.letcase xm=\\pi^2 x in {xm, xm, xm}" @?=
         Left "InvalidLetCaseNumCases 3"
   , testCase "Invalid num cases 2" $
-      testStr "letcase xm=\\pi^1 |+> in {|0>, |0>, |0>, |0>}" @?=
+      testStr "letcase xm=\\pi^1 \\ket{+} in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Left "UnificationFail $(2, 2)$ $(1, 1)$"
   , testCase "letcase with unused qubits" $
-      testStr "letcase ym=\\pi^1 |++> in {|1>, |0>}" @?=
+      testStr "letcase ym=\\pi^1 \\ket{++} in {\\ket{1}, \\ket{0}}" @?=
         Right (QTQubits 1)
   , testCase "letcase returning functions" $
-     testStr "letcase ym=\\pi^1 |+> in {\\x.\\y.x, \\x.\\y.y}" @?=
+     testStr "letcase ym=\\pi^1 \\ket{+} in {\\x.\\y.x, \\x.\\y.y}" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1)))
   , testCase "Use external scope in cases" $
       testStr "\\x.\\y.\\z. letcase ym=\\pi^2 y in {U (x \\otimes y), U (y \\otimes z), U (x \\otimes z), U (x \\otimes z)}" @?=
@@ -102,10 +102,10 @@ otimesTests = testGroup "otimesTests"
   [ testCase "Otimes" $
       testExp (POtimesExp (PQubits "01+-") (PQubits "0")) @?= Right (QTQubits 5)
   , testCase "Otimes with measured" $
-      testStr "|+> \\otimes \\pi^1 |0>" @?=
+      testStr "\\ket{+} \\otimes \\pi^1 \\ket{0}" @?=
         Left "TypeNotQubits $(1, 1)$"
   , testCase "Otimes by fun" $
-     testStr "|+> \\otimes (\\x.x)" @?=
+     testStr "\\ket{+} \\otimes (\\x.x)" @?=
         Left "TypeNotQubits $V1 -> V1$"
   , testCase "Lambda with otimes" $
      testStr "\\x.\\y. x\\otimes y" @?=
@@ -126,13 +126,13 @@ eqSolvingTests = testGroup "eqSolvingTests"
       testStr "\\a.\\b.\\c.\\d.\\e.\\f.\\g.\\h.\\i.\\x.\\y.\\z. \\pi^100 (x \\otimes (y \\otimes (z \\otimes a \\otimes b) \\otimes c \\otimes d) \\otimes e \\otimes (f \\otimes g)\\otimes h \\otimes i)" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 89) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100)))))))))))))
   , testCase "Projection on 3 unknowns with letcase" $
-      testStr "\\x.\\y.\\z. letcase ym=\\pi^3 (x \\otimes y \\otimes z) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+      testStr "\\x.\\y.\\z. letcase ym=\\pi^3 (x \\otimes y \\otimes z) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1))))
   , testCase "Projection on 2 unknowns with letcase" $
-      testStr "\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}" @?=
+      testStr "\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
   , testCase "Nested letcase" $
-      testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}" @?=
+      testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}) in {\\ket{1}, \\ket{+}}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
   ]
 

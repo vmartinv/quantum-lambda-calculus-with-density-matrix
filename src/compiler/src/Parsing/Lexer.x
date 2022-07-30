@@ -24,7 +24,7 @@ tokens :-
   \\                            { \s -> TokenLambda }
   letcase                       { \s -> TokenLetCase }
   \.                            { \s -> TokenDot }
-  \|$qubits+\>                  { \s -> TokenQubits (stripSides s) }
+  \\ket\{$qubits+\}             { \s -> TokenQubits (stripSides s) }
   \\otimes                      { \s -> TokenOtimes }
   in                            { \s -> TokenIn }
   \=                            { \s -> TokenEq }
@@ -67,7 +67,7 @@ data Token = TokenLambda
            deriving (Eq,Show)
 
 stripSides :: String -> String
-stripSides s = tail (init s)
+stripSides s = drop (length ("\\ket{"::String)) (init s)
 
 -- https://www.haskell.org/alex/doc/html/basic-api.html
 scanTokens :: String -> Except String [Token]

@@ -18,11 +18,11 @@ mixedTests = testGroup "mixedTests"
   , testCase "Parsing projector" $
       testStr "\\pi^10 x" @?= Right (PProjector 10 (PVar "x"))
   , testCase "Parsing single qubit" $
-      testStr "|0>" @?= Right (PQubits "0")
+      testStr "\\ket{0}" @?= Right (PQubits "0")
   , testCase "Parsing multiple qubits" $
-      testStr "|01+->" @?= Right (PQubits "01+-")
+      testStr "\\ket{01+-}" @?= Right (PQubits "01+-")
   , testCase "Parsing invalid qubits" $
-      testStr "|2>" @?= Left "Invalid lexeme"
+      testStr "\\ket{2}" @?= Left "Unexpected lexeme: TokenLBrace"
   , testCase "Parsing otimes" $
       testStr "x \\otimes y" @?= Right (POtimesExp (PVar "x") (PVar "y"))
   , testCase "Parsing lambda" $
@@ -36,17 +36,17 @@ mixedTests = testGroup "mixedTests"
   , testCase "Parsing unfinished expression" $
       testStr "x \\otimes" @?= Left "Unexpected end of Input"
   , testCase "Parsing invalid expression" $
-      testStr "\\ |+>" @?= Left "TokenQubits \"+\""
+      testStr "\\ \\ket{+}" @?= Left "Unexpected lexeme: TokenQubits \"+\""
   , testCase "Parsing letcase" $
       testStr "letcase x=\\pi^5 y in {x,y}" @?= Right (PLetCase "x" (PProjector 5 (PVar "y")) [(PVar "x"), (PVar "y")])
   , testCase "Parsing nested letcase" $
-      testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {|0>, |0>, |0>, |0>, |0>, |0>, |0>, |0>}) in {|1>, |+>}"
+      testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}) in {\\ket{1}, \\ket{+}}"
         @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector 1 (PLetCase "zz" (PProjector 3 (POtimesExp (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
     ]
 
 matrixTests = testGroup "matrixTests"
   [ testCase "Parsing empty matrix" $
-      testStr "[[]]" @?= Left "TokenRBracket"
+      testStr "[[]]" @?= Left "Unexpected lexeme: TokenRBracket"
   , testCase "Parsing matrix size 1" $
       testStr "[[1]]" @?= Right (PMatrix [[1.0]])
   , testCase "Parsing matrix size 2" $

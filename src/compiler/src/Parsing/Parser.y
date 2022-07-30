@@ -76,7 +76,7 @@ CaseList : PExp              { [$1] }
 
 {
 parseError :: [Token] -> Except String a
-parseError (l:ls) = throwError (show l)
+parseError (l:ls) = throwError ("Unexpected lexeme: "<>show l)
 parseError [] = throwError "Unexpected end of Input"
 
 parseLambdaRho :: String -> Except String PExp
