@@ -7,12 +7,13 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Coerce
 import           Data.List
-import qualified Data.Map             as M
+import qualified Data.Map                 as M
 import           Data.Maybe
-import qualified Data.Set             as S
-import qualified Data.Text            as T
+import qualified Data.Set                 as S
+import qualified Data.Text                as T
 import           Data.Tuple.Extra
 import           Parsing.PExp
+import           Typing.DensMatrixChecker
 import           Typing.GateChecker
 import           Typing.QType
 import           Typing.Robinson
@@ -144,12 +145,5 @@ hindley ex = case ex of
   PQubits q -> return (QTQubits (T.length q), [])
 
   PMatrix m -> do
-    let n = length m
-    -- the parser already guarantees that is not empty
-    when (not $ all (==n) (length <$> m)) (throwError $ MatrixIsNotSquare m)
-    -- validate number of rows is a power of two
-    let q = log2 n
-    when ((2^q) /= n) (throwError $ MatrixIsNotAPowerOfTwo m)
-    when (q==0) (throwError $ MatrixHasZeroQubits m)
-    when (q>=64) (throwError $ MatrixExceedsMaxSize 64 m)
+    q <- (lift . lift) (getMatrixSize m)
     return (QTQubits q, [])
