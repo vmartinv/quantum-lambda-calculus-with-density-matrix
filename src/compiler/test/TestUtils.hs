@@ -4,15 +4,42 @@ import           Data.Complex
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import           Test.Tasty
 import           Test.Tasty.HUnit
+import qualified          Test.Tasty.QuickCheck         as QC
+import qualified           Test.Tasty.SmallCheck         as SC
 import Foreign.Storable
+import Test.QuickCheck.Property
+import Data.Maybe
+import qualified Test.QuickCheck.Property      as QCP
+import qualified Test.SmallCheck               as SCP
 
-approxEqualA :: [Complex Double] -> [Complex Double] -> Assertion
-approxEqualA v1 v2 = approxEqualVA (HM.fromList v1) (HM.fromList v2)
+precision :: Int
+precision = 6
 
-approxEqualVA :: Storable a => Eq a => Show a=> Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> Assertion
-approxEqualVA v1 v2 = assertBool errorMsg $ approxEqualV v1 v2
+eps :: Double
+eps = 10**(-fromIntegral precision)
+
+roundDec :: Double -> Double
+roundDec num = (fromIntegral . round $ num * f) / f
+  where f = 10^precision
+
+st :: QCP.Result -> Assertion
+st res = assertBool (QCP.reason res) $ fromMaybe True (QCP.ok res)
+
+qct :: QCP.Result -> QCP.Result
+qct = id
+
+sct :: QCP.Result -> Either SCP.Reason SCP.Reason
+sct res = if fromMaybe True (QCP.ok res) then Right "ok" else Left (QCP.reason res)
+
+tequal :: Eq a => Show a => a -> a -> QCP.Result
+tequal a b = if a==b then QCP.succeeded else QCP.failed { QCP.reason = errorMsg }
+  where
+    errorMsg = "expected: "<>show b<>"\n but got: "<>show a
+
+approxEqualV :: Storable a => Eq a => Show a=> Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> QCP.Result
+approxEqualV v1 v2 = if  approxEqualVB v1 v2 then QCP.succeeded else QCP.failed { QCP.reason = errorMsg }
   where
     errorMsg = "expected: "<>show v2<>"\n but got: "<>show v1<>"\n difference: "<>show (HM.norm_2 (v1 - v2))
 
-approxEqualV :: Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> Bool
-approxEqualV v1 v2 = HM.norm_2 (v1 - v2) < 1e-5
+approxEqualVB :: Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> Bool
+approxEqualVB v1 v2 = HM.norm_2 (v1 - v2) < eps

@@ -74,3 +74,4 @@ tests:
     - tasty-smallcheck
     - tasty-hunit
     - QuickCheck
+    - smallcheck
