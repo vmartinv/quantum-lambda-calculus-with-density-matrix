@@ -5,6 +5,7 @@ import qualified Data.Text                     as T
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import           Parsing.PExp
 import           Python.PyExp
+import           Translation.DensMat
 import           Translation.Purification
 import           Translation.StateBuilder
 import           Typing.GateChecker
@@ -13,7 +14,11 @@ translate :: PExp -> PyExp
 translate (PVar v) = PyVar v
 translate (PLambda v exp) = PyLambda v (translate exp)
 translate (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translate exp2]
-translate (PQubits qbits) = PyFunCall (PyFunName "make_pure") [PyStr qbits]
+translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFunName "create") [PyInt n]
+                          | otherwise = translateMatrix m
+    where
+      n = T.length qbits
+      m = HM.toLists $ toDensMatrix $ toVector qbits
 translate (PMatrix m) = translateMatrix m
 translate (PGateApp gate exp) = evalState (translateGate (translate exp) gate) 0
 translate (PProjector _ exp) = PyFunCall (PyFunName "apply_measure") [translate exp]
