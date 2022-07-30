@@ -138,15 +138,15 @@ eqSolvingTests = testGroup "eqSolvingTests"
 
 matrixTests = testGroup "matrixTests"
   [ testCase "Zero qubit matrix" $
-      testExp (PMatrix [[1]]) @?= Left "MatrixHasZeroQubits [[1.0]]"
+      testExp (PMatrix [[1]]) @?= Left "MatrixHasZeroQubits [[1.0 :+ 0.0]]"
   , testCase "Single qubit matrix" $
       testExp (PMatrix [[1,2],[3,4]]) @?= Right (QTQubits 1)
   , testCase "Triple qubit matrix" $
       testExp (PMatrix [[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8]]) @?= Right (QTQubits 3)
   , testCase "Non square row matrix" $
-      testExp (PMatrix [[1,2,3]]) @?= Left "MatrixIsNotSquare [[1.0,2.0,3.0]]"
+      testExp (PMatrix [[1,2,3]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0]]"
   , testCase "Non square column matrix" $
-      testExp (PMatrix [[1],[1],[1]]) @?= Left "MatrixIsNotSquare [[1.0],[1.0],[1.0]]"
+      testExp (PMatrix [[1],[1],[1]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0],[1.0 :+ 0.0],[1.0 :+ 0.0]]"
   , testCase "Different row/column size matrix" $
-      testExp (PMatrix [[1],[1,2],[1]]) @?= Left "MatrixIsNotSquare [[1.0],[1.0,2.0],[1.0]]"
+      testExp (PMatrix [[1],[1,2],[1]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0],[1.0 :+ 0.0]]"
   ]

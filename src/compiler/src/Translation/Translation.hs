@@ -1,6 +1,8 @@
 module Translation.Translation where
 import           Control.Monad.State
-import qualified Data.Text                as T
+import           Data.Complex
+import qualified Data.Text                     as T
+import qualified Numeric.LinearAlgebra.HMatrix as HM
 import           Parsing.PExp
 import           Python.PyExp
 import           Translation.Purification
@@ -39,7 +41,7 @@ translateGate pyexp gdef@(PGate name params) = do
 translateGateName :: T.Text -> T.Text
 translateGateName = T.toLower
 
-translateMatrix :: [[Double]] -> PyExp
+translateMatrix :: [[Complex Double]] -> PyExp
 translateMatrix m = translate (circuitForState purified)
   where
-    purified = purify m
+    purified = purify (HM.fromLists m)

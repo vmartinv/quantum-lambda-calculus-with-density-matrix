@@ -35,6 +35,7 @@ tokens :-
   \[                            { \s -> TokenLBracket }
   \]                            { \s -> TokenRBracket }
   \,                            { \s -> TokenComma }
+  \+                            { \s -> TokenPlus }
   $lower+                       { \s -> TokenVar s }
   $upper+                       { \s -> TokenGate s }
   \^                            { \s -> TokenPower }
@@ -62,6 +63,7 @@ data Token = TokenLambda
            | TokenRBracket
            | TokenComma
            | TokenPower
+           | TokenPlus
            | TokenInt Int
            | TokenDouble Double
            deriving (Eq,Show)

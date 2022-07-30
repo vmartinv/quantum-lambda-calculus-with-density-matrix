@@ -1,7 +1,7 @@
 module Parsing.PExp where
 
-
-import           Data.Text (Text)
+import           Data.Complex
+import           Data.Text    (Text)
 
 
 data PGate = PGate Text [Double]
@@ -13,7 +13,7 @@ data PExp = PVar Text
          | PFunApp PExp PExp
          | PQubits Text
          | PGateApp PGate PExp
-         | PMatrix [[Double]]
+         | PMatrix [[Complex Double]]
          | PProjector Int PExp
          | POtimesExp PExp PExp
          | PLetCase Text PExp [PExp]

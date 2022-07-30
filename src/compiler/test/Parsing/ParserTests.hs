@@ -1,5 +1,6 @@
 module Parsing.ParserTests(parserTests) where
 import           Control.Monad.Except
+import           Data.Complex
 import           Parsing.Parser
 import           Parsing.PExp
 import           Test.Tasty
@@ -55,6 +56,18 @@ matrixTests = testGroup "matrixTests"
       testStr "[[1,2,3]]" @?= Right (PMatrix [[1.0,2.0,3.0]])
   , testCase "Parsing matrix in expression" $
       testStr "I^100 [[1,2,3]]" @?= Right (PGateApp (PGate "I" [100.0]) (PMatrix [[1.0,2.0,3.0]]))
+  , testCase "Parsing matrix size 1 single i" $
+      testStr "[[i]]" @?= Right (PMatrix [[0:+1]])
+  , testCase "Parsing matrix size 1 double, i" $
+      testStr "[[1.2+i]]" @?= Right (PMatrix [[1.2:+1]])
+  , testCase "Parsing matrix size 1 int, int i" $
+      testStr "[[5+2i]]" @?= Right (PMatrix [[5:+2]])
+  , testCase "Parsing matrix size 1 none, math i" $
+      testStr "[[1e5 i]]" @?= Right (PMatrix [[0:+1e5]])
+  , testCase "Parsing lambda with i in variable" $
+      testStr "\\ai.ai" @?= Right (PLambda "ai" (PVar "ai"))
+  , testCase "Parsing lambda with i variable" $
+      testStr "\\i.i" @?= Right (PLambda "i" (PVar "i"))
   ]
 
 gateTests = testGroup "gateTests"

@@ -109,17 +109,17 @@ getThetaAnglesTests = testGroup "getThetaAnglesTests"
 
 calcAlphasTests = testGroup "calcAlphasTests"
   [ testCase "|0> ZAxis" $
-      st $ approxEqualV (calcAlphas [1.0, 0.0] ZAxis 1) (HM.fromList [0.0])
+      st $ approxEqualV ((calcAlphas . HM.fromList) [1.0, 0.0] ZAxis 1) (HM.fromList [0.0])
   , testCase "|0> YAxis" $
-      st $ approxEqualV (calcAlphas [1.0, 0.0] YAxis 1) (HM.fromList [0.0])
+      st $ approxEqualV ((calcAlphas . HM.fromList) [1.0, 0.0] YAxis 1) (HM.fromList [0.0])
   , testCase "|1> ZAxis" $
-      st $ approxEqualV (calcAlphas [0.0, 1.0] ZAxis 1) (HM.fromList [0.0])
+      st $ approxEqualV ((calcAlphas . HM.fromList) [0.0, 1.0] ZAxis 1) (HM.fromList [0.0])
   , testCase "|1> YAxis" $
-      st $ approxEqualV (calcAlphas [0.0, 1.0] YAxis 1) (HM.fromList [-pi])
+      st $ approxEqualV ((calcAlphas . HM.fromList) [0.0, 1.0] YAxis 1) (HM.fromList [-pi])
   , testCase "boch (-pi/2) (pi/3) ZAxis" $
-      st $ approxEqualV (calcAlphas (boch (-pi/2) (pi/3)) ZAxis 1) (HM.fromList [2*pi/3])
+      st $ approxEqualV ((calcAlphas . HM.fromList) (boch (-pi/2) (pi/3)) ZAxis 1) (HM.fromList [2*pi/3])
   , testCase "boch (-pi/2) (pi/3) YAxis" $
-      st $ approxEqualV (calcAlphas (boch (-pi/2) (pi/3)) YAxis 1) (HM.fromList [-pi/2])
+      st $ approxEqualV ((calcAlphas . HM.fromList) (boch (-pi/2) (pi/3)) YAxis 1) (HM.fromList [-pi/2])
   ]
 
 uniformlyContRotTests = testGroup "uniformlyContRotTests"
@@ -157,17 +157,17 @@ uniformlyContRotTests = testGroup "uniformlyContRotTests"
 
 stateToZeroGatesTests = testGroup "stateToZeroGatesTests"
   [ testCase "|0>" $
-      stateToZeroGates [1, 0] @?=
+      (stateToZeroGates . HM.fromList) [1, 0] @?=
         [ PGate "U" [0.0,0.0,0.0]
         , PGate "U" [0.0,0.0,0.0]
         ]
   , testCase "|1>" $
-      stateToZeroGates [0, 1] @?=
+      (stateToZeroGates . HM.fromList) [0, 1] @?=
         [ PGate "U" [0.0,0.0,0.0]
         , PGate "U" [-pi,0.0,0.0]
         ]
   , testCase "(boch (-pi/2) (pi/3))" $
-      stateToZeroGates (boch (-pi/2) (pi/3)) @?=
+      (stateToZeroGates . HM.fromList) (boch (-pi/2) (pi/3)) @?=
         [ PGate "U" [0.0,0.0,2*pi/3+4e-16]
         , PGate "U" [-pi/2-2e-16,0,0]
         ]
@@ -175,25 +175,25 @@ stateToZeroGatesTests = testGroup "stateToZeroGatesTests"
 
 stateToZeroGatesSimTests = testGroup "stateToZeroGatesSimTests"
   [ testCase "building |0>" $
-      st $ approxEqualV (applyGatesV (stateToZeroGates [1, 0]) (HM.fromList [1, 0])) (HM.fromList [1, 0])
+      st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [1, 0]) (HM.fromList [1, 0])) (HM.fromList [1, 0])
   , testCase "building |1>" $
-      st $ approxEqualV (applyGatesV (stateToZeroGates [0, 1]) (HM.fromList [0, 1])) (HM.fromList [1, 0])
+      st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [0, 1]) (HM.fromList [0, 1])) (HM.fromList [1, 0])
   , testCase "building |+>" $
-      st $ approxEqualV (applyGatesV (stateToZeroGates [1/sqrt(2), 1/sqrt(2)]) (HM.fromList [1/sqrt(2), 1/sqrt(2)])) (HM.fromList [1, 0])
+      st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [1/sqrt(2), 1/sqrt(2)]) (HM.fromList [1/sqrt(2), 1/sqrt(2)])) (HM.fromList [1, 0])
   , testCase "building |->" $
-      st $ approxEqualV (applyGatesV (stateToZeroGates [1/sqrt(2), -1/sqrt(2)]) (HM.fromList [1/sqrt(2), -1/sqrt(2)])) (HM.fromList [1, 0])
+      st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [1/sqrt(2), -1/sqrt(2)]) (HM.fromList [1/sqrt(2), -1/sqrt(2)])) (HM.fromList [1, 0])
   , testCase "building |0> phase in snd" $
-      st $ approxEqualV (applyGatesV (stateToZeroGates [0, exp (0 :+ pi)]) (HM.fromList [0, exp (0 :+ pi)])) (HM.fromList [1, 0])
+      st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [0, exp (0 :+ pi)]) (HM.fromList [0, exp (0 :+ pi)])) (HM.fromList [1, 0])
   , testCase "building (boch -pi/2 pi/3)" $
-      st $ approxEqualV (applyGatesV (stateToZeroGates (boch (-pi/2) (pi/3))) (HM.fromList (boch (-pi/2) (pi/3)))) (HM.fromList [1, 0])
+      st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) (boch (-pi/2) (pi/3))) (HM.fromList (boch (-pi/2) (pi/3)))) (HM.fromList [1, 0])
   , SC.testProperty "building boch n=1" $
-      \t p -> sct $ sameUpToGPhase (applyGatesV (stateToZeroGates (boch t p)) (HM.fromList (boch t p))) (HM.fromList [1, 0])
+      \t p -> sct $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) (boch t p)) (HM.fromList (boch t p))) (HM.fromList [1, 0])
   , testCase "building |0> phase in fst" $
-      st $ sameUpToGPhase (applyGatesV (stateToZeroGates [exp (0 :+ pi), 0]) (HM.fromList [exp (0 :+ pi), 0])) (HM.fromList [1, 0])
+      st $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) [exp (0 :+ pi), 0]) (HM.fromList [exp (0 :+ pi), 0])) (HM.fromList [1, 0])
   , QC.testProperty "building hopf n=1" $
-      QC.withMaxSuccess 1000 $ \t p d -> qct $ sameUpToGPhase (applyGatesV (stateToZeroGates (hopf t p d)) (HM.fromList (hopf t p d))) (HM.fromList [1, 0])
+      QC.withMaxSuccess 1000 $ \t p d -> qct $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) (hopf t p d)) (HM.fromList (hopf t p d))) (HM.fromList [1, 0])
   , testCase "building |0> \\otimes |1>" $
-      st $ sameUpToGPhase (applyGatesV (stateToZeroGates ((boch 0 0) `otimes` [0,1])) (HM.fromList ((boch 0 0) `otimes` [0,1]))) (HM.fromList [1, 0, 0, 0])
+      st $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) ((boch 0 0) `otimes` [0,1])) (HM.fromList ((boch 0 0) `otimes` [0,1]))) (HM.fromList [1, 0, 0, 0])
   , QC.testProperty "building boch n=2" $
-      QC.withMaxSuccess 1000 $ \t p t2 p2 -> sameUpToGPhase (applyGatesV (stateToZeroGates ((boch t p) `otimes` (boch t2 p2))) (HM.fromList ((boch t p) `otimes` (boch t2 p2)))) (HM.fromList [1, 0, 0, 0])
+      QC.withMaxSuccess 1000 $ \t p t2 p2 -> sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) ((boch t p) `otimes` (boch t2 p2))) (HM.fromList ((boch t p) `otimes` (boch t2 p2)))) (HM.fromList [1, 0, 0, 0])
   ]

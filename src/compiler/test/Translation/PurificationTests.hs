@@ -12,5 +12,5 @@ import           Translation.Purification
 
 purificationTests = testGroup "purificationTests"
   [ testCase "Simple state" $
-      st $ approxEqualV (HM.fromList $ purify [[0.5,0],[0,0.5]]) (HM.fromList [1/(sqrt 2) :+ 0, 0:+ 0, 0:+ 0, 1/(sqrt 2):+ 0])
+      st $ approxEqualV (purify $ HM.fromLists [[0.5,0],[0,0.5]]) (HM.fromList [1/(sqrt 2) :+ 0, 0:+ 0, 0:+ 0, 1/(sqrt 2):+ 0])
   ]

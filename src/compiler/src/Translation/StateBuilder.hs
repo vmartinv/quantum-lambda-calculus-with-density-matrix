@@ -114,7 +114,7 @@ hermConjugate (PGate "UC" [theta, phi, lambda]) = PGate "UC" [theta, normRad $ p
 invertCircuit :: [PGate] -> [PGate]
 invertCircuit gs = reverse (hermConjugate <$> gs)
 
-calcAlphas :: [Complex Double] -> Axis -> Int -> HM.Vector Double
+calcAlphas :: HM.Vector (Complex Double) -> Axis -> Int -> HM.Vector Double
 calcAlphas st ax k | ok && ax==ZAxis =
   HM.fromList [ sum [
        ws HM.! (j*2^k + l) - ws HM.! ((2*j+1)*2^(k-1) + l)
@@ -140,21 +140,16 @@ calcAlphas st ax k | ok && ax==ZAxis =
     n = log2 (HM.size anorms) :: Int -- Number of qubits
     anorms :: HM.Vector Double
     ws :: HM.Vector Double
-    (anorms, ws) = (HM.fromList *** HM.fromList) $ unzip (polar <$> st)
-    ok = 0 < k && k < length st
+    (anorms, ws) = (HM.fromList *** HM.fromList) $ unzip (polar <$> HM.toList st)
+    ok = 0 < k && k < HM.size st
     a `divFix` b | b<1e-8 = 0
                  | otherwise = a/b
-    errorMsg = "Unexpected arguments to calcAlphas: "<>show (length st)<>" "<>show ax<>" "<>show k
+    errorMsg = "Unexpected arguments to calcAlphas: "<>show (HM.size st)<>" "<>show ax<>" "<>show k
 
-globalPhase :: [Complex Double] -> Double
-globalPhase st = sum (phase <$> st) / fromIntegral bigN
-  where
-    bigN = length st
-
-stateToZeroGates :: [Complex Double] -> [PGate]
+stateToZeroGates :: HM.Vector (Complex Double) -> [PGate]
 stateToZeroGates st = firstPhase++secondPhase
   where
-    n = log2 (length st) :: Int -- Number of qubits
+    n = log2 (HM.size st) :: Int -- Number of qubits
     firstPhase :: [PGate]
     firstPhase = concat [
         offsetR (n-j-1) <$> uniformlyContRot j j ZAxis (calcAlphas st ZAxis (n-j))
@@ -166,8 +161,8 @@ stateToZeroGates st = firstPhase++secondPhase
         | j <- reverse [0..n-1]
       ]
 
-circuitForState :: [Complex Double] -> PExp
+circuitForState :: HM.Vector (Complex Double) -> PExp
 circuitForState st = applyGates (invertCircuit $ stateToZeroGates st) start
   where
-    n = log2 (length st) :: Int -- Number of qubits
+    n = log2 (HM.size st) :: Int -- Number of qubits
     start = PQubits (T.replicate n "0") -- Initial state

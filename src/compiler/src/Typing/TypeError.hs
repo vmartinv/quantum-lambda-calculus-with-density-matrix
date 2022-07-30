@@ -1,6 +1,7 @@
 module Typing.TypeError where
 
 import           Control.Monad.Except
+import           Data.Complex
 import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Typing.QType
@@ -18,10 +19,10 @@ data TypeError  = UnificationFail QType QType
               | UnknownGate T.Text
               | IdentityGateIsNotIntegerSize T.Text Double
               | GateReceivedWrongNumberOfArguments T.Text Int Int
-              | MatrixIsNotSquare [[Double]]
-              | MatrixIsNotAPowerOfTwo [[Double]]
-              | MatrixHasZeroQubits [[Double]]
-              | MatrixExceedsMaxSize Int [[Double]]
+              | MatrixIsNotSquare [[Complex Double]]
+              | MatrixIsNotAPowerOfTwo [[Complex Double]]
+              | MatrixHasZeroQubits [[Complex Double]]
+              | MatrixExceedsMaxSize Int [[Complex Double]]
               deriving (Show,Eq)
 
 type ExceptInfer = Except TypeError
