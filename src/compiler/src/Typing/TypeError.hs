@@ -21,6 +21,7 @@ data TypeError  = UnificationFail QType QType
               | MatrixIsNotSquare [[Double]]
               | MatrixIsNotAPowerOfTwo [[Double]]
               | MatrixHasZeroQubits [[Double]]
+              | MatrixExceedsMaxSize Int [[Double]]
               deriving (Show,Eq)
 
 type ExceptInfer = Except TypeError

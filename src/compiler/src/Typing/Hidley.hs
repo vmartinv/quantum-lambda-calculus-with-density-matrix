@@ -151,4 +151,5 @@ hindley ex = case ex of
     let q = log2 n
     when ((2^q) /= n) (throwError $ MatrixIsNotAPowerOfTwo m)
     when (q==0) (throwError $ MatrixHasZeroQubits m)
+    when (q>=64) (throwError $ MatrixExceedsMaxSize 64 m)
     return (QTQubits q, [])
