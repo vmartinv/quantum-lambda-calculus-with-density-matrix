@@ -45,7 +45,7 @@ swap2 n i j | n<2 = error errorMsg
             | j==i = []
             | j==i+1 = swapNext <$> [i]
             | i>j = swap2 n j i
-            | otherwise = swapNext <$> ([i..j-1] ++ [j-2..i])
+            | otherwise = swapNext <$> ([i..j-1] ++ reverse [i..j-2])
     where
       -- swaps qubit i and i+1
       swapNext i = targetQubits n i (PGate "SWAP" [])
@@ -123,7 +123,7 @@ calcAlphas st ax k | ok && ax==ZAxis =
     | j <- [0..2^(n-k)-1]
   ]
                    | ok && ax==YAxis =
-  HM.fromList [ ((-2)*).asin <$> uncurry (/) $
+  HM.fromList [ ((-2)*).asin <$> uncurry (divFix) $
     ( sqrt $ sum [
         (anorms HM.! ((2*j+1)*2^(k-1) + l)) ** 2
         | l <- [0..2^(k-1)-1 :: Int]
@@ -142,6 +142,8 @@ calcAlphas st ax k | ok && ax==ZAxis =
     ws :: HM.Vector Double
     (anorms, ws) = (HM.fromList *** HM.fromList) $ unzip (polar <$> st)
     ok = 0 < k && k < length st
+    a `divFix` b | b<1e-8 = 0
+                 | otherwise = a/b
     errorMsg = "Unexpected arguments to calcAlphas: "<>show (length st)<>" "<>show ax<>" "<>show k
 
 globalPhase :: [Complex Double] -> Double
@@ -150,23 +152,19 @@ globalPhase st = sum (phase <$> st) / fromIntegral bigN
     bigN = length st
 
 stateToZeroGates :: [Complex Double] -> [PGate]
-stateToZeroGates st = firstPhase++secondPhase++removeGlobalPhase
+stateToZeroGates st = firstPhase++secondPhase
   where
     n = log2 (length st) :: Int -- Number of qubits
     firstPhase :: [PGate]
     firstPhase = concat [
         offsetR (n-j-1) <$> uniformlyContRot j j ZAxis (calcAlphas st ZAxis (n-j))
-        | j <- [n-1..0]
+        | j <- reverse [0..n-1]
       ]
     secondPhase :: [PGate]
     secondPhase =  concat [
         offsetR (n-j-1) <$> uniformlyContRot j j YAxis (calcAlphas st YAxis (n-j))
-        | j <- [n-1..0]
+        | j <- reverse [0..n-1]
       ]
-    phaseFixer :: PGate
-    phaseFixer = rot ZAxis (-(globalPhase st))
-    removeGlobalPhase :: [PGate]
-    removeGlobalPhase = []--[applyGateToAllQubits n phaseFixer]
 
 circuitForState :: [Complex Double] -> PExp
 circuitForState st = applyGates (invertCircuit $ stateToZeroGates st) start
