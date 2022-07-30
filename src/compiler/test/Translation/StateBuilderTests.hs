@@ -1,6 +1,7 @@
-module Translation.StateBuilderTests(stateBuilderTests) where
+module Translation.StateBuilderTests where
 import           Control.Monad.Except
 import           Data.Complex
+import           Data.Tuple.Extra
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import           Parsing.PExp
 import           Test.Tasty
@@ -10,7 +11,35 @@ import           Test.Tasty.SmallCheck         as SC
 import           TestUtils
 import           Translation.StateBuilder
 
-stateBuilderTests = testGroup "stateBuilderTests" [bitManipulation, getThetaAnglesTests, uniformlyContRotTests]
+stateBuilderTests = testGroup "stateBuilderTests" [bitManipulation, getThetaAnglesTests, uniformlyContRotTests, calcAlphasTests, stateToZeroGatesTests, stateToZeroGatesSimTests]
+
+getMatrix :: PGate -> HM.Matrix (Complex Double)
+getMatrix (PGate "I" [n]) = HM.ident (round n)
+getMatrix (PGate "U" [theta, phi, lambda]) = (2 HM.>< 2)
+  [ cos (theta / 2) :+ 0, -exp (0 :+ lambda) * (sin(theta/2):+0)
+  , exp (0 :+ phi) * (sin(theta/2):+0), exp (0 :+ (phi+lambda)) * (cos(theta/2):+0)
+  ]
+getMatrix (PGate "UC" [theta, phi, lambda]) = (4 HM.>< 4)
+  [ 1:+0, 0:+0, 0:+0, 0:+0
+  , 0:+0, u HM.! 0 HM.! 0, 0:+0, u HM.! 0 HM.! 1
+  , 0:+0, 0:+0, 1:+0, 0:+0
+  , 0:+0, u HM.! 1 HM.! 0, 0:+0, u HM.! 1 HM.! 1
+  ]
+    where
+      u = getMatrix (PGate "UC" [theta, phi, lambda])
+getMatrix (PGate "SWAP" []) = (4 HM.>< 4) $ (:+0) <$>
+  [ 1, 0, 0, 0
+  , 0, 0, 1, 0
+  , 0, 1, 0, 0
+  , 0, 0, 0, 1
+  ]
+getMatrix (PGateOtimes g1 g2) = (getMatrix g1) `HM.kronecker` (getMatrix g2)
+
+applyGatesV :: [PGate] -> HM.Vector (Complex Double) -> HM.Vector (Complex Double)
+applyGatesV ms st = foldl applyGate st ms
+  where
+    applyGate :: HM.Vector (Complex Double) -> PGate -> HM.Vector (Complex Double)
+    applyGate s g = HM.app (getMatrix g) s
 
 bitManipulation = testGroup "bitManipulation"
   [ testCase "binaryToGray vals" $
@@ -36,6 +65,32 @@ getThetaAnglesTests = testGroup "getThetaAnglesTests"
       \a1 a2 a3 a4 -> approxEqualV (getThetaAngles (HM.fromList [a1, a2, a3, a4])) (HM.scale (1/4) $ HM.fromList [a1+a2+a3+a4, a1-a2+a3-a4, a1-a2+a3-a4, a1+a2+a3+a4])
   , testCase "k=2'" $
       getThetaAngles (HM.fromList [0.1, 0.3, 0.5, 0.7]) @?= HM.fromList [0.4,-0.1,-0.1,0.4]
+  ]
+
+precision :: Int
+precision = 6
+
+roundDec :: Double -> Double
+roundDec num = (fromIntegral . round $ num * f) / f
+    where f = 10^precision
+
+calcAlphasTests = testGroup "calcAlphasTests"
+  [ testCase "|0> ZAxis" $
+      approxEqualVA (calcAlphas [1.0, 0.0] ZAxis 1) (HM.fromList [0.0])
+  , testCase "|0> YAxis" $
+      approxEqualVA (calcAlphas [1.0, 0.0] YAxis 1) (HM.fromList [0.0])
+  , testCase "|1> ZAxis" $
+      approxEqualVA (calcAlphas [0.0, 1.0] ZAxis 1) (HM.fromList [0.0])
+  , testCase "|1> YAxis" $
+      approxEqualVA (calcAlphas [0.0, 1.0] YAxis 1) (HM.fromList [-pi])
+  , testCase "boch (-pi/2) (pi/3) state" $
+      approxEqualA (boch (-pi/2) (pi/3)) [1/sqrt 2 :+ 0, exp (0:+ pi/3) * ((-1/sqrt 2) :+ 0)]
+  , testCase "boch (-pi/2) (pi/3) to polar" $
+      (((roundDec <$>) *** (roundDec <$>)) <$> unzip $ polar <$> boch (-pi/2) (pi/3)) @?= (roundDec <$> [1/sqrt 2, 1/sqrt 2], [0, roundDec $ -2*pi/3])
+  , testCase "boch (-pi/2) (pi/3) ZAxis" $
+      approxEqualVA (calcAlphas (boch (-pi/2) (pi/3)) ZAxis 1) (HM.fromList [2*pi/3])
+  , testCase "boch (-pi/2) (pi/3) YAxis" $
+      approxEqualVA (calcAlphas (boch (-pi/2) (pi/3)) YAxis 1) (HM.fromList [-pi/2])
   ]
 
 uniformlyContRotTests = testGroup "uniformlyContRotTests"
@@ -69,4 +124,66 @@ uniformlyContRotTests = testGroup "uniformlyContRotTests"
         PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
         PGateOtimes (PGate "SWAP" []) (PGate "I" [1.0])
       ]
+  ]
+
+stateToZeroGatesTests = testGroup "stateToZeroGatesTests"
+  [ testCase "|0>" $
+      stateToZeroGates [1, 0] @?=
+        [ PGate "U" [0.0,0.0,0.0]
+        , PGate "U" [0.0,0.0,0.0]
+        ]
+  , testCase "|1>" $
+      stateToZeroGates [0, 1] @?=
+        [ PGate "U" [0.0,0.0,0.0]
+        , PGate "U" [-pi,0.0,0.0]
+        ]
+  , testCase "(boch (-pi/2) (pi/3))" $
+      stateToZeroGates (boch (-pi/2) (pi/3)) @?=
+        [ PGate "U" [0.0,0.0,2*pi/3+4e-16]
+        , PGate "U" [-pi/2-2e-16,0,0]
+        ]
+  ]
+
+-- https://en.wikipedia.org/wiki/3-sphere#Hopf_coordinates
+hopf :: Double -> Double -> Double -> [Complex Double]
+hopf t p d = [exp (0 :+ abs d) * (cos(t /2) :+ 0), exp (0 :+ (abs d+abs p)) * (sin(t/2) :+ 0)]
+
+boch :: Double -> Double -> [Complex Double]
+boch t p = hopf t p 0
+
+sameUpToGPhase :: HM.Vector (Complex Double) -> HM.Vector (Complex Double) -> Bool
+sameUpToGPhase v1 v2 = HM.ranksv 1e-5 mxdim sv == 1
+  where
+    mxdim = max 2 (HM.size v1)
+    sv = HM.toList $ HM.singularValues $ HM.fromColumns [v1, v2]
+
+sameUpToGPhaseA :: HM.Vector (Complex Double) -> HM.Vector (Complex Double) -> Assertion
+sameUpToGPhaseA v1 v2 = assertBool errorMsg $ sameUpToGPhase v1 v2
+  where
+    errorMsg = "following two vectors were expected to be linearly dependent:\n"<>show v1<>"\n"<>show v2
+
+
+stateToZeroGatesSimTests = testGroup "stateToZeroGatesSimTests"
+  [ testCase "U(0, 0, 0)=I^1" $
+      getMatrix (PGate "U" [0, 0, 0]) @?= (2 HM.>< 2) [1,0,0,1]
+  , QC.testProperty "hopf generates norm 1" $
+      \t p d -> HM.norm_2 (HM.fromList (hopf t p d)) - 1 < 1e-5
+  , testCase "building |0>" $
+      approxEqualVA (applyGatesV (stateToZeroGates [1, 0]) (HM.fromList [1, 0])) (HM.fromList [1, 0])
+  , testCase "building |1>" $
+      approxEqualVA (applyGatesV (stateToZeroGates [0, 1]) (HM.fromList [0, 1])) (HM.fromList [1, 0])
+  , testCase "building |+>" $
+      approxEqualVA (applyGatesV (stateToZeroGates [1/sqrt(2), 1/sqrt(2)]) (HM.fromList [1/sqrt(2), 1/sqrt(2)])) (HM.fromList [1, 0])
+  , testCase "building |->" $
+      approxEqualVA (applyGatesV (stateToZeroGates [1/sqrt(2), -1/sqrt(2)]) (HM.fromList [1/sqrt(2), -1/sqrt(2)])) (HM.fromList [1, 0])
+  , testCase "building |0> phase in snd" $
+      approxEqualVA (applyGatesV (stateToZeroGates [0, exp (0 :+ pi)]) (HM.fromList [0, exp (0 :+ pi)])) (HM.fromList [1, 0])
+  , testCase "building (boch -pi/2 pi/3)" $
+      approxEqualVA (applyGatesV (stateToZeroGates (boch (-pi/2) (pi/3))) (HM.fromList (boch (-pi/2) (pi/3)))) (HM.fromList [1, 0])
+  , QC.testProperty "building boch n=1" $
+      \t p -> sameUpToGPhase (applyGatesV (stateToZeroGates (boch t p)) (HM.fromList (boch t p))) (HM.fromList [1, 0])
+  , testCase "building |0> phase in fst" $
+      sameUpToGPhaseA (applyGatesV (stateToZeroGates [exp (0 :+ pi), 0]) (HM.fromList [exp (0 :+ pi), 0])) (HM.fromList [1, 0])
+  , QC.testProperty "building hopf n=1" $
+      \t p d -> sameUpToGPhase (applyGatesV (stateToZeroGates (hopf t p d)) (HM.fromList (hopf t p d))) (HM.fromList [1, 0])
   ]
