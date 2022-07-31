@@ -59,7 +59,7 @@ robinson eqs = do
 assignValues :: [TypeEq] -> M.Map VariableId Int -> ExceptInfer Subst
 assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol)
   where
-    measureds = dprint "measureds" $ S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs]
+    measureds = S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs]
     cons v | S.member v measureds = QTMeasuredQubits
            | otherwise = QTQubits
     bindv (v, q) = v `bind` cons v q
