@@ -146,8 +146,15 @@ calcAlphas st ax k | ok && ax==ZAxis =
                  | otherwise = a/b
     errorMsg = "Unexpected arguments to calcAlphas: "<>show (HM.size st)<>" "<>show ax<>" "<>show k
 
+isIdentGate :: PGate -> Bool
+isIdentGate (PGate "I" [_])        = True
+isIdentGate (PGate "U" [0, 0, 0])  = True
+isIdentGate (PGate "UC" [0, 0, 0]) = True
+isIdentGate (PGateOtimes g1 g2)    = (isIdentGate g1) && (isIdentGate g2)
+isIdentGate _                      = False
+
 stateToZeroGates :: HM.Vector (Complex Double) -> [PGate]
-stateToZeroGates st = firstPhase++secondPhase
+stateToZeroGates st = filter (not . isIdentGate) $ firstPhase++secondPhase
   where
     n = log2 (HM.size st) :: Int -- Number of qubits
     firstPhase :: [PGate]

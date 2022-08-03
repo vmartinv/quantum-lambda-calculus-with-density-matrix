@@ -158,13 +158,10 @@ uniformlyContRotTests = testGroup "uniformlyContRotTests"
 stateToZeroGatesTests = testGroup "stateToZeroGatesTests"
   [ testCase "|0>" $
       (stateToZeroGates . HM.fromList) [1, 0] @?=
-        [ PGate "U" [0.0,0.0,0.0]
-        , PGate "U" [0.0,0.0,0.0]
-        ]
+        []
   , testCase "|1>" $
       (stateToZeroGates . HM.fromList) [0, 1] @?=
-        [ PGate "U" [0.0,0.0,0.0]
-        , PGate "U" [-pi,0.0,0.0]
+        [ PGate "U" [-pi,0.0,0.0]
         ]
   , testCase "(boch (-pi/2) (pi/3))" $
       (stateToZeroGates . HM.fromList) (boch (-pi/2) (pi/3)) @?=
