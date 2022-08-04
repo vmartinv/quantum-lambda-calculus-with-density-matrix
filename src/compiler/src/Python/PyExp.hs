@@ -1,13 +1,13 @@
 module Python.PyExp where
 
-import           Data.Text (Text)
+import qualified Data.Text as T
 
-data PyExp = PyVar Text
-          | PyLambda Text PyExp
-          | PyFunName Text
-          | PyFunCall PyExp [PyExp]
-          | PyStr Text
+data PyExp = PyInt Int
           | PyFloat Double
-          | PyInt Int
-          | PyDict [(Text, PyExp)]
+          | PyVar T.Text
+          | PyLambda T.Text PyExp
+          | PyFun T.Text
+          | PyObjMethod PyExp T.Text
+          | PyFunCall PyExp [PyExp]
+          | PyList [PyExp]
           deriving (Show,Eq)

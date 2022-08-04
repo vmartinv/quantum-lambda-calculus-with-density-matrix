@@ -14,18 +14,18 @@ translate :: PExp -> PyExp
 translate (PVar v) = PyVar v
 translate (PLambda v exp) = PyLambda v (translate exp)
 translate (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translate exp2]
-translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFunName "create") [PyInt n]
+translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "CompilerCircuit") [PyInt n]
                           | otherwise = translateMatrix m
     where
       n = T.length qbits
       m = HM.toLists $ toDensMatrix $ toVector qbits
 translate (PMatrix m) = translateMatrix m
 translate (PGateApp gate exp) = evalState (translateGate (translate exp) gate) 0
-translate (PProjector _ exp) = PyFunCall (PyFunName "apply_measure") [translate exp]
-translate (POtimesExp exp1 exp2) = PyFunCall (PyFunName "tensor_product") [translate exp1, translate exp2]
-translate (PLetCase v exp exps) = PyFunCall (PyFunName "letcase") [translate exp, PyDict cases]
+translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") [PyInt n]
+translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "tensor_product") [translate exp2]
+translate (PLetCase v exp exps) = PyFunCall (PyFun "letcase") [translate exp, PyList cases]
   where
-    cases = zip (T.pack <$> show <$> [0::Int ..]) ((PyLambda v.translate) <$> exps)
+    cases = (PyLambda v.translate) <$> exps
 
 translateGate :: PyExp -> PGate -> State Int PyExp
 translateGate pyexp (PGateOtimes g1 g2) = do
@@ -39,9 +39,9 @@ translateGate pyexp gdef@(PGate name params) = do
   let gateSize = getGateSizeNoCheck gdef
       gateArgs = (PyFloat <$> params) ++ (PyInt <$> [offset..offset+gateSize])
       gateName = translateGateName name
-      gate = PyLambda "c" (PyFunCall (PyFunName ("c."<>gateName)) gateArgs)
+      gate = PyLambda "c" (PyFunCall (PyFun ("c."<>gateName)) gateArgs)
   modify (+gateSize)
-  return $ PyFunCall (PyFunName "apply_gate") [gate, pyexp]
+  return $ PyFunCall (PyFun "apply_gate") [gate, pyexp]
 
 translateGateName :: T.Text -> T.Text
 translateGateName = T.toLower
