@@ -1,5 +1,5 @@
 {-# LANGUAGE TupleSections #-}
-module Typing.Hidley where
+module Typing.Hindley where
 
 import           Control.Applicative
 import           Control.Monad.Except
@@ -24,8 +24,8 @@ import           Utils
 
 type TypeState = Int
 
--- | Hidley monad
-type HidleyM a = (ReaderT
+-- | Hindley monad
+type HindleyM a = (ReaderT
                   TypeEnv             -- Typing environment
                   (StateT         -- Inference state
                   TypeState
@@ -36,11 +36,11 @@ initTypeState :: TypeState
 initTypeState = 0
 
 -- | Run the inference monad
-runHidleyM :: TypeEnv -> HidleyM a -> ExceptInfer a
-runHidleyM env m = evalStateT (runReaderT m env) initTypeState
+runHindleyM :: TypeEnv -> HindleyM a -> ExceptInfer a
+runHindleyM env m = evalStateT (runReaderT m env) initTypeState
 
-runHidley :: TypeEnv -> PExp -> ExceptInfer (QType, [TypeEq])
-runHidley env ex = runHidleyM env (hindley ex)
+runHindley :: TypeEnv -> PExp -> ExceptInfer (QType, [TypeEq])
+runHindley env ex = runHindleyM env (hindley ex)
 
 ftvExp :: PExp -> S.Set T.Text
 ftvExp (PVar v)         = S.singleton v
@@ -55,30 +55,30 @@ ftvExp (PLetCase v e _) = v `S.delete` (ftvExp e)
 letters :: [T.Text]
 letters = T.pack <$> ([1..] >>= flip replicateM ['a'..'z'])
 
-fresh :: HidleyM QType
+fresh :: HindleyM QType
 fresh = do
   s <- get
   put (s+1)
   return $ QTVar s
 
-equalTypes :: [QType] -> HidleyM (QType, [TypeEq])
+equalTypes :: [QType] -> HindleyM (QType, [TypeEq])
 equalTypes (t1:ts) = return (t1, map (TypeEq t1) ts)
 equalTypes []      = throwError $ InvalidLetCaseNumCases 0
 
 -- | Extend type environment
-addToEnv :: (T.Text, QType) -> HidleyM a -> HidleyM a
+addToEnv :: (T.Text, QType) -> HindleyM a -> HindleyM a
 addToEnv (x, t) = local scope
   where scope (TypeEnv e) = TypeEnv $ M.insert x t e
 
 -- | Lookup type in the environment
-lookupEnv :: T.Text -> HidleyM (Maybe QType)
+lookupEnv :: T.Text -> HindleyM (Maybe QType)
 lookupEnv x = do
   (TypeEnv env) <- ask
   return (M.lookup x env)
 
 -- this function is used to partition envs when required
 -- to maintain the system affine
-partitionEnv :: S.Set T.Text -> S.Set T.Text -> HidleyM (TypeEnv, TypeEnv)
+partitionEnv :: S.Set T.Text -> S.Set T.Text -> HindleyM (TypeEnv, TypeEnv)
 partitionEnv s1 s2 = do
   (TypeEnv env) <- ask
   let
@@ -88,7 +88,7 @@ partitionEnv s1 s2 = do
   when (not (S.null common)) (throwError $ VariablesUsedMoreThanOnce common)
   return (TypeEnv env1, TypeEnv env2)
 
-hindley :: PExp -> HidleyM (QType, [TypeEq])
+hindley :: PExp -> HindleyM (QType, [TypeEq])
 hindley ex = case ex of
   PVar x -> do
     tv <- lookupEnv x

@@ -13,7 +13,7 @@ import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Data.Tuple.Extra
 import           Parsing.PExp
-import           Typing.Hidley
+import           Typing.Hindley
 import           Typing.QType
 import           Typing.Robinson
 import           Typing.Subst
@@ -26,7 +26,7 @@ typeCheck = (withExcept show).(fullTypeCheck (TypeEnv M.empty))
 
 fullTypeCheck :: TypeEnv -> PExp -> ExceptInfer QType
 fullTypeCheck env ex = do
-  (t, eqs) <- runHidley env ex
+  (t, eqs) <- runHindley env ex
   subst <- robinson eqs
   closeOver (apply subst t)
 
