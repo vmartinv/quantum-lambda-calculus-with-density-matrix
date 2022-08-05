@@ -2,7 +2,7 @@ module Typing.GateChecker where
 
 import           Control.Monad.Except
 import qualified Data.Text            as T
-import           Parsing.PExp
+import           Parsing.LamRhoExp
 import           Typing.TypeError
 
 isInt :: Double -> Bool

@@ -12,7 +12,7 @@ import           Data.Maybe
 import qualified Data.Set                 as S
 import qualified Data.Text                as T
 import           Data.Tuple.Extra
-import           Parsing.PExp
+import           Parsing.LamRhoExp
 import           Typing.DensMatrixChecker
 import           Typing.GateChecker
 import           Typing.QType
@@ -39,10 +39,10 @@ initTypeState = 0
 runHindleyM :: TypeEnv -> HindleyM a -> ExceptInfer a
 runHindleyM env m = evalStateT (runReaderT m env) initTypeState
 
-runHindley :: TypeEnv -> PExp -> ExceptInfer (QType, [TypeEq])
+runHindley :: TypeEnv -> LamRhoExp -> ExceptInfer (QType, [TypeEq])
 runHindley env ex = runHindleyM env (hindley ex)
 
-ftvExp :: PExp -> S.Set T.Text
+ftvExp :: LamRhoExp -> S.Set T.Text
 ftvExp (PVar v)         = S.singleton v
 ftvExp (PLambda v e)    = v `S.delete` (ftvExp e)
 ftvExp (PFunApp t r)    = (ftvExp t) `S.union` (ftvExp r)
@@ -88,7 +88,7 @@ partitionEnv s1 s2 = do
   when (not (S.null common)) (throwError $ VariablesUsedMoreThanOnce common)
   return (TypeEnv env1, TypeEnv env2)
 
-hindley :: PExp -> HindleyM (QType, [TypeEq])
+hindley :: LamRhoExp -> HindleyM (QType, [TypeEq])
 hindley ex = case ex of
   PVar x -> do
     tv <- lookupEnv x

@@ -1,8 +1,8 @@
-module Parsing.ParserTests(parserTests) where
+module Parsing.LamRhoParserTests(lamRhoParserTests) where
 import           Control.Monad.Except
 import           Data.Complex
-import           Parsing.Parser
-import           Parsing.PExp
+import           Parsing.LamRhoExp
+import           Parsing.LamRhoParser
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck as QC
@@ -11,7 +11,7 @@ import           Test.Tasty.SmallCheck as SC
 
 testStr = runExcept.parseLambdaRho
 
-parserTests = testGroup "parserTests" [mixedTests, matrixTests, gateTests]
+lamRhoParserTests = testGroup "lamRhoParserTests" [mixedTests, matrixTests, gateTests]
 
 mixedTests = testGroup "mixedTests"
   [ testCase "Parsing var" $

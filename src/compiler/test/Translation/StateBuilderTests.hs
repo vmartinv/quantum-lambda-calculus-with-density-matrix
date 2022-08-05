@@ -4,7 +4,7 @@ import           Data.Complex
 import           Data.Maybe
 import           Data.Tuple.Extra
 import qualified Numeric.LinearAlgebra.HMatrix as HM
-import           Parsing.PExp
+import           Parsing.LamRhoExp
 import qualified Test.QuickCheck.Property      as QCP
 import qualified Test.SmallCheck               as SCP
 import           Test.Tasty

@@ -5,7 +5,7 @@ import           Data.Fixed
 import qualified Data.Text                     as T
 import           Data.Tuple.Extra
 import qualified Numeric.LinearAlgebra.HMatrix as HM
-import           Parsing.PExp
+import           Parsing.LamRhoExp
 import           Typing.GateChecker
 import           Utils
 
@@ -99,7 +99,7 @@ uniformlyContRot k m ax alphas | m>=k && HM.size alphas == 2^k =
                  | otherwise = grayDiffNext i
     errorMsg = "Unexpected arguments to uniformlyContRot: "<>show k<>" "<>show m<>" "<>show ax<>" "<>show alphas
 
-applyGates :: [PGate] -> PExp -> PExp
+applyGates :: [PGate] -> LamRhoExp -> LamRhoExp
 applyGates gates e = foldl (flip PGateApp) e gates
 
 normRad :: Double -> Double
@@ -168,7 +168,7 @@ stateToZeroGates st = filter (not . isIdentGate) $ firstPhase++secondPhase
         | j <- reverse [0..n-1]
       ]
 
-circuitForState :: HM.Vector (Complex Double) -> PExp
+circuitForState :: HM.Vector (Complex Double) -> LamRhoExp
 circuitForState st = applyGates (invertCircuit $ stateToZeroGates st) start
   where
     n = log2 (HM.size st) :: Int -- Number of qubits

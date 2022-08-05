@@ -1,7 +1,7 @@
 module Typing.TypeCheckTests(typeCheckTests) where
 import           Control.Monad.Except
-import           Parsing.Parser
-import           Parsing.PExp
+import           Parsing.LamRhoExp
+import           Parsing.LamRhoParser
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Typing.QType

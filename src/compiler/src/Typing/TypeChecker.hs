@@ -12,7 +12,7 @@ import           Data.Maybe
 import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Data.Tuple.Extra
-import           Parsing.PExp
+import           Parsing.LamRhoExp
 import           Typing.Hindley
 import           Typing.QType
 import           Typing.Robinson
@@ -21,10 +21,10 @@ import           Typing.TypeEq
 import           Typing.TypeError
 
 -- | Solve for the toplevel type of an expression
-typeCheck :: PExp -> Except String QType
+typeCheck :: LamRhoExp -> Except String QType
 typeCheck = (withExcept show).(fullTypeCheck (TypeEnv M.empty))
 
-fullTypeCheck :: TypeEnv -> PExp -> ExceptInfer QType
+fullTypeCheck :: TypeEnv -> LamRhoExp -> ExceptInfer QType
 fullTypeCheck env ex = do
   (t, eqs) <- runHindley env ex
   subst <- robinson eqs

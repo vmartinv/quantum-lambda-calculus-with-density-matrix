@@ -1,8 +1,8 @@
 {
-module Parsing.Parser where
-import Parsing.Lexer
+module Parsing.LamRhoParser where
+import Parsing.LamRhoLexer
 import Control.Monad.Except
-import Parsing.PExp
+import Parsing.LamRhoExp
 
 import Data.Complex
 import Data.Text (pack)
@@ -48,18 +48,18 @@ import Data.Text (pack)
 
 -- pack :: String -> Text
 
-PExp : var                              { PVar (pack $1) }
+LamRhoExp : var                              { PVar (pack $1) }
     | 'i'                               { PVar "i" }
-    | PI '^' int PExp %prec PROJ        { PProjector $3 $4 }
-    | '\\' 'i' '.' PExp %prec LAMB      { PLambda "i" $4 }
-    | '\\' var '.' PExp %prec LAMB      { PLambda (pack $2) $4 }
-    | PExp PExp %prec APP               { PFunApp $1 $2 }
+    | PI '^' int LamRhoExp %prec PROJ        { PProjector $3 $4 }
+    | '\\' 'i' '.' LamRhoExp %prec LAMB      { PLambda "i" $4 }
+    | '\\' var '.' LamRhoExp %prec LAMB      { PLambda (pack $2) $4 }
+    | LamRhoExp LamRhoExp %prec APP               { PFunApp $1 $2 }
     | qubits                            { PQubits (pack $1) }
     | '[' Matrix ']'  %prec MAT         { PMatrix (reverse $2) }
-    | Gate PExp %prec GAT               { PGateApp $1 $2 }
-    | PExp OTIMES PExp %prec OTIM       { POtimesExp $1 $3 }
-    | '(' PExp ')'                      { $2 }
-    | letcase var '=' PExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
+    | Gate LamRhoExp %prec GAT               { PGateApp $1 $2 }
+    | LamRhoExp OTIMES LamRhoExp %prec OTIM       { POtimesExp $1 $3 }
+    | '(' LamRhoExp ')'                      { $2 }
+    | letcase var '=' LamRhoExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
 
 Gate : gate '^' NumExp                { PGate (pack $1) [$3] }
     | gate                            { PGate (pack $1) [] }
@@ -85,15 +85,15 @@ ComplexExp : NumExp                   { $1 :+ 0}
   | NumExp '+' 'i'                    { $1 :+ 1 }
   | NumExp '+' NumExp 'i'             { $1 :+ $3 }
 
-CaseList : PExp              { [$1] }
-         | CaseList ',' PExp { $3 : $1 }
+CaseList : LamRhoExp              { [$1] }
+         | CaseList ',' LamRhoExp { $3 : $1 }
 
 {
 parseError :: [Token] -> Except String a
 parseError (l:ls) = throwError ("Unexpected lexeme: "<>show l)
 parseError [] = throwError "Unexpected end of Input"
 
-parseLambdaRho :: String -> Except String PExp
+parseLambdaRho :: String -> Except String LamRhoExp
 parseLambdaRho =  scanTokens >=> parseTokens
 
 }

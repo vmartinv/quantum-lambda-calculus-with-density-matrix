@@ -1,4 +1,4 @@
-import           Parsing.ParserTests           (parserTests)
+import           Parsing.LamRhoParserTests     (lamRhoParserTests)
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Translation.PurificationTests (purificationTests)
@@ -11,4 +11,4 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "tests" [parserTests, qTypeTests, typeCheckTests, purificationTests, utilsTests, stateBuilderTests]
+tests = testGroup "tests" [lamRhoParserTests, qTypeTests, typeCheckTests, purificationTests, utilsTests, stateBuilderTests]

@@ -1,7 +1,7 @@
 module Compiler(compile) where
 import           Control.Monad.Except
 import           Data.Text               (Text)
-import           Parsing.Parser
+import           Parsing.LamRhoParser
 import           Python.PyExp
 import           Translation.Translation
 import           Typing.QType

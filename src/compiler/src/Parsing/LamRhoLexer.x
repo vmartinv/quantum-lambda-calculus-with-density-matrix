@@ -1,5 +1,5 @@
 {
-module Parsing.Lexer where
+module Parsing.LamRhoLexer where
 import Control.Monad.Except
 }
 

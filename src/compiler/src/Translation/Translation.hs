@@ -3,14 +3,14 @@ import           Control.Monad.State
 import           Data.Complex
 import qualified Data.Text                     as T
 import qualified Numeric.LinearAlgebra.HMatrix as HM
-import           Parsing.PExp
+import           Parsing.LamRhoExp
 import           Python.PyExp
 import           Translation.DensMat
 import           Translation.Purification
 import           Translation.StateBuilder
 import           Typing.GateChecker
 
-translate :: PExp -> PyExp
+translate :: LamRhoExp -> PyExp
 translate (PVar v) = PyVar v
 translate (PLambda v exp) = PyLambda v (translate exp)
 translate (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translate exp2]
