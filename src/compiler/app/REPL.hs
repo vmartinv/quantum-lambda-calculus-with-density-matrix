@@ -4,6 +4,7 @@ import           Compiler
 import           Control.Monad.Except
 import           Control.Monad.Trans
 import           Data.List              (isPrefixOf)
+import           Python.PyRender
 import           System.Console.Repline
 import           System.Process         (callCommand)
 import           Typing.TypeChecker
@@ -14,7 +15,7 @@ type Repl a = HaskelineT IO a
 cmd :: String -> Repl ()
 cmd src = liftIO $ putStrLn $ showResult $ pretty <$> compile src
   where
-    pretty (typ, trans) = "Type: " ++ show typ ++ "\nTranslation:\n" ++ show trans
+    pretty (typ, trans) = "Type: " ++ show typ ++ "\nTranslation:\n" ++ (pyRenderStr trans)
 
 
 showResult :: Except String String -> String

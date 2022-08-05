@@ -23,10 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - array
 - prettyprinter >= 1.7.0
-- process
-- repline >= 0.3.0.0
 - mtl
-- haskeline >= 0.8.0.0
 - text
 - containers
 - either
@@ -56,6 +53,8 @@ executables:
     dependencies:
     - compiler
     - optparse-applicative
+    - repline >= 0.3.0.0
+    - process
 
 tests:
   compiler-test:

@@ -2,9 +2,15 @@ module Python.PyRender where
 
 import           Data.List
 import           Prettyprinter
+import           Prettyprinter.Util
 import           Python.PyExp
 
-pyRender :: PyExp -> Doc ann
+pyRenderStr :: PyExp -> String
+pyRenderStr = show . (layoutPretty layout) . pyRender
+  where
+    layout = defaultLayoutOptions
+
+pyRender :: PyExp -> Doc ()
 pyRender (PyVar v)            = pretty v
 pyRender (PyLambda v exp)     = "lambda" <+> pretty v <> colon <+> pyRender exp
 pyRender( PyFunCall exp1 exps) = callee exp1 <> parens (args exps)

@@ -3,6 +3,7 @@ module Main where
 import           Compiler
 import           Data.Semigroup      ((<>))
 import           Options.Applicative
+import           Python.PyRender
 import           REPL
 
 
@@ -27,4 +28,6 @@ main = work =<< execParser opts
 
 work :: CmdFlags -> IO ()
 work (CmdFlags True) = repl
-work _               = getContents >>= print.compile
+work _               = do
+  inp <- getContents
+  print $ (pyRenderStr.snd) <$> compile inp
