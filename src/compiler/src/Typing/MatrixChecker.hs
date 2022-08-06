@@ -1,4 +1,4 @@
-module Typing.DensMatrixChecker where
+module Typing.MatrixChecker where
 
 import           Control.Monad.Except
 import           Data.Complex

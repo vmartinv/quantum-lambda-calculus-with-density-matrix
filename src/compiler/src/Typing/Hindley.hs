@@ -7,14 +7,14 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Coerce
 import           Data.List
-import qualified Data.Map                 as M
+import qualified Data.Map             as M
 import           Data.Maybe
-import qualified Data.Set                 as S
-import qualified Data.Text                as T
+import qualified Data.Set             as S
+import qualified Data.Text            as T
 import           Data.Tuple.Extra
 import           Parsing.LamRhoExp
-import           Typing.DensMatrixChecker
 import           Typing.GateChecker
+import           Typing.MatrixChecker
 import           Typing.QType
 import           Typing.Robinson
 import           Typing.Subst
