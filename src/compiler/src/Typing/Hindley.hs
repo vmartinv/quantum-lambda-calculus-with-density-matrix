@@ -136,6 +136,11 @@ hindley ex = case ex of
     (t, eq) <- hindley e
     return (tv, eq++[TypeEq tv (QTMeasuredQubits d), IsQubits t, IsMeasuredQubits tv, AtLeastSizeEq [t] tv])
 
+  PPair n m -> do
+    q <- (lift . lift) (getMatrixSize m)
+    when (n>=2^q) (throwError $ InvalidPair n m)
+    return (QTMeasuredQubits q, [])
+
   PGateApp gate e -> do
     tv <- fresh
     (t, eq) <- hindley e

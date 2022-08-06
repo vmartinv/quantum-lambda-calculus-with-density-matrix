@@ -49,15 +49,16 @@ import Data.Text (pack)
 -- pack :: String -> Text
 
 LamRhoExp : var                              { PVar (pack $1) }
-    | 'i'                               { PVar "i" }
+    | 'i'                                    { PVar "i" }
     | PI '^' int LamRhoExp %prec PROJ        { PProjector $3 $4 }
     | '\\' 'i' '.' LamRhoExp %prec LAMB      { PLambda "i" $4 }
     | '\\' var '.' LamRhoExp %prec LAMB      { PLambda (pack $2) $4 }
-    | LamRhoExp LamRhoExp %prec APP               { PFunApp $1 $2 }
-    | qubits                            { PQubits (pack $1) }
-    | '[' Matrix ']'  %prec MAT         { PMatrix (reverse $2) }
+    | LamRhoExp LamRhoExp %prec APP          { PFunApp $1 $2 }
+    | qubits                                 { PQubits (pack $1) }
+    | '(' int ',' '[' Matrix ']' ')'         { PPair $2 (reverse $5) }
+    | '[' Matrix ']'  %prec MAT              { PMatrix (reverse $2) }
     | Gate LamRhoExp %prec GAT               { PGateApp $1 $2 }
-    | LamRhoExp OTIMES LamRhoExp %prec OTIM       { POtimesExp $1 $3 }
+    | LamRhoExp OTIMES LamRhoExp %prec OTIM  { POtimesExp $1 $3 }
     | '(' LamRhoExp ')'                      { $2 }
     | letcase var '=' LamRhoExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
 

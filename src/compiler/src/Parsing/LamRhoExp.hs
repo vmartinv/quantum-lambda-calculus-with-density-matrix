@@ -12,6 +12,7 @@ data LamRhoExp = PVar Text
          | PLambda Text LamRhoExp
          | PFunApp LamRhoExp LamRhoExp
          | PQubits Text
+         | PPair Int [[Complex Double]]
          | PGateApp PGate LamRhoExp
          | PMatrix [[Complex Double]]
          | PProjector Int LamRhoExp

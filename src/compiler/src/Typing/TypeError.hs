@@ -23,6 +23,7 @@ data TypeError  = UnificationFail QType QType
               | MatrixIsNotAPowerOfTwo [[Complex Double]]
               | MatrixHasZeroQubits [[Complex Double]]
               | MatrixExceedsMaxSize Int [[Complex Double]]
+              | InvalidPair Int [[Complex Double]]
               deriving (Show,Eq)
 
 type ExceptInfer = Except TypeError

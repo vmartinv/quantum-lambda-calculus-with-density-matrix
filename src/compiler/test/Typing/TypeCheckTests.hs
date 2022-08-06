@@ -149,4 +149,8 @@ matrixTests = testGroup "matrixTests"
       testExp (PMatrix [[1],[1],[1]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0],[1.0 :+ 0.0],[1.0 :+ 0.0]]"
   , testCase "Different row/column size matrix" $
       testExp (PMatrix [[1],[1,2],[1]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0],[1.0 :+ 0.0]]"
+  , testCase "Pair with qubit matrix" $
+      testExp (PPair 1 [[1,2],[3,4]]) @?= Right (QTMeasuredQubits 1)
+  , testCase "Pair with qubit matrix with invalid result" $
+      testExp (PPair 2 [[1,2],[3,4]]) @?= Left "InvalidPair 2 [[1.0 :+ 0.0,2.0 :+ 0.0],[3.0 :+ 0.0,4.0 :+ 0.0]]"
   ]

@@ -20,6 +20,7 @@ translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "Compi
       n = T.length qbits
       m = HM.toLists $ toDensMatrix $ toVector qbits
 translate (PMatrix m) = translateMatrix m
+translate (PPair b m) = PyPair (PyInt b) (translate (PMatrix m))
 translate (PGateApp gate exp) = evalState (translateGate (translate exp) gate) 0
 translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") [PyInt n]
 translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "tensor_product") [translate exp2]

@@ -22,6 +22,7 @@ pyRender( PyFunCall exp1 exps) = callee exp1 <> parens (args exps)
       args xs  = enclose line line $ indent 4 $ vsep $ punctuate comma $ (pyRender <$> xs)
 pyRender (PyInt n) = pretty n
 pyRender (PyFloat f) = pretty f
+pyRender (PyPair a b) = parens $ pyRender a <> comma <+> pyRender b
 pyRender (PyList cases) = brackets $ enclose line line $ indent 4 $ sep $ (prettyCase <$> cases)
   where
     prettyCase exp = pyRender exp <> comma
