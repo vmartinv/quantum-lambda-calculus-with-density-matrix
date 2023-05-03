@@ -20,38 +20,34 @@ bind a t | t == QTVar a     = return emptySubst
        | otherwise       = return $ M.singleton a t
 
 -- returns a substitutions that unifies the given two types
-unifies :: QType -> QType -> ExceptInfer Subst
-unifies t1 t2                       | t1 == t2 = return emptySubst
-unifies (QTVar v) t                 = v `bind` t
-unifies t (QTVar v)                 = v `bind` t
-unifies (QTFun t1 t2) (QTFun t3 t4) = unifyMany [(t1, t3), (t2, t4)]
-unifies t1 t2                       = throwError $ UnificationFail t1 t2
+unifies :: TypeEq -> ExceptInfer Subst
+unifies (EqualTypeEq t1 t2)                       | t1 == t2 = return emptySubst
+unifies (EqualTypeEq (QTVar v) t)                 = v `bind` t
+unifies (EqualTypeEq t (QTVar v))                 = v `bind` t
+unifies (EqualTypeEq (QTFun t1 t2) (QTFun t3 t4)) = unifyMany [EqualTypeEq t1 t3, EqualTypeEq t2 t4]
+unifies (EqualTypeEq t1 t2)                       = throwError $ UnificationFail t1 t2
+unifies (SumSizeEq ls q)                       =
+  assertQubitOrVar q >> sequence_ (assertQubitOrVar <$> ls) >> return emptySubst
+unifies (AtLeastSizeEq ls q)                       =
+  assertQubitOrVar q >> sequence_ (assertQubitOrVar <$> ls) >> return emptySubst
+
+assertQubitOrVar :: QType -> ExceptInfer ()
+assertQubitOrVar (QTVar _)    = return ()
+assertQubitOrVar (QTQubits _) = return ()
+assertQubitOrVar t            = throwError $ TypeNotQubits t
 
 -- like unifies but for list, composes the substitutions
-unifyMany :: [(QType, QType)] -> ExceptInfer Subst
+unifyMany :: [TypeEq] -> ExceptInfer Subst
 unifyMany typeEqs = foldM f emptySubst (reverse typeEqs)
-  where f su (t1, t2) = compose su <$> unifies (apply su t1) (apply su t2)
-
--- verifies IsQubits/IsMeasuredQubits
--- first argument forces to check on variables (strict)
-classCheck :: Bool -> TypeEq -> ExceptInfer ()
-classCheck _ (IsQubits (QTQubits _)) = return ()
-classCheck False (IsQubits (QTVar _)) = return ()
-classCheck _ (IsQubits t) = throwError $ TypeNotQubits t
-classCheck _ (IsMeasuredQubits (QTMeasuredQubits _)) = return ()
-classCheck False (IsMeasuredQubits (QTVar _)) = return ()
-classCheck _ (IsMeasuredQubits t) = throwError $ TypeNotMeasuredQubits t
-classCheck _ _ = return ()
+  where f su eq = compose su <$> unifies (apply su eq)
 
 -- core algorithm
 robinson :: [TypeEq] -> ExceptInfer Subst
 robinson eqs = do
-  su1 <- unifyMany [ (t1, t2) | TypeEq t1 t2 <- eqs]
+  su1 <- unifyMany eqs
   let eqs' = apply su1 eqs
-  sequence_ $ classCheck False <$> eqs'
   sol <- solveSums eqs'
   su2 <- assignValues eqs' sol
-  sequence_ $ classCheck True <$> apply su2 eqs'
   return $ su1 `compose` su2
 
 -- given the solution to the sum of equations
@@ -59,10 +55,7 @@ robinson eqs = do
 assignValues :: [TypeEq] -> M.Map VariableId Int -> ExceptInfer Subst
 assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol)
   where
-    measureds = S.fromList [ v | IsMeasuredQubits (QTVar v) <- eqs]
-    cons v | S.member v measureds = QTMeasuredQubits
-           | otherwise = QTQubits
-    bindv (v, q) = v `bind` cons v q
+    bindv (v, q) = v `bind` QTQubits q
 
 -- Given that the sum equations form a tree and are given in topological order
 -- this function transform the equations into a flatten tree

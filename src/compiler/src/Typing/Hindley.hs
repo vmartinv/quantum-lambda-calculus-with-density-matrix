@@ -25,12 +25,12 @@ import           Utils
 type TypeState = Int
 
 -- | Hindley monad
-type HindleyM a = (ReaderT
+type HindleyM a = ReaderT
                   TypeEnv             -- Typing environment
                   (StateT         -- Inference state
                   TypeState
                   ExceptInfer)
-                  a)              -- Result
+                  a              -- Result
 
 initTypeState :: TypeState
 initTypeState = 0
@@ -62,7 +62,7 @@ fresh = do
   return $ QTVar s
 
 equalTypes :: [QType] -> HindleyM (QType, [TypeEq])
-equalTypes (t1:ts) = return (t1, map (TypeEq t1) ts)
+equalTypes (t1:ts) = return (t1, map (EqualTypeEq t1) ts)
 equalTypes []      = throwError $ InvalidLetCaseNumCases 0
 
 -- | Extend type environment
@@ -107,7 +107,7 @@ hindley ex = case ex of
     (env1, env2) <- partitionEnv (ftvExp e1) (ftvExp e2)
     (t1, eq1) <- local (const env1) $ hindley e1
     (t2, eq2) <- local (const env2) $ hindley e2
-    return (tv, eq1 ++ eq2 ++ [TypeEq t1 (QTFun t2 tv)])
+    return (tv, eq1 ++ eq2 ++ [EqualTypeEq t1 (QTFun t2 tv)])
 
   PLetCase x e es -> do
     -- validate number is cases is a power of two
@@ -122,19 +122,18 @@ hindley ex = case ex of
       hindley' e = local (const newEnv) (hindley e)
     (tts, eqcases) <- unzip <$> sequenceA (hindley' <$> es)
     (tv, eqcasesr) <- equalTypes tts
-    return (tv, eq1++concat eqcases ++ eqcasesr ++ [TypeEq t1 (QTMeasuredQubits q)])
+    return (tv, eq1++concat eqcases ++ eqcasesr ++ [EqualTypeEq t1 (QTMeasuredQubits q)])
 
   POtimesExp e1 e2 -> do
     tv <- fresh
     (env1, env2) <- partitionEnv (ftvExp e1) (ftvExp e2)
     (t1, eq1) <- local (const env1) $ hindley e1
     (t2, eq2) <- local (const env2) $ hindley e2
-    return (tv, eq1++eq2++[IsQubits t1, IsQubits t2, IsQubits tv, SumSizeEq [t1, t2] tv])
+    return (tv, eq1++eq2++[SumSizeEq [t1, t2] tv])
 
   PProjector d e -> do
-    tv <- fresh
     (t, eq) <- hindley e
-    return (tv, eq++[TypeEq tv (QTMeasuredQubits d), IsQubits t, IsMeasuredQubits tv, AtLeastSizeEq [t] tv])
+    return (QTMeasuredQubits d, eq++[AtLeastSizeEq [t] (QTQubits d)])
 
   PPair n m -> do
     q <- (lift . lift) (getMatrixSize m)
@@ -142,10 +141,9 @@ hindley ex = case ex of
     return (QTMeasuredQubits q, [])
 
   PGateApp gate e -> do
-    tv <- fresh
     (t, eq) <- hindley e
     sz <- (lift . lift) (getGateSize gate)
-    return (tv, eq++[TypeEq tv t, TypeEq tv (QTQubits sz)])
+    return (t, eq++[EqualTypeEq t (QTQubits sz)])
 
   PQubits q -> return (QTQubits (T.length q), [])
 

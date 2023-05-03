@@ -23,7 +23,7 @@ translate (PMatrix m) = translateMatrix m
 translate (PPair b m) = PyPair (PyInt b) (translate (PMatrix m))
 translate (PGateApp gate exp) = evalState (translateGate (translate exp) gate) 0
 translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") [PyInt n]
-translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "tensor_product") [translate exp2]
+translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "compose") [translate exp2]
 translate (PLetCase v exp exps) = PyFunCall (PyFun "letcase") [translate exp, PyList cases]
   where
     cases = (PyLambda v.translate) <$> exps

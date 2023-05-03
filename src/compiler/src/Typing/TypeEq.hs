@@ -4,7 +4,5 @@ import           Typing.QType
 
 data TypeEq = SumSizeEq [QType] QType
         | AtLeastSizeEq [QType] QType
-        | IsQubits QType
-        | IsMeasuredQubits QType
-        | TypeEq QType QType
+        | EqualTypeEq QType QType
       deriving (Show)

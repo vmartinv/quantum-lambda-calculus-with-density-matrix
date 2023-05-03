@@ -28,14 +28,10 @@ instance Substitutable a => Substitutable [a] where
 instance Substitutable TypeEq where
   apply s (SumSizeEq ts tr)    = SumSizeEq (map (apply s) ts) (apply s tr)
   apply s (AtLeastSizeEq ts tr)    = AtLeastSizeEq (map (apply s) ts) (apply s tr)
-  apply s (IsQubits t)         = IsQubits $ apply s t
-  apply s (IsMeasuredQubits t) = IsMeasuredQubits $ apply s t
-  apply s (TypeEq t1 t2)       = TypeEq (apply s t1) (apply s t2)
+  apply s (EqualTypeEq t1 t2)       = EqualTypeEq (apply s t1) (apply s t2)
   ftv (SumSizeEq ts tr)     = ftv (tr:ts)
   ftv (AtLeastSizeEq ts tr) = ftv (tr:ts)
-  ftv (IsQubits t)          = ftv t
-  ftv (IsMeasuredQubits t)  = ftv t
-  ftv (TypeEq t1 t2)        = ftv [t1, t2]
+  ftv (EqualTypeEq t1 t2)   = ftv [t1, t2]
 
 emptySubst :: Subst
 emptySubst = M.empty

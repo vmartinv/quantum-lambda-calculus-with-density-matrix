@@ -83,7 +83,7 @@ letcaseTests = testGroup "letcaseTests"
         Left "InvalidLetCaseNumCases 3"
   , testCase "Invalid num cases 2" $
       testStr "letcase xm=\\pi^1 \\ket{+} in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
-        Left "UnificationFail $(2, 2)$ $(1, 1)$"
+        Left "UnificationFail $(1, 1)$ $(2, 2)$"
   , testCase "letcase with unused qubits" $
       testStr "letcase ym=\\pi^1 \\ket{++} in {\\ket{1}, \\ket{0}}" @?=
         Right (QTQubits 1)
