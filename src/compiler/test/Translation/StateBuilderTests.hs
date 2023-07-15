@@ -104,7 +104,7 @@ getThetaAnglesTests = testGroup "getThetaAnglesTests"
   , QC.testProperty "k=2" $
       \a1 a2 a3 a4 -> approxEqualV (getThetaAngles (HM.fromList [a1, a2, a3, a4])) (HM.scale (1/4) $ HM.fromList [a1+a2+a3+a4, a1-a2+a3-a4, a1-a2+a3-a4, a1+a2+a3+a4])
   , testCase "k=2'" $
-      getThetaAngles (HM.fromList [0.1, 0.3, 0.5, 0.7]) @?= HM.fromList [0.4,-0.1,-0.1,0.4]
+      st $ approxEqualV (getThetaAngles (HM.fromList [0.1, 0.3, 0.5, 0.7])) (HM.fromList [0.4,-0.1,-0.1,0.4])
   ]
 
 calcAlphasTests = testGroup "calcAlphasTests"
@@ -122,13 +122,19 @@ calcAlphasTests = testGroup "calcAlphasTests"
       st $ approxEqualV ((calcAlphas . HM.fromList) (boch (-pi/2) (pi/3)) YAxis 1) (HM.fromList [-pi/2])
   ]
 
+compareOp (PGate g1 args1) (PGate g2 args2) = (g1 @?= g2) >> (st $ approxEqualV (HM.fromList args1) (HM.fromList args2))
+compareOp (PGateOtimes g1 g2) (PGateOtimes g3 g4) = compareOp g1 g3 >> compareOp g2 g4
+compareOp op1 op2 = op1 @?= op2
+
+compareOps v1 v2 = sequence_ $ uncurry compareOp <$> zip v1 v2
+
 uniformlyContRotTests = testGroup "uniformlyContRotTests"
   [ testCase "k=0" $
     uniformlyContRot 0 0 ZAxis (HM.fromList [0.5]) @?= [PGate "U" [0.0,0.0,0.5]]
   , testCase "k=1" $
     uniformlyContRot 1 1 ZAxis (HM.fromList [0.5, 0.1]) @?= [PGateOtimes (PGate "I" [1.0]) (PGate "U" [0.0,0.0,0.3]),PGate "UC" [pi,0.0,pi],PGateOtimes (PGate "I" [1.0]) (PGate "U" [0.0,0.0,0.2]),PGate "UC" [pi,0.0,pi]]
   , testCase "k=2" $
-    uniformlyContRot 2 2 ZAxis (HM.fromList [0.1, 0.3, 0.5, 0.7]) @?= [
+    compareOps (uniformlyContRot 2 2 ZAxis (HM.fromList [0.1, 0.3, 0.5, 0.7])) [
         PGateOtimes (PGate "I" [2.0]) (PGate "U" [0.0,0.0,0.4]),
         PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
         PGateOtimes (PGate "UC" [pi,0.0,pi]) (PGate "I" [1.0]),
