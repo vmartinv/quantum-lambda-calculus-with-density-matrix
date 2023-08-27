@@ -2,11 +2,12 @@ module Python.PyRender where
 
 import           Data.List
 import           Prettyprinter
+import           Prettyprinter.Render.String
 import           Prettyprinter.Util
 import           Python.PyExp
 
 pyRenderStr :: PyExp -> String
-pyRenderStr = show . (layoutPretty layout) . pyRender
+pyRenderStr = renderString . (layoutPretty layout) . pyRender
   where
     layout = defaultLayoutOptions
 
