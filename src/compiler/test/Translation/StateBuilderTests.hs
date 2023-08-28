@@ -13,36 +13,51 @@ import qualified Test.Tasty.QuickCheck         as QC
 import qualified Test.Tasty.SmallCheck         as SC
 import           TestUtils
 import           Translation.StateBuilder
+import           Utils
 
 stateBuilderTests = testGroup "stateBuilderTests" [bitManipulation, utilFunctionTests, getThetaAnglesTests, uniformlyContRotTests, calcAlphasTests, stateToZeroGatesTests, stateToZeroGatesSimTests]
 
+offsetLM :: Int -> HM.Matrix (Complex Double) -> HM.Matrix (Complex Double)
+offsetLM 0 m = m
+offsetLM n m = HM.ident (2^n) `HM.kronecker` m
+
+offsetRM :: Int -> HM.Matrix (Complex Double) -> HM.Matrix (Complex Double)
+offsetRM 0 m = m
+offsetRM n m = m `HM.kronecker` HM.ident (2^n)
+
 getMatrix :: PGate -> HM.Matrix (Complex Double)
-getMatrix (PGate "I" [n]) = HM.ident (2^(round n))
-getMatrix (PGate "U" [theta, phi, lambda]) = (2 HM.>< 2)
-  [ cos (theta / 2) :+ 0, -exp (0 :+ lambda) * (sin(theta/2):+0)
-  , exp (0 :+ phi) * (sin(theta/2):+0), exp (0 :+ (phi+lambda)) * (cos(theta/2):+0)
-  ]
-getMatrix (PGate "UC" [theta, phi, lambda]) = (4 HM.>< 4)
-  [ 1:+0, 0:+0, 0:+0, 0:+0
-  , 0:+0, 1:+0, 0:+0, 0:+0
-  , 0:+0, 0:+0, u HM.! 0 HM.! 0, u HM.! 0 HM.! 1
-  , 0:+0, 0:+0, u HM.! 1 HM.! 0, u HM.! 1 HM.! 1
-  ]
-    where
-      u = getMatrix (PGate "U" [theta, phi, lambda])
-getMatrix (PGate "SWAP" []) = (4 HM.>< 4) $ (:+0) <$>
-  [ 1, 0, 0, 0
-  , 0, 0, 1, 0
-  , 0, 1, 0, 0
-  , 0, 0, 0, 1
-  ]
-getMatrix (PGateOtimes g1 g2) = (getMatrix g1) `HM.kronecker` (getMatrix g2)
+getMatrix (PGate "I" [n] p) = offsetLM p $ HM.ident (2^(round n))
+getMatrix (PGate "U" [theta, phi, lambda] p) = offsetLM p $
+  (2 HM.>< 2)
+    [ cos (theta / 2) :+ 0, -exp (0 :+ lambda) * (sin(theta/2):+0)
+    , exp (0 :+ phi) * (sin(theta/2):+0), exp (0 :+ (phi+lambda)) * (cos(theta/2):+0)
+    ]
+getMatrix (PGate "UC" [theta, phi, lambda] p) = offsetLM p $
+  (4 HM.>< 4)
+    [ 1:+0, 0:+0, 0:+0, 0:+0
+    , 0:+0, 1:+0, 0:+0, 0:+0
+    , 0:+0, 0:+0, u HM.! 0 HM.! 0, u HM.! 0 HM.! 1
+    , 0:+0, 0:+0, u HM.! 1 HM.! 0, u HM.! 1 HM.! 1
+    ]
+      where
+        u = getMatrix (PGate "U" [theta, phi, lambda] 0)
+getMatrix (PGate "SWAP" [] p) = offsetLM p $
+  (4 HM.>< 4) $ (:+0) <$>
+    [ 1, 0, 0, 0
+    , 0, 0, 1, 0
+    , 0, 1, 0, 0
+    , 0, 0, 0, 1
+    ]
 
 applyGatesV :: [PGate] -> HM.Vector (Complex Double) -> HM.Vector (Complex Double)
 applyGatesV ms st = foldl applyGate st ms
   where
+    extendMat :: Int -> HM.Matrix (Complex Double) -> HM.Matrix (Complex Double)
+    extendMat n m = offsetRM add m
+      where add = 0 `max` (log2 n - log2 (HM.cols m))
+
     applyGate :: HM.Vector (Complex Double) -> PGate -> HM.Vector (Complex Double)
-    applyGate s g = HM.app (getMatrix g) s
+    applyGate s g = HM.app (extendMat (HM.size s) (getMatrix g)) s
 
 -- https://en.wikipedia.org/wiki/3-sphere#Hopf_coordinates
 hopf :: Double -> Double -> Double -> [Complex Double]
@@ -68,7 +83,7 @@ sameUpToGPhase v1 v2 = if  sameUpToGPhaseB v1 v2 then QCP.succeeded else QCP.fai
 
 utilFunctionTests = testGroup "utilFunctionTests"
   [ testCase "U(0, 0, 0)=I^1" $
-      getMatrix (PGate "U" [0, 0, 0]) @?= (2 HM.>< 2) [1,0,0,1]
+      getMatrix (PGate "U" [0, 0, 0] 0) @?= (2 HM.>< 2) [1,0,0,1]
   , QC.testProperty "hopf generates norm 1" $
       \t p d -> HM.norm_2 (HM.fromList (hopf t p d)) - 1 < 1e-5
   , testCase "|0> otimes |0>" $
@@ -122,42 +137,40 @@ calcAlphasTests = testGroup "calcAlphasTests"
       st $ approxEqualV ((calcAlphas . HM.fromList) (boch (-pi/2) (pi/3)) YAxis 1) (HM.fromList [-pi/2])
   ]
 
-compareOp (PGate g1 args1) (PGate g2 args2) = (g1 @?= g2) >> (st $ approxEqualV (HM.fromList args1) (HM.fromList args2))
-compareOp (PGateOtimes g1 g2) (PGateOtimes g3 g4) = compareOp g1 g3 >> compareOp g2 g4
-compareOp op1 op2 = op1 @?= op2
+compareOp (PGate g1 args1 p1) (PGate g2 args2 p2) = ((g1, p1) @?= (g2, p2)) >> (st $ approxEqualV (HM.fromList args1) (HM.fromList args2))
 
 compareOps v1 v2 = sequence_ $ uncurry compareOp <$> zip v1 v2
 
 uniformlyContRotTests = testGroup "uniformlyContRotTests"
   [ testCase "k=0" $
-    uniformlyContRot 0 0 ZAxis (HM.fromList [0.5]) @?= [PGate "U" [0.0,0.0,0.5]]
+    uniformlyContRot 0 0 ZAxis (HM.fromList [0.5]) @?= [PGate "U" [0.0,0.0,0.5] 0]
   , testCase "k=1" $
-    uniformlyContRot 1 1 ZAxis (HM.fromList [0.5, 0.1]) @?= [PGateOtimes (PGate "I" [1.0]) (PGate "U" [0.0,0.0,0.3]),PGate "UC" [pi,0.0,pi],PGateOtimes (PGate "I" [1.0]) (PGate "U" [0.0,0.0,0.2]),PGate "UC" [pi,0.0,pi]]
+    uniformlyContRot 1 1 ZAxis (HM.fromList [0.5, 0.1]) @?= [PGate "U" [0.0,0.0,0.3] 1,PGate "UC" [pi,0.0,pi] 0, PGate "U" [0.0,0.0,0.2] 1, PGate "UC" [pi,0.0,pi] 0]
   , testCase "k=2" $
     compareOps (uniformlyContRot 2 2 ZAxis (HM.fromList [0.1, 0.3, 0.5, 0.7])) [
-        PGateOtimes (PGate "I" [2.0]) (PGate "U" [0.0,0.0,0.4]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
-        PGateOtimes (PGate "UC" [pi,0.0,pi]) (PGate "I" [1.0]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
+        PGate "U" [0.0,0.0,0.4] 2,
+        PGate "SWAP" [] 1,
+        PGate "UC" [pi,0.0,pi] 0,
+        PGate "SWAP" [] 1,
 
-        PGateOtimes (PGate "I" [2.0]) (PGate "U" [0.0,0.0,-0.1]),
-        PGateOtimes (PGate "SWAP" []) (PGate "I" [1.0]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
-        PGateOtimes (PGate "I" [1.0]) (PGate "UC" [pi,0.0,pi]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
-        PGateOtimes (PGate "SWAP" []) (PGate "I" [1.0]),
+        PGate "U" [0.0,0.0,-0.1] 2,
+        PGate "SWAP" [] 0,
+        PGate "SWAP" [] 1,
+        PGate "UC" [pi,0.0,pi] 1,
+        PGate "SWAP" [] 1,
+        PGate "SWAP" [] 0,
 
-        PGateOtimes (PGate "I" [2.0]) (PGate "U" [0.0,0.0,-0.1]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
-        PGateOtimes (PGate "UC" [pi,0.0,pi]) (PGate "I" [1.0]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
+        PGate "U" [0.0,0.0,-0.1] 2,
+        PGate "SWAP" [] 1,
+        PGate "UC" [pi,0.0,pi] 0,
+        PGate "SWAP" [] 1,
 
-        PGateOtimes (PGate "I" [2.0]) (PGate "U" [0.0,0.0,0.4]),
-        PGateOtimes (PGate "SWAP" []) (PGate "I" [1.0]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
-        PGateOtimes (PGate "I" [1.0]) (PGate "UC" [pi,0.0,pi]),
-        PGateOtimes (PGate "I" [1.0]) (PGate "SWAP" []),
-        PGateOtimes (PGate "SWAP" []) (PGate "I" [1.0])
+        PGate "U" [0.0,0.0,0.4] 2,
+        PGate "SWAP" [] 0,
+        PGate "SWAP" [] 1,
+        PGate "UC" [pi,0.0,pi] 1,
+        PGate "SWAP" [] 1,
+        PGate "SWAP" [] 0
       ]
   ]
 
@@ -167,14 +180,23 @@ stateToZeroGatesTests = testGroup "stateToZeroGatesTests"
         []
   , testCase "|1>" $
       (stateToZeroGates . HM.fromList) [0, 1] @?=
-        [ PGate "U" [-pi,0.0,0.0]
+        [ PGate "U" [-pi,0.0,0.0] 0
         ]
   , testCase "(boch (-pi/2) (pi/3))" $
       (stateToZeroGates . HM.fromList) (boch (-pi/2) (pi/3)) @?=
-        [ PGate "U" [0.0,0.0,2*pi/3+4e-16]
-        , PGate "U" [-pi/2-2e-16,0,0]
+        [ PGate "U" [0.0,0.0,2*pi/3+4e-16] 0
+        , PGate "U" [-pi/2-2e-16,0,0] 0
         ]
+  , testCase "(boch (-pi/2) (pi/3))" $
+      (stateToZeroGates . HM.fromList) (boch (-pi/2) (pi/3)) @?=
+        [ PGate "U" [0.0,0.0,2*pi/3+4e-16] 0
+        , PGate "U" [-pi/2-2e-16,0,0] 0
+        ]
+    , testCase "boch n=2 single case"$
+        st $ sameUpToGPhase (applyGatesV (stateToZeroGates sta) sta) (HM.fromList [1, 0, 0, 0])
   ]
+  where
+    sta = HM.fromList $ (boch 0.0 0.0) `otimes` (boch 0.1 0.1)
 
 stateToZeroGatesSimTests = testGroup "stateToZeroGatesSimTests"
   [ testCase "building |0>" $

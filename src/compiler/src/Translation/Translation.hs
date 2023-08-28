@@ -21,28 +21,20 @@ translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "Compi
       m = HM.toLists $ toDensMatrix $ toVector qbits
 translate (PMatrix m) = translateMatrix m
 translate (PPair b m) = PyPair (PyInt b) (translate (PMatrix m))
-translate (PGateApp gate exp) = evalState (translateGate (translate exp) gate) 0
+translate (PGateApp gate exp) = PyFunCall (PyFun "apply_gate") [translateGate gate, translate exp]
 translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") [PyInt n]
 translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "compose") [translate exp2]
 translate (PLetCase v exp exps) = PyFunCall (PyFun "letcase") [translate exp, PyList cases]
   where
     cases = (PyLambda v.translate) <$> exps
 
-translateGate :: PyExp -> PGate -> State Int PyExp
-translateGate pyexp (PGateOtimes g1 g2) = do
-  pyexp' <- translateGate pyexp g1
-  translateGate pyexp' g2
-translateGate pyexp gdef@(PGate "I" params) = do
-  modify (+getGateSizeNoCheck gdef)
-  return pyexp
-translateGate pyexp gdef@(PGate name params) = do
-  offset <- get
-  let gateSize = getGateSizeNoCheck gdef
+translateGate :: PGate -> PyExp
+translateGate gdef@(PGate name params offset) =
+  PyLambda "c" (PyFunCall (PyFun ("c."<>gateName)) gateArgs)
+    where
+      gateSize = getGateSizeNoCheck gdef
       gateArgs = (PyFloat <$> params) ++ (PyInt <$> [offset..offset+gateSize])
       gateName = translateGateName name
-      gate = PyLambda "c" (PyFunCall (PyFun ("c."<>gateName)) gateArgs)
-  modify (+gateSize)
-  return $ PyFunCall (PyFun "apply_gate") [gate, pyexp]
 
 translateGateName :: T.Text -> T.Text
 translateGateName = T.toLower

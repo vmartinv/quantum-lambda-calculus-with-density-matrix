@@ -4,8 +4,7 @@ import           Data.Complex
 import           Data.Text    (Text)
 
 
-data PGate = PGate Text [Double]
-         | PGateOtimes PGate PGate
+data PGate = PGate Text [Double] Int
            deriving (Show,Eq)
 
 data LamRhoExp = PVar Text

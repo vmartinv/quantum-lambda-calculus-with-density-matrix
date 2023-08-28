@@ -14,19 +14,18 @@ data Axis = YAxis | ZAxis
 
 rot :: Axis -> Double -> PGate
 -- rot XAxis angle = PGate "U" [angle, -pi/2, pi/2]
-rot YAxis angle = PGate "U" [angle, 0, 0]
-rot ZAxis angle = PGate "U" [0, 0, angle]
+rot YAxis angle = PGate "U" [angle, 0, 0] 0
+rot ZAxis angle = PGate "U" [0, 0, angle] 0
 
 ident :: Int -> PGate
-ident n = PGate "I" [fromIntegral n]
+ident n = PGate "I" [fromIntegral n] 0
 
 offsetL :: Int -> PGate -> PGate
-offsetL 0 = id
-offsetL p = (ident p `PGateOtimes`)
+offsetL 0 gate               = gate
+offsetL offset (PGate n a p)=PGate n a (p+offset)
 
 offsetR :: Int -> PGate -> PGate
-offsetR 0 = id
-offsetR p = (`PGateOtimes` ident p)
+offsetR _p = id
 
 -- targetQubits :: total # of qubits -> targeted qubit -> gate -> transformed gate
 targetQubits :: Int -> Int -> PGate -> PGate
@@ -36,10 +35,6 @@ targetQubits n i g | 0<= i && i<=n-gq = offsetL i (offsetR (n-i-gq) g)
     gq = getGateSizeNoCheck g
     errorMsg = "Unexpected arguments to targetQubits: "<>show n<>" "<>show i<>" "<>show gq
 
-applyGateToAllQubits :: Int -> PGate -> PGate
-applyGateToAllQubits 0 g = error $ "Unexpected arguments to applyGateToAllQubits: "<>show 0<>" "<>show g
-applyGateToAllQubits n g = foldr PGateOtimes g (replicate (n-1) g)
-
 swap2 :: Int -> Int -> Int -> [PGate]
 swap2 n i j | n<2 = error errorMsg
             | j==i = []
@@ -48,11 +43,11 @@ swap2 n i j | n<2 = error errorMsg
             | otherwise = swapNext <$> ([i..j-1] ++ reverse [i..j-2])
     where
       -- swaps qubit i and i+1
-      swapNext i = targetQubits n i (PGate "SWAP" [])
+      swapNext i = targetQubits n i (PGate "SWAP" [] 0)
       errorMsg = "Unexpected arguments to swap2: "<>show n<>" "<>show i<>" "<>show j
 
 cnot :: PGate
-cnot = PGate "UC" [pi, 0, pi]
+cnot = PGate "UC" [pi, 0, pi] 0
 
 -- c is control, t is target
 cnot2 :: Int -> Int -> Int -> [PGate]
@@ -106,10 +101,10 @@ normRad :: Double -> Double
 normRad a = (2*pi+a) `mod'` (2*pi) - pi
 
 hermConjugate :: PGate -> PGate
-hermConjugate g@(PGate "I" _)       = g
-hermConjugate g@(PGate "SWAP" _)    = g
-hermConjugate (PGate "U" [theta, phi, lambda]) = PGate "U" [theta, normRad $ pi - lambda , normRad $ -(phi+pi)]
-hermConjugate (PGate "UC" [theta, phi, lambda]) = PGate "UC" [theta, normRad $ pi - lambda, normRad $ -(phi+pi)]
+hermConjugate g@(PGate "I" _ _)       = g
+hermConjugate g@(PGate "SWAP" _ _)    = g
+hermConjugate (PGate "U" [theta, phi, lambda] p) = PGate "U" [theta, normRad $ pi - lambda , normRad $ -(phi+pi)] p
+hermConjugate (PGate "UC" [theta, phi, lambda] p) = PGate "UC" [theta, normRad $ pi - lambda, normRad $ -(phi+pi)] p
 
 invertCircuit :: [PGate] -> [PGate]
 invertCircuit gs = reverse (hermConjugate <$> gs)
@@ -147,11 +142,10 @@ calcAlphas st ax k | ok && ax==ZAxis =
     errorMsg = "Unexpected arguments to calcAlphas: "<>show (HM.size st)<>" "<>show ax<>" "<>show k
 
 isIdentGate :: PGate -> Bool
-isIdentGate (PGate "I" [_])        = True
-isIdentGate (PGate "U" [0, 0, 0])  = True
-isIdentGate (PGate "UC" [0, 0, 0]) = True
-isIdentGate (PGateOtimes g1 g2)    = (isIdentGate g1) && (isIdentGate g2)
-isIdentGate _                      = False
+isIdentGate (PGate "I" [_] _)        = True
+isIdentGate (PGate "U" [0, 0, 0] _)  = True
+isIdentGate (PGate "UC" [0, 0, 0] _) = True
+isIdentGate _                        = False
 
 stateToZeroGates :: HM.Vector (Complex Double) -> [PGate]
 stateToZeroGates st = filter (not . isIdentGate) $ firstPhase++secondPhase

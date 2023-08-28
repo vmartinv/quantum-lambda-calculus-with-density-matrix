@@ -55,7 +55,7 @@ matrixTests = testGroup "matrixTests"
   , testCase "Parsing non-square matrix" $
       testStr "[[1,2,3]]" @?= Right (PMatrix [[1.0,2.0,3.0]])
   , testCase "Parsing matrix in expression" $
-      testStr "I^100 [[1,2,3]]" @?= Right (PGateApp (PGate "I" [100.0]) (PMatrix [[1.0,2.0,3.0]]))
+      testStr "I^100 [[1,2,3]]" @?= Right (PGateApp (PGate "I" [100.0] 0) (PMatrix [[1.0,2.0,3.0]]))
   , testCase "Parsing matrix size 1 single i" $
       testStr "[[i]]" @?= Right (PMatrix [[0:+1]])
   , testCase "Parsing matrix size 1 double, i" $
@@ -74,23 +74,23 @@ matrixTests = testGroup "matrixTests"
 
 gateTests = testGroup "gateTests"
   [ testCase "Parsing gate with no arguments" $
-    testStr "U x" @?= Right (PGateApp (PGate "U" []) (PVar "x"))
+    testStr "U x" @?= Right (PGateApp (PGate "U" [] 0) (PVar "x"))
   , testCase "Parsing unfinished expression gate" $
       testStr "U" @?= Left "Unexpected end of Input"
   , testCase "Parsing gate with single argument" $
-    testStr "ZC^9 x" @?= Right (PGateApp (PGate "ZC" [9.0]) (PVar "x"))
+    testStr "ZC^9 x" @?= Right (PGateApp (PGate "ZC" [9.0] 0) (PVar "x"))
   , testCase "Parsing gate with int arguments" $
-    testStr "I^{0,1} x" @?= Right (PGateApp (PGate "I" [0.0,1.0]) (PVar "x"))
+    testStr "I^{0,1} x" @?= Right (PGateApp (PGate "I" [0.0,1.0] 0) (PVar "x"))
   , testCase "Parsing gate with negative argument" $
-    testStr "UFZ^{-99} x" @?= Right (PGateApp (PGate "UFZ" [-99.0]) (PVar "x"))
+    testStr "UFZ^{-99} x" @?= Right (PGateApp (PGate "UFZ" [-99.0] 0) (PVar "x"))
   , testCase "Parsing gate with negative arguments" $
-    testStr "UFZ^{-3,-0, 1} x" @?= Right (PGateApp (PGate "UFZ" [-3.0, 0.0, 1.0]) (PVar "x"))
+    testStr "UFZ^{-3,-0, 1} x" @?= Right (PGateApp (PGate "UFZ" [-3.0, 0.0, 1.0] 0) (PVar "x"))
   , testCase "Parsing gate with exp argument" $
-    testStr "X^{1e3,1.1e3, -2.1e3, 4e-4, 4.4e-12, -5.03e-8} x" @?= Right (PGateApp (PGate "X" [1e3,1.1e3, -2.1e3, 4e-4, 4.4e-12, -5.03e-8]) (PVar "x"))
+    testStr "X^{1e3,1.1e3, -2.1e3, 4e-4, 4.4e-12, -5.03e-8} x" @?= Right (PGateApp (PGate "X" [1e3,1.1e3, -2.1e3, 4e-4, 4.4e-12, -5.03e-8] 0) (PVar "x"))
   , testCase "Parsing gate with mixed arguments" $
-    testStr "ASDFXX^{1e3,-3,4.4, 0} x" @?= Right (PGateApp (PGate "ASDFXX" [1e3,-3.0,4.4,0]) (PVar "x"))
-  , testCase "Parsing gate otimes" $
-    testStr "(U \\otimes U) x" @?= Right (PGateApp (PGateOtimes (PGate "U" []) (PGate "U" [])) (PVar "x"))
-  , testCase "Parsing gate otimes" $
-    testStr "(U \\otimes I^3 \\otimes UC^{1,2,3}) x" @?= Right (PGateApp (PGateOtimes (PGateOtimes (PGate "U" []) (PGate "I" [3])) (PGate "UC" [1,2,3])) (PVar "x"))
+    testStr "ASDFXX^{1e3,-3,4.4, 0} x" @?= Right (PGateApp (PGate "ASDFXX" [1e3,-3.0,4.4,0] 0) (PVar "x"))
+  , testCase "Parsing gate pos" $
+    testStr "U_3 x" @?= Right (PGateApp (PGate "U" [] 3) (PVar "x"))
+  , testCase "Parsing gate pos params" $
+    testStr "UC^{1,2,3}_8 x" @?= Right (PGateApp (PGate "UC" [1,2,3] 8) (PVar "x"))
   ]

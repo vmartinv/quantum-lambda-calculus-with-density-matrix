@@ -33,6 +33,7 @@ import Data.Text (pack)
     ']' { TokenRBracket }
     ',' { TokenComma }
     '^' { TokenPower }
+    '_' { TokenUnderscore }
     '+' { TokenPlus }
     int { TokenInt $$ }
     double { TokenDouble $$ }
@@ -57,7 +58,7 @@ LamRhoExp : var                              { PVar (pack $1) }
     | qubits                                 { PQubits (pack $1) }
     | '(' int ',' '[' Matrix ']' ')'         { PPair $2 (reverse $5) }
     | '[' Matrix ']'  %prec MAT              { PMatrix (reverse $2) }
-    | Gate LamRhoExp %prec GAT               { PGateApp $1 $2 }
+    | GateP LamRhoExp %prec GAT              { PGateApp $1 $2 }
     | LamRhoExp OTIMES LamRhoExp %prec OTIM  { POtimesExp $1 $3 }
     | '(' LamRhoExp ')'                      { $2 }
     | letcase var '=' LamRhoExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
@@ -65,8 +66,9 @@ LamRhoExp : var                              { PVar (pack $1) }
 Gate : gate '^' NumExp                { PGate (pack $1) [$3] }
     | gate                            { PGate (pack $1) [] }
     | gate '^' '{' NumberList '}'     { PGate (pack $1) (reverse $4) }
-    | Gate OTIMES Gate                { PGateOtimes $1 $3 }
-    | '(' Gate ')'                    { $2 }
+
+GateP : Gate                          { $1 0 }
+      | Gate '_' int                  { $1 $3 }
 
 NumberList : NumExp                   { [$1] }
     | NumberList ',' NumExp           { $3 : $1 }

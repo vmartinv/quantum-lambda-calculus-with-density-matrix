@@ -140,10 +140,10 @@ hindley ex = case ex of
     when (n>=2^q) (throwError $ InvalidPair n m)
     return (QTMeasuredQubits q, [])
 
-  PGateApp gate e -> do
+  PGateApp gate@(PGate _n _a offset) e -> do
     (t, eq) <- hindley e
     sz <- (lift . lift) (getGateSize gate)
-    return (t, eq++[EqualTypeEq t (QTQubits sz)])
+    return (t, eq++[AtLeastSizeEq [t] (QTQubits (sz+offset))])
 
   PQubits q -> return (QTQubits (T.length q), [])
 
