@@ -2,3 +2,5 @@
 compiler.cabal
 *~
 .history
+venv/
+__pycache__/
