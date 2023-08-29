@@ -11,21 +11,21 @@ import           Text.Regex.TDFA
 
 fullProg src = (makeProgram . snd . fromRight ("", "") . compileStr) src
 
-pyOutput :: String -> IO String
-pyOutput src = do
-  (exit_code, out, err) <-
-      readProcessWithExitCode "python" [] (fullProg src)
-  exit_code @?= ExitSuccess
+runPy :: String -> IO String
+runPy prog = do
+  (exitCode, out, err) <-
+      readProcessWithExitCode "python" [] prog
   err @?= ""
+  exitCode @?= ExitSuccess
   return out
 
-outMatchesRegex :: String -> String -> Assertion
-outMatchesRegex src reg = do
-  out <- pyOutput src
-  let match = out =~ reg
-  assertBool ("Output doesn't match regex.\nRegex:\n"++reg++"\nOutput:\n"++out) match
+matchesRegex :: String -> String -> Assertion
+matchesRegex reg out =
+    assertBool ("Output doesn't match regex.\nOutput:\n"++out++"\nRegex:\n"++reg) match
+  where
+    match = out =~ reg
 
 pythonTests = testGroup "pythonTests"
   [ testCase "Lambda id" $
-    outMatchesRegex "\\x.x" "<function <lambda> at 0x[a-f0-9]+>"
+    runPy (fullProg "\\x.x") >>= matchesRegex "<function <lambda> at 0x[a-f0-9]+>"
   ]
