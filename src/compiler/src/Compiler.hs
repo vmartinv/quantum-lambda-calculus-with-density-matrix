@@ -1,7 +1,8 @@
-module Compiler(makeProgram, compile) where
+module Compiler(makeProgram, compile, compileStr) where
 import           Control.Monad.Except
 import           Parsing.LamRhoParser
 import           Python.PyExp
+import           Python.PyRender
 import           Translation.Translation
 import           Typing.QType
 import           Typing.TypeChecker
@@ -19,3 +20,8 @@ compile src = do
   exp <- parseLambdaRho src
   typ <- typeCheck exp
   return (typ, translate exp)
+
+compileStr :: String -> Either String (String, String)
+compileStr src = runExcept (toStr <$> compile src)
+    where
+      toStr (typ, prog) = (show typ, pyRenderStr prog)
