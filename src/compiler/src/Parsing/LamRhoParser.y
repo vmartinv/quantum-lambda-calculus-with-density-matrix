@@ -3,6 +3,7 @@ module Parsing.LamRhoParser where
 import Parsing.LamRhoLexer
 import Control.Monad.Except
 import Parsing.LamRhoExp
+import CompilerError
 
 import Data.Complex
 import Data.Text (pack)
@@ -10,7 +11,7 @@ import Data.Text (pack)
 
 %name parseTokens
 %tokentype { Token }
-%monad { Except String } { (>>=) } { return }
+%monad { ExceptInfer } { (>>=) } { return }
 %error { parseError }
 
 %token
@@ -92,11 +93,11 @@ CaseList : LamRhoExp              { [$1] }
          | CaseList ',' LamRhoExp { $3 : $1 }
 
 {
-parseError :: [Token] -> Except String a
-parseError (l:ls) = throwError ("Unexpected lexeme: "<>show l)
-parseError [] = throwError "Unexpected end of Input"
+parseError :: [Token] -> ExceptInfer a
+parseError (l:ls) = throwError $ ParsingError ("Unexpected lexeme: "<>show l)
+parseError [] = throwError $ ParsingError "Unexpected end of Input"
 
-parseLambdaRho :: String -> Except String LamRhoExp
+parseLambdaRho :: String -> ExceptInfer LamRhoExp
 parseLambdaRho =  scanTokens >=> parseTokens
 
 }

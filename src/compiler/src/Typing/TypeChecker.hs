@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Typing.TypeChecker where
 
+import           CompilerError
 import           Control.Applicative
 import           Control.Monad.Except
 import           Control.Monad.Reader
@@ -18,11 +19,11 @@ import           Typing.QType
 import           Typing.Robinson
 import           Typing.Subst
 import           Typing.TypeEq
-import           Typing.TypeError
+import           Utils
 
 -- | Solve for the toplevel type of an expression
-typeCheck :: LamRhoExp -> Except String QType
-typeCheck = (withExcept show).(fullTypeCheck (TypeEnv M.empty))
+typeCheck :: LamRhoExp -> ExceptInfer QType
+typeCheck = fullTypeCheck (TypeEnv M.empty)
 
 fullTypeCheck :: TypeEnv -> LamRhoExp -> ExceptInfer QType
 fullTypeCheck env ex = do

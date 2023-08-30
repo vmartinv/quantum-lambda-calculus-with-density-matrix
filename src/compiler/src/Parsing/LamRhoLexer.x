@@ -1,6 +1,7 @@
 {
 module Parsing.LamRhoLexer where
 import Control.Monad.Except
+import CompilerError
 }
 
 %wrapper "basic"
@@ -74,15 +75,17 @@ stripSides :: String -> String
 stripSides s = drop (length ("\\ket{"::String)) (init s)
 
 -- https://www.haskell.org/alex/doc/html/basic-api.html
-scanTokens :: String -> Except String [Token]
-scanTokens str = go ('\n',[],str) where
-  go inp@(_,_bs,str) =
-    case alexScan inp 0 of
-     AlexEOF -> return []
-     AlexError _ -> throwError "Invalid lexeme"
-     AlexSkip  inp' len     -> go inp'
-     AlexToken inp' len act -> do
-      res <- go inp'
-      let rest = act (take len str)
-      return (rest : res)
+scanTokens :: String -> ExceptInfer [Token]
+scanTokens str = go ('\n',[],str)
+  where
+    go :: AlexInput -> ExceptInfer [Token]
+    go inp@(_,_bs,str) =
+      case alexScan inp 0 of
+       AlexEOF -> return []
+       AlexError _ -> throwError $ ParsingError "Invalid lexeme when scanning"
+       AlexSkip  inp' len     -> go inp'
+       AlexToken inp' len act -> do
+        res <- go inp'
+        let rest = act (take len str)
+        return (rest : res)
 }

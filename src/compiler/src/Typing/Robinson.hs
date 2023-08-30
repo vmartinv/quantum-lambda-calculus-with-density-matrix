@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Typing.Robinson where
 
+import           CompilerError
 import           Control.Applicative
 import           Control.Monad.Except
 import           Control.Monad.State
@@ -10,7 +11,6 @@ import qualified Data.Set             as S
 import           Typing.QType
 import           Typing.Subst
 import           Typing.TypeEq
-import           Typing.TypeError
 import           Utils
 
 -- returns a susbstitution to replace a variable with a given type

@@ -61,5 +61,5 @@ work Interactive = repl
 work (NonInteractive {optInput=optInput, optOutput=optOutput}) = do
   inp <- getInput optInput
   let result = (pyRenderStr.snd) <$> compile inp
-  let showError e = hPutStrLn stderr $ "Error while compiling:\n" ++ e
+  let showError e = hPutStrLn stderr $ "Error while compiling:\n" ++ show e
   either showError (writeOutput optOutput . makeProgram) (runExcept result)

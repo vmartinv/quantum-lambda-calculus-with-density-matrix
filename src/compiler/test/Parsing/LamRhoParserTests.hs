@@ -1,4 +1,5 @@
 module Parsing.LamRhoParserTests(lamRhoParserTests) where
+import           CompilerError
 import           Control.Monad.Except
 import           Data.Complex
 import           Parsing.LamRhoExp
@@ -23,7 +24,7 @@ mixedTests = testGroup "mixedTests"
   , testCase "Parsing multiple qubits" $
       testStr "\\ket{01+-}" @?= Right (PQubits "01+-")
   , testCase "Parsing invalid qubits" $
-      testStr "\\ket{2}" @?= Left "Unexpected lexeme: TokenLBrace"
+      testStr "\\ket{2}" @?= Left (ParsingError "Unexpected lexeme: TokenLBrace")
   , testCase "Parsing otimes" $
       testStr "x \\otimes y" @?= Right (POtimesExp (PVar "x") (PVar "y"))
   , testCase "Parsing lambda" $
@@ -33,11 +34,11 @@ mixedTests = testGroup "mixedTests"
   , testCase "Parsing function application" $
       testStr "(\\x.x) y" @?= Right (PFunApp (PLambda "x" (PVar "x")) (PVar "y"))
   , testCase "Parsing unknown token" $
-      testStr "x | y" @?= Left "Invalid lexeme"
+      testStr "x | y" @?= Left (ParsingError "Invalid lexeme when scanning")
   , testCase "Parsing unfinished expression" $
-      testStr "x \\otimes" @?= Left "Unexpected end of Input"
+      testStr "x \\otimes" @?= Left (ParsingError "Unexpected end of Input")
   , testCase "Parsing invalid expression" $
-      testStr "\\ \\ket{+}" @?= Left "Unexpected lexeme: TokenQubits \"+\""
+      testStr "\\ \\ket{+}" @?= Left (ParsingError "Unexpected lexeme: TokenQubits \"+\"")
   , testCase "Parsing letcase" $
       testStr "letcase x=\\pi^5 y in {x,y}" @?= Right (PLetCase "x" (PProjector 5 (PVar "y")) [(PVar "x"), (PVar "y")])
   , testCase "Parsing nested letcase" $
@@ -47,7 +48,7 @@ mixedTests = testGroup "mixedTests"
 
 matrixTests = testGroup "matrixTests"
   [ testCase "Parsing empty matrix" $
-      testStr "[[]]" @?= Left "Unexpected lexeme: TokenRBracket"
+      testStr "[[]]" @?= Left (ParsingError "Unexpected lexeme: TokenRBracket")
   , testCase "Parsing matrix size 1" $
       testStr "[[1]]" @?= Right (PMatrix [[1.0]])
   , testCase "Parsing matrix size 2" $
@@ -76,7 +77,7 @@ gateTests = testGroup "gateTests"
   [ testCase "Parsing gate with no arguments" $
     testStr "U x" @?= Right (PGateApp (PGate "U" [] 0) (PVar "x"))
   , testCase "Parsing unfinished expression gate" $
-      testStr "U" @?= Left "Unexpected end of Input"
+      testStr "U" @?= Left (ParsingError "Unexpected end of Input")
   , testCase "Parsing gate with single argument" $
     testStr "ZC^9 x" @?= Right (PGateApp (PGate "ZC" [9.0] 0) (PVar "x"))
   , testCase "Parsing gate with int arguments" $

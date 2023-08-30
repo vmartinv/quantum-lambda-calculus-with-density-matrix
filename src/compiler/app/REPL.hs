@@ -1,6 +1,7 @@
 module REPL (repl) where
 
 import           Compiler
+import           CompilerError
 import           Control.Monad.Except
 import           Control.Monad.Trans
 import           Data.List              (isPrefixOf)
@@ -17,9 +18,10 @@ cmd src = liftIO $ putStrLn $ showResult $ pretty <$> compile src
   where
     pretty (typ, trans) = "Type: " ++ show typ ++ "\nTranslation:\n" ++ (pyRenderStr trans)
 
-
-showResult :: Except String String -> String
-showResult = (either ("Error: " ++) id).runExcept
+showResult :: ExceptInfer String -> String
+showResult = (either showError id).runExcept
+  where
+    showError msg = "Error: " ++ show msg
 
 -- Tab Completion: return a completion for partial words entered
 completer :: Monad m => WordCompleter m

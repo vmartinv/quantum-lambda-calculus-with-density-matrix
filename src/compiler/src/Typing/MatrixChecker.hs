@@ -1,8 +1,8 @@
 module Typing.MatrixChecker where
 
+import           CompilerError
 import           Control.Monad.Except
 import           Data.Complex
-import           Typing.TypeError
 import           Utils
 
 getMatrixSize :: [[Complex Double]] -> ExceptInfer Int

@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Typing.Hindley where
 
+import           CompilerError
 import           Control.Applicative
 import           Control.Monad.Except
 import           Control.Monad.Reader
@@ -19,7 +20,6 @@ import           Typing.QType
 import           Typing.Robinson
 import           Typing.Subst
 import           Typing.TypeEq
-import           Typing.TypeError
 import           Utils
 
 type TypeState = Int

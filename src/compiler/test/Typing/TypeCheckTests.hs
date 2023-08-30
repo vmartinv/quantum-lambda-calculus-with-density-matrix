@@ -7,8 +7,8 @@ import           Test.Tasty.HUnit
 import           Typing.QType
 import           Typing.TypeChecker
 
-testExp = runExcept.typeCheck
-testStr = runExcept.(typeCheck<=<parseLambdaRho)
+testExp = runExcept.(withExcept show).typeCheck
+testStr = runExcept.(withExcept show).(typeCheck<=<parseLambdaRho)
 
 typeCheckTests = testGroup "typeCheckTests" [qubitTests, lambdaAppTests, projectorTests, noCloningTests, gateParamsTests, letcaseTests, otimesTests, eqSolvingTests, matrixTests]
 

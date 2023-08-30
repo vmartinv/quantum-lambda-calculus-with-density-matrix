@@ -1,9 +1,9 @@
 module Typing.GateChecker where
 
+import           CompilerError
 import           Control.Monad.Except
 import qualified Data.Text            as T
 import           Parsing.LamRhoExp
-import           Typing.TypeError
 
 isInt :: Double -> Bool
 isInt x = x == fromInteger (round x)
