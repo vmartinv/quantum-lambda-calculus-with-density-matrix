@@ -9,12 +9,13 @@ import           Translation.DensMat
 import           Translation.Purification
 import           Translation.StateBuilder
 import           Typing.GateChecker
+import           Utils
 
 translate :: LamRhoExp -> PyExp
 translate (PVar v) = PyVar v
-translate (PLambda v exp) = PyLambda v (translate exp)
+translate (PLambda v exp) = dprint "PyLambda" $ PyLambda v (translate exp)
 translate (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translate exp2]
-translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "CompilerCircuit") [PyInt n]
+translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "Circuit") [PyInt n]
                           | otherwise = translateMatrix m
     where
       n = T.length qbits
@@ -22,7 +23,7 @@ translate (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "Compi
 translate (PMatrix m) = translateMatrix m
 translate (PPair b m) = PyPair (PyInt b) (translate (PMatrix m))
 translate (PGateApp gate exp) = PyFunCall (PyFun "apply_gate") [translateGate gate, translate exp]
-translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") [PyInt n]
+translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") (PyInt <$> [0,2..2*n-1])
 translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "compose") [translate exp2]
 translate (PLetCase v exp exps) = PyFunCall (PyFun "letcase") [translate exp, PyList cases]
   where

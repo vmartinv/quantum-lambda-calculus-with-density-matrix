@@ -9,11 +9,10 @@ class Circuit:
     # Use Aer's qasm_simulator
     BACKEND = Aer.get_backend('qasm_simulator')
 
-    def __init__(self, qu: int, cl: int):
-        assert qu>0
-        self.qu = qu
-        self.cl = cl
-        self.circuit = QuantumCircuit(qu, cl)
+    def __init__(self, n: int):
+        assert n>0
+        self.n = n
+        self.circuit = QuantumCircuit(n, n)
 
     # creates |010+> from '010+'
     @staticmethod
@@ -68,13 +67,18 @@ class Circuit:
     def draw(self):
         return self.circuit.draw()
 
-    def measure(self, qs: list[int]):
-        # Todo arreglar assert y verificar que la medicion devuelve solo los bits de qs (los pares)
-        assert n <= self.n
+    def measure_all(self):
+        return self.measure(range(0, self.n, 2))
+
+    def measure(self, *args: list[int]):
+        qs = args
+        for q in qs:
+            assert q <= self.n
         self.circuit.measure(qs, qs)
         job = execute(self.circuit, Circuit.BACKEND, shots=1)
         result = next(iter(job.result().get_counts()))
-        return (int(result[:n], 2), Circuit.fromstr(result))
+        assert len(qs) == len(result)
+        return int(result, 2)
 
     def compose(self, self2: 'Circuit', qubits, clbits):
         self.circuit \
@@ -83,13 +87,12 @@ class Circuit:
 
     def compose(self, self2: 'Circuit'):
         circuit1, circuit2 = self.circuit, self2.circuit
-        qu1, qu2 = self.qu, self2.qu
-        cl1, cl2 = self.cl, self2.cl
-        self.__init__(qu1+qu2, cl1+cl2)
+        n1, n2 = self.n, self2.n
+        self.__init__(n1+n2)
         self.circuit \
             .compose(circuit1, inplace=True)
         self.circuit \
-            .compose(circuit2, qubits=range(qu1, qu1+qu2), clbits=range(cl1, cl+cl2), inplace=True)
+            .compose(circuit2, qubits=range(n1, n1+n2), clbits=range(n1, n1+n2), inplace=True)
         return self
 
 def letcase(result: (int, Circuit), cases):

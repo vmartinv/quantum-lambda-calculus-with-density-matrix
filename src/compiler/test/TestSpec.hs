@@ -5,6 +5,7 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Translation.PurificationTests (purificationTests)
 import           Translation.StateBuilderTests (stateBuilderTests)
+import           Translation.TranslationTests  (translationTests)
 import           Typing.QTypeTests             (qTypeTests)
 import           Typing.TypeCheckTests         (typeCheckTests)
 import           UtilsTests                    (utilsTests)
@@ -14,12 +15,13 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "tests" [
+    utilsTests,
     lamRhoParserTests,
     qTypeTests,
     typeCheckTests,
     purificationTests,
-    utilsTests,
     stateBuilderTests,
+    translationTests,
     compilerTests,
     pythonTests
   ]

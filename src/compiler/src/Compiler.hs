@@ -19,7 +19,7 @@ makeProgram body = preamble ++ prog ++ ending
 
 compile :: String -> ExceptInfer (QType, PyExp)
 compile src = do
-  exp <- parseLambdaRho src
+  exp <- dprint "parseLambdaRho" $ parseLambdaRho src
   typ <- typeCheck exp
   return (typ, translate exp)
 
