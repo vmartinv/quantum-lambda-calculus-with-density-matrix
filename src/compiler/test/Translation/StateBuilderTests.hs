@@ -32,7 +32,7 @@ getMatrix (PGate "U" [theta, phi, lambda] p) = offsetLM p $
     [ cos (theta / 2) :+ 0, -exp (0 :+ lambda) * (sin(theta/2):+0)
     , exp (0 :+ phi) * (sin(theta/2):+0), exp (0 :+ (phi+lambda)) * (cos(theta/2):+0)
     ]
-getMatrix (PGate "UC" [theta, phi, lambda] p) = offsetLM p $
+getMatrix (PGate "CU" [theta, phi, lambda, _gamma] p) = offsetLM p $
   (4 HM.>< 4)
     [ 1:+0, 0:+0, 0:+0, 0:+0
     , 0:+0, 1:+0, 0:+0, 0:+0
@@ -145,30 +145,30 @@ uniformlyContRotTests = testGroup "uniformlyContRotTests"
   [ testCase "k=0" $
     uniformlyContRot 0 0 ZAxis (HM.fromList [0.5]) @?= [PGate "U" [0.0,0.0,0.5] 0]
   , testCase "k=1" $
-    uniformlyContRot 1 1 ZAxis (HM.fromList [0.5, 0.1]) @?= [PGate "U" [0.0,0.0,0.3] 1,PGate "UC" [pi,0.0,pi] 0, PGate "U" [0.0,0.0,0.2] 1, PGate "UC" [pi,0.0,pi] 0]
+    uniformlyContRot 1 1 ZAxis (HM.fromList [0.5, 0.1]) @?= [PGate "U" [0.0,0.0,0.3] 1,PGate "CU" [pi,0.0,pi,0.0] 0, PGate "U" [0.0,0.0,0.2] 1, PGate "CU" [pi,0.0,pi,0.0] 0]
   , testCase "k=2" $
     compareOps (uniformlyContRot 2 2 ZAxis (HM.fromList [0.1, 0.3, 0.5, 0.7])) [
         PGate "U" [0.0,0.0,0.4] 2,
         PGate "SWAP" [] 1,
-        PGate "UC" [pi,0.0,pi] 0,
+        PGate "CU" [pi,0.0,pi,0.0] 0,
         PGate "SWAP" [] 1,
 
         PGate "U" [0.0,0.0,-0.1] 2,
         PGate "SWAP" [] 0,
         PGate "SWAP" [] 1,
-        PGate "UC" [pi,0.0,pi] 1,
+        PGate "CU" [pi,0.0,pi,0.0] 1,
         PGate "SWAP" [] 1,
         PGate "SWAP" [] 0,
 
         PGate "U" [0.0,0.0,-0.1] 2,
         PGate "SWAP" [] 1,
-        PGate "UC" [pi,0.0,pi] 0,
+        PGate "CU" [pi,0.0,pi,0.0] 0,
         PGate "SWAP" [] 1,
 
         PGate "U" [0.0,0.0,0.4] 2,
         PGate "SWAP" [] 0,
         PGate "SWAP" [] 1,
-        PGate "UC" [pi,0.0,pi] 1,
+        PGate "CU" [pi,0.0,pi,0.0] 1,
         PGate "SWAP" [] 1,
         PGate "SWAP" [] 0
       ]

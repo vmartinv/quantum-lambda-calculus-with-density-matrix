@@ -11,6 +11,8 @@ import Test.QuickCheck.Property
 import Data.Maybe
 import qualified Test.QuickCheck.Property      as QCP
 import qualified Test.SmallCheck               as SCP
+import           Text.Regex.TDFA
+import Data.Text as T
 
 precision :: Int
 precision = 6
@@ -43,3 +45,13 @@ approxEqualV v1 v2 = if  approxEqualVB v1 v2 then QCP.succeeded else QCP.failed 
 
 approxEqualVB :: Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> Bool
 approxEqualVB v1 v2 = HM.norm_2 (v1 - v2) < eps
+
+matchesRegex :: T.Text -> T.Text -> QCP.Result
+matchesRegex reg out =
+    if match then QCP.succeeded else QCP.failed { QCP.reason = T.unpack errorMsg }
+  where
+    match = out =~ reg
+    errorMsg = "Output doesn't match regex.\nOutput:\n"<>out<>"\nRegex:\n"<>reg
+
+removeWhiteSpaces :: T.Text -> T.Text
+removeWhiteSpaces =  T.replace "    " "" . T.replace "\n" ""

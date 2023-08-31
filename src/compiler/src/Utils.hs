@@ -4,7 +4,7 @@ module Utils where
 import           Data.Bits
 import           Debug.Trace
 
-
+-- stack clean
 -- stack test --ghc-options="-DDEBUG" --test-arguments="-p tests.translationTests.prefix"
 #ifdef DEBUG
 dprint s v = traceShow (s, v) v

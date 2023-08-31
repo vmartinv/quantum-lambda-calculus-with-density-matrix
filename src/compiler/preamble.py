@@ -36,8 +36,8 @@ class Circuit:
         self.circuit.u(th, ph, la, q)
         return self
 
-    def uc(self, th: float, ph: float, la: float, c: int, t: int):
-        self.circuit.uc(th, ph, la, c, t)
+    def cu(self, th: float, ph: float, la: float, ga: float, c: int, t: int):
+        self.circuit.cu(th, ph, la, ga, c, t)
         return self
 
     def swap(self, q1: int, q2: int):
@@ -68,17 +68,20 @@ class Circuit:
         return self.circuit.draw()
 
     def measure_all(self):
-        return self.measure(range(0, self.n, 2))
+        return self.measure(*range(0, self.n, 2))
 
-    def measure(self, *args: list[int]):
-        qs = args
+    def measure(self, *args):
+        qs = list(args)
         for q in qs:
-            assert q <= self.n
+            assert 0 <= q and q < self.n
         self.circuit.measure(qs, qs)
         job = execute(self.circuit, Circuit.BACKEND, shots=1)
         result = next(iter(job.result().get_counts()))
-        assert len(qs) == len(result)
-        return int(result, 2)
+        assert len(result)==self.n
+        result_int = 0
+        for i,q in enumerate(qs):
+            result_int = (2**i) * (result[q]=='1')
+        return result_int
 
     def compose(self, self2: 'Circuit', qubits, clbits):
         self.circuit \
@@ -95,5 +98,5 @@ class Circuit:
             .compose(circuit2, qubits=range(n1, n1+n2), clbits=range(n1, n1+n2), inplace=True)
         return self
 
-def letcase(result: (int, Circuit), cases):
-    return cases[result[0]](result[1])
+def letcase(result: int, cases):
+    return cases[result]()

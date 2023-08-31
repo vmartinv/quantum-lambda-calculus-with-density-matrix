@@ -5,7 +5,7 @@ import qualified Data.Text                     as T
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 
 toDensMatrix :: HM.Vector (Complex Double) -> HM.Matrix (Complex Double)
-toDensMatrix v = vm <> HM.conj vm
+toDensMatrix v = vm <> HM.tr vm
   where
     vm = HM.asColumn v
 

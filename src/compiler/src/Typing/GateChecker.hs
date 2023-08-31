@@ -13,7 +13,7 @@ getGateSizeNoCheck g = either (const 0) id (runExcept (getGateSize g))
 
 getGateSize :: PGate -> ExceptInfer Int
 getGateSize (PGate name@"U" params _) = assertParamSize name 3 params *> return 1
-getGateSize (PGate name@"UC" params _) = assertParamSize name 3 params *> return 2
+getGateSize (PGate name@"CU" params _) = assertParamSize name 4 params *> return 2
 getGateSize (PGate name@"SWAP" params _) = assertParamSize name 0 params *> return 2
 getGateSize (PGate name@"CCNOT" params _) = assertParamSize name 0 params *> return 3
 getGateSize (PGate name@"CSWAP" params _) = assertParamSize name 0 params *> return 3

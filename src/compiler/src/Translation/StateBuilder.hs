@@ -47,7 +47,7 @@ swap2 n i j | n<2 = error errorMsg
       errorMsg = "Unexpected arguments to swap2: "<>show n<>" "<>show i<>" "<>show j
 
 cnot :: PGate
-cnot = PGate "UC" [pi, 0, pi] 0
+cnot = PGate "CU" [pi, 0, pi, 0] 0
 
 -- c is control, t is target
 cnot2 :: Int -> Int -> Int -> [PGate]
@@ -104,7 +104,7 @@ hermConjugate :: PGate -> PGate
 hermConjugate g@(PGate "I" _ _)       = g
 hermConjugate g@(PGate "SWAP" _ _)    = g
 hermConjugate (PGate "U" [theta, phi, lambda] p) = PGate "U" [theta, normRad $ pi - lambda , normRad $ -(phi+pi)] p
-hermConjugate (PGate "UC" [theta, phi, lambda] p) = PGate "UC" [theta, normRad $ pi - lambda, normRad $ -(phi+pi)] p
+hermConjugate (PGate "CU" [theta, phi, lambda, gamma] p) = PGate "CU" [theta, normRad $ pi - lambda, normRad $ -(phi+pi), gamma] p
 
 invertCircuit :: [PGate] -> [PGate]
 invertCircuit gs = reverse (hermConjugate <$> gs)
@@ -142,10 +142,10 @@ calcAlphas st ax k | ok && ax==ZAxis =
     errorMsg = "Unexpected arguments to calcAlphas: "<>show (HM.size st)<>" "<>show ax<>" "<>show k
 
 isIdentGate :: PGate -> Bool
-isIdentGate (PGate "I" [_] _)        = True
-isIdentGate (PGate "U" [0, 0, 0] _)  = True
-isIdentGate (PGate "UC" [0, 0, 0] _) = True
-isIdentGate _                        = False
+isIdentGate (PGate "I" [_] _)           = True
+isIdentGate (PGate "U" [0, 0, 0] _)     = True
+isIdentGate (PGate "CU" [0, 0, 0, 0] _) = True
+isIdentGate _                           = False
 
 stateToZeroGates :: HM.Vector (Complex Double) -> [PGate]
 stateToZeroGates st = filter (not . isIdentGate) $ firstPhase++secondPhase
