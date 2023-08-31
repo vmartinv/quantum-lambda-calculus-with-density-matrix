@@ -104,7 +104,7 @@ hermConjugate :: PGate -> PGate
 hermConjugate g@(PGate "I" _ _)       = g
 hermConjugate g@(PGate "SWAP" _ _)    = g
 hermConjugate (PGate "U" [theta, phi, lambda] p) = PGate "U" [theta, normRad $ pi - lambda , normRad $ -(phi+pi)] p
-hermConjugate (PGate "CU" [theta, phi, lambda, gamma] p) = PGate "CU" [theta, normRad $ pi - lambda, normRad $ -(phi+pi), gamma] p
+hermConjugate (PGate "CU" [theta, phi, lambda, gamma] p) = PGate "CU" [theta, normRad $ pi - lambda, normRad $ -(phi+pi), -gamma] p
 
 invertCircuit :: [PGate] -> [PGate]
 invertCircuit gs = reverse (hermConjugate <$> gs)
