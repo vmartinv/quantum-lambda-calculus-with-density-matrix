@@ -15,7 +15,16 @@ import           TestUtils
 import           Translation.StateBuilder
 import           Utils
 
-stateBuilderTests = testGroup "stateBuilderTests" [bitManipulation, utilFunctionTests, getThetaAnglesTests, uniformlyContRotTests, calcAlphasTests, stateToZeroGatesTests, stateToZeroGatesSimTests]
+stateBuilderTests = testGroup "stateBuilderTests"
+  [ bitManipulation
+  , utilFunctionTests
+  , getThetaAnglesTests
+  , uniformlyContRotTests
+  , calcAlphasTests
+  , stateToZeroGatesTests
+  , stateToZeroGatesSimTests
+  , gateBuildingTests
+  ]
 
 offsetLM :: Int -> HM.Matrix (Complex Double) -> HM.Matrix (Complex Double)
 offsetLM 0 m = m
@@ -199,26 +208,53 @@ stateToZeroGatesTests = testGroup "stateToZeroGatesTests"
     sta = HM.fromList $ (boch 0.0 0.0) `otimes` (boch 0.1 0.1)
 
 stateToZeroGatesSimTests = testGroup "stateToZeroGatesSimTests"
-  [ testCase "building |0>" $
+  [ testCase "building.|0>" $
       st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [1, 0]) (HM.fromList [1, 0])) (HM.fromList [1, 0])
-  , testCase "building |1>" $
+  , testCase "building.1" $
       st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [0, 1]) (HM.fromList [0, 1])) (HM.fromList [1, 0])
-  , testCase "building |+>" $
+  , testCase "building.|+>" $
       st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [1/sqrt(2), 1/sqrt(2)]) (HM.fromList [1/sqrt(2), 1/sqrt(2)])) (HM.fromList [1, 0])
-  , testCase "building |->" $
+  , testCase "building.|->" $
       st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [1/sqrt(2), -1/sqrt(2)]) (HM.fromList [1/sqrt(2), -1/sqrt(2)])) (HM.fromList [1, 0])
-  , testCase "building |0> phase in snd" $
+  , testCase "building.|0> phase in snd" $
       st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) [0, exp (0 :+ pi)]) (HM.fromList [0, exp (0 :+ pi)])) (HM.fromList [1, 0])
-  , testCase "building (boch -pi/2 pi/3)" $
+  , testCase "building.(boch -pi/2 pi/3)" $
       st $ approxEqualV (applyGatesV ((stateToZeroGates . HM.fromList) (boch (-pi/2) (pi/3))) (HM.fromList (boch (-pi/2) (pi/3)))) (HM.fromList [1, 0])
-  , SC.testProperty "building boch n=1" $
+  , SC.testProperty "building.boch n=1" $
       \t p -> sct $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) (boch t p)) (HM.fromList (boch t p))) (HM.fromList [1, 0])
-  , testCase "building |0> phase in fst" $
+  , testCase "building.|0> phase in fst" $
       st $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) [exp (0 :+ pi), 0]) (HM.fromList [exp (0 :+ pi), 0])) (HM.fromList [1, 0])
-  , QC.testProperty "building hopf n=1" $
+  , QC.testProperty "building.hopf n=1" $
       QC.withMaxSuccess 1000 $ \t p d -> qct $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) (hopf t p d)) (HM.fromList (hopf t p d))) (HM.fromList [1, 0])
-  , testCase "building |0> \\otimes |1>" $
+  , testCase "building.|0> \\otimes |1>" $
       st $ sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) ((boch 0 0) `otimes` [0,1])) (HM.fromList ((boch 0 0) `otimes` [0,1]))) (HM.fromList [1, 0, 0, 0])
-  , QC.testProperty "building boch n=2" $
+  , QC.testProperty "building.boch n=2" $
       QC.withMaxSuccess 1000 $ \t p t2 p2 -> sameUpToGPhase (applyGatesV ((stateToZeroGates . HM.fromList) ((boch t p) `otimes` (boch t2 p2))) (HM.fromList ((boch t p) `otimes` (boch t2 p2)))) (HM.fromList [1, 0, 0, 0])
+  ]
+
+gateBuildingTests = testGroup "gateBuildingTests"
+  [ testCase "building.zero" $
+      st $ approxEqualV (applyGatesV ((zeroToStateGates . HM.fromList) [1, 0]) (HM.fromList [1, 0])) (HM.fromList [1, 0])
+  , testCase "building.1" $
+      st $ approxEqualV (applyGatesV ((zeroToStateGates . HM.fromList) [0, 1]) (HM.fromList [1, 0])) (HM.fromList [0, 1])
+  , testCase "building.+" $
+      st $ approxEqualV (applyGatesV ((zeroToStateGates . HM.fromList) [1/sqrt(2), 1/sqrt(2)]) (HM.fromList [1, 0])) (HM.fromList [1/sqrt(2), 1/sqrt(2)])
+  , testCase "building.-" $
+      st $ approxEqualV (applyGatesV ((zeroToStateGates . HM.fromList) [1/sqrt(2), -1/sqrt(2)]) (HM.fromList [1, 0])) (HM.fromList [1/sqrt(2), -1/sqrt(2)])
+  , testCase "building.01" $
+      st $ approxEqualV (applyGatesV ((zeroToStateGates . HM.fromList) [0, 0, 0, 1]) (HM.fromList [1, 0, 0, 0])) (HM.fromList [0, 0, 0, 1])
+  , testCase "building.0phase in snd" $
+      st $ approxEqualV (applyGatesV ((zeroToStateGates . HM.fromList) [0, exp (0 :+ pi)]) (HM.fromList [1, 0])) (HM.fromList [0, exp (0 :+ pi)])
+  , testCase "building.(boch -pi/2 pi/3)" $
+      st $ approxEqualV (applyGatesV ((zeroToStateGates . HM.fromList) (boch (-pi/2) (pi/3))) (HM.fromList [1, 0])) (HM.fromList (boch (-pi/2) (pi/3)))
+  , SC.testProperty "building.boch n=1" $
+      \t p -> sct $ sameUpToGPhase (applyGatesV ((zeroToStateGates . HM.fromList) (boch t p)) (HM.fromList [1, 0])) (HM.fromList (boch t p))
+  , testCase "building.0phase in fst" $
+      st $ sameUpToGPhase (applyGatesV ((zeroToStateGates . HM.fromList) [exp (0 :+ pi), 0]) (HM.fromList [1, 0])) (HM.fromList [exp (0 :+ pi), 0])
+  , QC.testProperty "building.hopf n=1" $
+      QC.withMaxSuccess 1000 $ \t p d -> qct $ sameUpToGPhase (applyGatesV ((zeroToStateGates . HM.fromList) (hopf t p d)) (HM.fromList [1, 0])) (HM.fromList (hopf t p d))
+  , testCase "building.|0> \\otimes |1>" $
+      st $ sameUpToGPhase (applyGatesV ((zeroToStateGates . HM.fromList) ((boch 0 0) `otimes` [0,1])) (HM.fromList [1, 0, 0, 0])) (HM.fromList ((boch 0 0) `otimes` [0,1]))
+  , QC.testProperty "building.boch n=2" $
+      QC.withMaxSuccess 1000 $ \t p t2 p2 -> sameUpToGPhase (applyGatesV ((zeroToStateGates . HM.fromList) ((boch t p) `otimes` (boch t2 p2))) (HM.fromList [1, 0, 0, 0])) (HM.fromList ((boch t p) `otimes` (boch t2 p2)))
   ]

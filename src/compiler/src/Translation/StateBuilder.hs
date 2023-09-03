@@ -103,8 +103,8 @@ normRad a = (2*pi+a) `mod'` (2*pi) - pi
 hermConjugate :: PGate -> PGate
 hermConjugate g@(PGate "I" _ _)       = g
 hermConjugate g@(PGate "SWAP" _ _)    = g
-hermConjugate (PGate "U" [theta, phi, lambda] p) = PGate "U" [theta, normRad $ pi - lambda , normRad $ -(phi+pi)] p
-hermConjugate (PGate "CU" [theta, phi, lambda, gamma] p) = PGate "CU" [theta, normRad $ pi - lambda, normRad $ -(phi+pi), -gamma] p
+hermConjugate (PGate "U" [theta, phi, lambda] p) = PGate "U" [-theta, -lambda, phi] p
+hermConjugate (PGate "CU" [theta, phi, lambda, gamma] p) = PGate "CU" [-theta, -lambda, phi, -gamma] p
 
 invertCircuit :: [PGate] -> [PGate]
 invertCircuit gs = reverse (hermConjugate <$> gs)
@@ -148,7 +148,7 @@ isIdentGate (PGate "CU" [0, 0, 0, 0] _) = True
 isIdentGate _                           = False
 
 stateToZeroGates :: HM.Vector (Complex Double) -> [PGate]
-stateToZeroGates st = filter (not . isIdentGate) $ firstPhase++secondPhase
+stateToZeroGates st = dprint "stateToZeroGates" $ filter (not . isIdentGate) $ firstPhase++secondPhase
   where
     n = log2 (HM.size st) :: Int -- Number of qubits
     firstPhase :: [PGate]
@@ -162,8 +162,11 @@ stateToZeroGates st = filter (not . isIdentGate) $ firstPhase++secondPhase
         | j <- reverse [0..n-1]
       ]
 
+zeroToStateGates :: HM.Vector (Complex Double) -> [PGate]
+zeroToStateGates st = dprint "zeroToStateGates" $ invertCircuit $ stateToZeroGates st
+
 circuitForState :: HM.Vector (Complex Double) -> LamRhoExp
-circuitForState st = applyGates (invertCircuit $ stateToZeroGates st) start
+circuitForState st = applyGates (zeroToStateGates st) start
   where
     n = log2 (HM.size st) :: Int -- Number of qubits
     start = PQubits (T.replicate n "0") -- Initial state

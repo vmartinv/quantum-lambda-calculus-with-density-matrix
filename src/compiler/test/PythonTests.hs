@@ -7,12 +7,13 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck as QC
 import           Test.Tasty.SmallCheck as SC
+import           Utils
 
 fullProg :: String -> IO String
 fullProg src = do
   either handleError handleResult (compileStr src)
   where
-    handleResult = return . makeProgram . snd
+    handleResult = return . dprint "fullProg" . makeProgram . snd
     handleError msg = assertFailure ("Error while compiling: "++msg++"\nSource:\n"++src) >> return ""
 
 runPy :: String -> IO String
