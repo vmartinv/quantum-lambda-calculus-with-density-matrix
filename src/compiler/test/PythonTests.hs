@@ -31,4 +31,5 @@ pythonTests = testGroup "pythonTests"
     fullProg "\\ket{0}" >>= runPy >>= (@?= "0\n")
   , testCase "one" $
     fullProg "\\ket{1}" >>= runPy >>= (@?= "1\n")
+-- \pi^2 ((\x.x) \ket{01})
   ]

@@ -8,6 +8,7 @@ from qiskit import(
 class Circuit:
     # Use Aer's qasm_simulator
     BACKEND = Aer.get_backend('qasm_simulator')
+    DEBUG = False
 
     def __init__(self, n: int):
         assert n>0
@@ -75,12 +76,25 @@ class Circuit:
         for q in qs:
             assert 0 <= q and q < self.n
         self.circuit.measure(qs, qs)
-        job = execute(self.circuit, Circuit.BACKEND, shots=1)
+        if Circuit.DEBUG:
+            print(f"Measure called for qubits={qs}")
+            print("Circuit:")
+            print(self.circuit)
+            job = execute(self.circuit, backend=Aer.get_backend('statevector_simulator'), shots=1, memory=True)
+            job_result = job.result()
+            print("Statevector:")
+            print(job_result.get_statevector(self.circuit))
+            shots = 500
+        else:
+            shots = 1
+        job = execute(self.circuit, Circuit.BACKEND, shots=shots)
+        if Circuit.DEBUG:
+            print(job.result().get_counts())
         result = next(iter(job.result().get_counts()))
         assert len(result)==self.n
         result_int = 0
         for i,q in enumerate(qs):
-            result_int = (2**i) * (result[q]=='1')
+            result_int = (2**i) * (result[-(q+1)]=='1')
         return result_int
 
     def compose(self, self2: 'Circuit', qubits, clbits):

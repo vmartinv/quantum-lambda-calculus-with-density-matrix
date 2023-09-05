@@ -18,10 +18,11 @@ translateSt :: Bool -> LamRhoExp -> PyExp
 translateSt _ (PVar v) = PyVar v
 translateSt s (PLambda v exp) = dprint "PyLambda" $ PyLambda v (translateSt s exp)
 translateSt s (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translateSt s exp2]
-translateSt _ (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "Circuit") [PyInt n]
-                            | otherwise = translateMatrix m
+translateSt s (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "Circuit") [PyInt actualN]
+                              | otherwise = translateMatrix m
     where
       n = T.length qbits
+      actualN = (if s then (1*) else (2*)) n
       m = HM.toLists $ toDensMatrix $ toVector qbits
 translateSt _ (PMatrix m) = translateMatrix m
 translateSt s (PPair b m) = PyPair (PyInt b) (translateSt s (PMatrix m))
