@@ -1,6 +1,8 @@
-import typing
+from typing import  Union
+from math import log2
 from qiskit import(
   QuantumCircuit,
+  transpile,
   execute,
   Aer)
 
@@ -8,30 +10,16 @@ from qiskit import(
 class Circuit:
     # Use Aer's qasm_simulator
     BACKEND = Aer.get_backend('qasm_simulator')
+    BASIS_GATES = ["u3","u2","u1","cx","id","u0","u","p","x","y","z","h","s","sdg","t","tdg","rx","ry","rz","sx","sxdg","cz","cy","swap","ch","ccx","cswap","crx","cry","crz","cu1","cp","cu3","csx","cu","rxx","rzz","rccx","rc3x","c3x","c3sqrtx","c4x"]
     DEBUG = False
 
-    def __init__(self, n: int):
-        assert n>0
-        self.n = n
-        self.circuit = QuantumCircuit(n, n)
-
-    # creates |010+> from '010+'
-    @staticmethod
-    def fromstr(qubits: str):
-        circuit = Circuit(len(qubits))
-        for i,qubit in enumerate(qubits):
-            if qubit=='0':
-                pass
-            elif qubit=='1':
-                circuit.x(i)
-            elif qubit=='+':
-                circuit.h(i)
-            elif qubit=='-':
-                circuit.x(i)
-                circuit.h(i)
-            else:
-                raise Exception('Unexpected qubit')
-        return circuit
+    def __init__(self, state: Union[str, list[complex]]):
+        assert len(state)>0
+        self.n = int(log2(len(state)))
+        assert 2**self.n == len(state)
+        self.circuit = QuantumCircuit(self.n, self.n)
+        self.circuit.initialize(params=state)
+        self.circuit = transpile(self.circuit, backend=Circuit.BACKEND, basis_gates=Circuit.BASIS_GATES)
 
     def u(self, th: float, ph: float, la: float, q: int):
         self.circuit.u(th, ph, la, q)
@@ -83,7 +71,7 @@ class Circuit:
             job = execute(self.circuit, backend=Aer.get_backend('statevector_simulator'), shots=1, memory=True)
             job_result = job.result()
             print("Statevector:")
-            print(job_result.get_statevector(self.circuit))
+            print([round(v, 3) for v in job_result.get_statevector(self.circuit)])
             shots = 500
         else:
             shots = 1
@@ -94,7 +82,7 @@ class Circuit:
         assert len(result)==self.n
         result_int = 0
         for i,q in enumerate(qs):
-            result_int = (2**i) * (result[-(q+1)]=='1')
+            result_int += (2**i) * (result[-(q+1)]=='1')
         return result_int
 
     def compose(self, self2: 'Circuit', qubits, clbits):

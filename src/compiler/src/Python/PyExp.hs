@@ -1,9 +1,12 @@
 module Python.PyExp where
 
-import qualified Data.Text as T
+import           Data.Complex
+import qualified Data.Text    as T
 
 data PyExp = PyInt Int
           | PyFloat Double
+          | PyComplex (Complex Double)
+          | PyString T.Text
           | PyVar T.Text
           | PyPair PyExp PyExp
           | PyLambda T.Text PyExp

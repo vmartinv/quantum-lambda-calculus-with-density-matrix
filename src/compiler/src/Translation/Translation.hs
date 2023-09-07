@@ -7,49 +7,41 @@ import           Parsing.LamRhoExp
 import           Python.PyExp
 import           Translation.DensMat
 import           Translation.Purification
-import           Translation.StateBuilder
 import           Typing.GateChecker
 import           Utils
 
 translate :: LamRhoExp -> PyExp
-translate = translateSt False
-
-translateSt :: Bool -> LamRhoExp -> PyExp
-translateSt _ (PVar v) = PyVar v
-translateSt s (PLambda v exp) = dprint "PyLambda" $ PyLambda v (translateSt s exp)
-translateSt s (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translateSt s exp2]
-translateSt s (PQubits qbits) | qbits == T.replicate n "0" = PyFunCall (PyFun "Circuit") [PyInt actualN]
-                              | otherwise = translateMatrix m
+translate (PVar v) = PyVar v
+translate (PLambda v exp) = dprint "PyLambda" $ PyLambda v (translate exp)
+translate (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translate exp2]
+translate (PQubits qbits) = translateMatrix m
     where
-      n = T.length qbits
-      actualN = (if s then (1*) else (2*)) n
-      m = HM.toLists $ toDensMatrix $ toVector qbits
-translateSt _ (PMatrix m) = translateMatrix m
-translateSt s (PPair b m) = PyPair (PyInt b) (translateSt s (PMatrix m))
-translateSt s (PGateApp gate exp) = PyFunCall (PyObjMethod (translateSt s exp) gateName) gateArgs
+      m = toDensMatrix $ toVector qbits
+translate (PMatrix m) = translateMatrix (HM.fromLists m)
+translate (PPair b m) = PyPair (PyInt b) (translate (PMatrix m))
+translate (PGateApp gate exp) = PyFunCall (PyObjMethod (translate exp) gateName) gateArgs
   where
-    (gateName, gateArgs) = translateGate s gate
-translateSt s (PProjector n exp) = PyFunCall (PyObjMethod (translateSt s exp) "measure") (PyInt <$> [0,2..2*n-1])
-translateSt s (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translateSt s exp1) "compose") [translateSt s exp2]
-translateSt s (PLetCase v exp exps) = PyFunCall (PyFun "letcase") [translateSt s exp, PyList cases]
+    (gateName, gateArgs) = translateGate gate
+translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") (PyInt <$> [0,2..2*n-1])
+translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "compose") [translate exp2]
+translate (PLetCase v exp exps) = PyFunCall (PyFun "letcase") [translate exp, PyList cases]
   where
-    cases = (PyLambda "".translateSt s) <$> exps
+    cases = (PyLambda "".translate) <$> exps
 
-translateGate :: Bool -> PGate -> (T.Text, [PyExp])
-translateGate s gdef@(PGate name params offset) =
+translateGate :: PGate -> (T.Text, [PyExp])
+translateGate gdef@(PGate name params offset) =
   (gateName, gateArgs)
     where
       gateSize = getGateSizeNoCheck gdef
-      qubits = if s
-        then [offset..offset+gateSize-1]
-        else [2*offset,2+2*offset..2*(offset+gateSize)-1]
+      qubits = [2*offset,2+2*offset..2*(offset+gateSize)-1]
       gateArgs = (PyFloat <$> params) ++ (PyInt <$> qubits)
       gateName = translateGateName name
 
 translateGateName :: T.Text -> T.Text
 translateGateName = T.toLower
 
-translateMatrix :: [[Complex Double]] -> PyExp
-translateMatrix m = translateSt True (circuitForState purified)
+translateMatrix :: HM.Matrix (Complex Double) -> PyExp
+translateMatrix m = PyFunCall (PyFun "Circuit") [stateExp]
   where
-    purified = dprint "purify" $ purify (HM.fromLists m)
+    purified = dprint "purify" $ HM.toList $ purify m
+    stateExp = PyList (PyComplex <$> purified)

@@ -4,7 +4,6 @@ import           PythonTests                   (pythonTests)
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Translation.PurificationTests (purificationTests)
-import           Translation.StateBuilderTests (stateBuilderTests)
 import           Translation.TranslationTests  (translationTests)
 import           Typing.QTypeTests             (qTypeTests)
 import           Typing.TypeCheckTests         (typeCheckTests)
@@ -20,7 +19,6 @@ tests = testGroup "tests" [
     qTypeTests,
     typeCheckTests,
     purificationTests,
-    stateBuilderTests,
     translationTests,
     compilerTests,
     pythonTests

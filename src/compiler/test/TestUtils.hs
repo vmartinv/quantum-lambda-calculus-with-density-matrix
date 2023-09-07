@@ -38,13 +38,13 @@ tequal a b = if a==b then QCP.succeeded else QCP.failed { QCP.reason = errorMsg 
   where
     errorMsg = "expected: "<>show b<>"\n but got: "<>show a
 
-approxEqualV :: Storable a => Eq a => Show a=> Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> QCP.Result
+approxEqualV :: Storable a => Eq a => Show a => (HM.Container HM.Vector a) => Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> QCP.Result
 approxEqualV v1 v2 = if  approxEqualVB v1 v2 then QCP.succeeded else QCP.failed { QCP.reason = errorMsg }
   where
     errorMsg = "expected: "<>show v2<>"\n but got: "<>show v1<>"\n difference: "<>show (HM.norm_2 (v1 - v2))
 
-approxEqualVB :: Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> Bool
-approxEqualVB v1 v2 = HM.norm_2 (v1 - v2) < eps
+approxEqualVB :: (HM.Container HM.Vector a) => Num (HM.Vector a) => HM.Normed (HM.Vector a) => HM.Vector a -> HM.Vector a -> Bool
+approxEqualVB v1 v2 = HM.size v1 == HM.size v2 && HM.norm_2 (v1 - v2) < eps
 
 matchesRegex :: T.Text -> T.Text -> QCP.Result
 matchesRegex reg out =

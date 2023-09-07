@@ -26,10 +26,20 @@ runPy prog = do
 
 pythonTests = testGroup "pythonTests"
   [ testCase "Python test" $
-    runPy "print(\"Hello World\")" >>= (@?= "Hello World\n")
+    runPy "print('Hello World')" >>= (@?= "Hello World\n")
+  , testCase "Preamble test" $
+    runPy "import preamble" >>= (@?= "")
   , testCase "zero" $
     fullProg "\\ket{0}" >>= runPy >>= (@?= "0\n")
   , testCase "one" $
     fullProg "\\ket{1}" >>= runPy >>= (@?= "1\n")
+  , testCase "00" $
+    fullProg "\\ket{00}" >>= runPy >>= (@?= "0\n")
+  , testCase "01" $
+    fullProg "\\ket{01}" >>= runPy >>= (@?= "1\n")
+  , testCase "10" $
+    fullProg "\\ket{10}" >>= runPy >>= (@?= "2\n")
+  , testCase "11" $
+    fullProg "\\ket{11}" >>= runPy >>= (@?= "3\n")
 -- \pi^2 ((\x.x) \ket{01})
   ]
