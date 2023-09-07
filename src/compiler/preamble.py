@@ -5,12 +5,14 @@ from qiskit import(
   transpile,
   execute,
   Aer)
+from collections import defaultdict
 
 
 class Circuit:
     # Use Aer's qasm_simulator
     BACKEND = Aer.get_backend('qasm_simulator')
     BASIS_GATES = ["u3","u2","u1","cx","id","u0","u","p","x","y","z","h","s","sdg","t","tdg","rx","ry","rz","sx","sxdg","cz","cy","swap","ch","ccx","cswap","crx","cry","crz","cu1","cp","cu3","csx","cu","rxx","rzz","rccx","rc3x","c3x","c3sqrtx","c4x"]
+    DEBUG_SHOTS = 500
     DEBUG = False
 
     def __init__(self, state: Union[str, list[complex]]):
@@ -57,9 +59,13 @@ class Circuit:
         return self.circuit.draw()
 
     def measure_all(self):
-        return self.measure(*range(0, self.n, 2))
+        return self.measure()
 
-    def measure(self, *args):
+    def __str__(self):
+        counts = self._measure_counts(Circuit.DEBUG_SHOTS, *range(0, self.n, 2))
+        return str(dict(counts))
+
+    def _measure_counts(self, shots: int, *args):
         qs = list(args)
         for q in qs:
             assert 0 <= q and q < self.n
@@ -72,18 +78,29 @@ class Circuit:
             job_result = job.result()
             print("Statevector:")
             print([round(v, 3) for v in job_result.get_statevector(self.circuit)])
-            shots = 500
-        else:
-            shots = 1
+            shots = DEBUG_SHOTS
         job = execute(self.circuit, Circuit.BACKEND, shots=shots)
+        counts = job.result().get_counts()
         if Circuit.DEBUG:
-            print(job.result().get_counts())
-        result = next(iter(job.result().get_counts()))
+            print("Unprocessed counts: {counts}")
+        processed_counts = defaultdict(int)
+        for result, count in counts.items():
+            processed_counts[self._process_result(qs, result)] += count / float(shots)
+        if Circuit.DEBUG:
+            print("Processed counts: {counts}")
+        return processed_counts
+
+    def _process_result(self, qs: list[int], result: str) -> int:
         assert len(result)==self.n
         result_int = 0
         for i,q in enumerate(qs):
             result_int += (2**i) * (result[-(q+1)]=='1')
         return result_int
+
+    def measure(self, *args):
+        counts = self._measure_counts(1, *args)
+        # return the first (and only) outcome since shot=1
+        return next(iter(counts))
 
     def compose(self, self2: 'Circuit', qubits, clbits):
         self.circuit \

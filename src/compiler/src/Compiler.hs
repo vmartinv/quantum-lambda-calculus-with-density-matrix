@@ -15,7 +15,7 @@ makeProgram body = preamble ++ prog ++ ending
   where
     preamble = "from preamble import *\n\n"
     prog = "prog = " ++ body ++ "\n\n"
-    ending = "print(prog.measure_all())"
+    ending = "print(prog)"
 
 compile :: String -> ExceptInfer (QType, PyExp)
 compile src = do
