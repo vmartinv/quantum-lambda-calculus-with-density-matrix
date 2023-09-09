@@ -32,5 +32,5 @@ purify m = dprint "purify" $ HM.app swapQubitGate purifiedSimple
     e i = HM.asRow $ HM.fromList $ [if i==j then (1.0 :+ 0.0) else (0.0 :+ 0.0) | j <- [0..n-1]] :: HM.Matrix (Complex Double)
     f (i, eigval, eigvec) = HM.scale (sqrt eigval) (HM.kronecker (HM.asRow eigvec) (e i)) :: HM.Matrix (Complex Double)
     purifiedSimple = dprint "purifiedSimple" $ HM.flatten $
-      sum (map f (zip3 [0..] (HM.toList eigvals) (HM.toRows eigvec)))
+      sum (map f (zip3 [0..] (HM.toList eigvals) (HM.toColumns eigvec)))
     swapQubitGate = makePermutationGate q (interleavePerm q)

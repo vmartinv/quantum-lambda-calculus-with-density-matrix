@@ -36,8 +36,12 @@ runPy prog = do
   exitCode @?= ExitSuccess
   return out
 
-
 pythonTests = testGroup "pythonTests"
+  [ basicTests
+  , gateTests
+  ]
+
+basicTests = testGroup "basicTests"
   [ testCase "Python test" $
     runPy "print('Hello World')" >>= (@?= "Hello World\n")
   , testCase "Preamble test" $
@@ -68,6 +72,8 @@ pythonTests = testGroup "pythonTests"
     fullProg "\\ket{+}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.5),(1,0.5)]))
   , testCase "minus" $
     fullProg "\\ket{-}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.5),(1,0.5)]))
+  , testCase "plusplus" $
+    fullProg "\\ket{++}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.25),(1,0.25),(2,0.25),(3,0.25)]))
   , testCase "lambda 11" $
     fullProg "\\pi^2 ((\\x. x) \\ket{11})" >>= runPy >>= (@?= "3\n")
   , testCase "add one one qubit zero" $
@@ -75,3 +81,26 @@ pythonTests = testGroup "pythonTests"
   , testCase "add one one qubit one" $
     fullProg "\\pi^1 ((\\x.letcase y=\\pi^1 x in {\\ket{1}, \\ket{0}}) \\ket{1})" >>= runPy >>= (@?= "0\n")
   ]
+
+gateTests = testGroup "gateTests"
+  [ testCase "x1" $
+    fullProg ("\\pi^1 "<>gateX 0<>"\\ket{1}") >>= runPy >>= (@?= "0\n")
+  , testCase "x000" $
+    fullProg ("\\pi^3 "<>gateX 2<>gateX 1<>" \\ket{000}") >>= runPy >>= (@?= "6\n")
+  , testCase "h0" $
+    fullProg (gateH 0<>" \\ket{110}") >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(6,0.5),(7,0.5)]))
+  , testCase "h0letcase" $
+    fullProg ("\\pi^2 (letcase y=\\pi^1 "<>gateH 0<>" \\ket{0} in {\\ket{11}, \\ket{11}})") >>= runPy >>= (@?= "3\n")
+  , testCase "cnot1" $
+    fullProg ("\\pi^3 "<>gateCNOT 1<>" \\ket{110}") >>= runPy >>= (@?= "2\n")
+  , testCase "cnot0" $
+    fullProg ("\\pi^3 "<>gateCNOT 1<>" \\ket{010}") >>= runPy >>= (@?= "6\n")
+  , testCase "swap" $
+    fullProg ("\\pi^2 SWAP_0 \\ket{01}") >>= runPy >>= (@?= "2\n")
+  , testCase "lambda" $
+    fullProg ("\\pi^1 ((\\x.\\y.x) \\ket{0} \\ket{1})") >>= runPy >>= (@?= "0\n")
+  ]
+  where
+    gateX p = "U^{3.14159265359, 0, 3.14159265359}_"<>show p
+    gateH p = "U^{1.5707963268, 0, 3.14159265359}_"<>show p
+    gateCNOT p = "CU^{3.14159265359, 0, 3.14159265359, 0}_"<>show p
