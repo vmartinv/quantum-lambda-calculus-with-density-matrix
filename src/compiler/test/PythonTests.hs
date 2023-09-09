@@ -1,20 +1,32 @@
 module PythonTests(pythonTests) where
 import           Compiler
+import           Data.Aeson                 as JSON
+import qualified Data.ByteString.Lazy.Char8 as BS
 import           Data.Either
+import qualified Data.Map                   as M
 import           System.Exit
 import           System.Process
 import           Test.Tasty
 import           Test.Tasty.HUnit
-import           Test.Tasty.QuickCheck as QC
-import           Test.Tasty.SmallCheck as SC
+import           Test.Tasty.QuickCheck      as QC
+import           Test.Tasty.SmallCheck      as SC
+import           TestUtils
 import           Utils
 
+
 fullProg :: String -> IO String
-fullProg src = do
+fullProg src =
   either handleError handleResult (compileStr src)
   where
     handleResult = return . dprint "fullProg" . makeProgram . snd
     handleError msg = assertFailure ("Error while compiling: "++msg++"\nSource:\n"++src) >> return ""
+
+decodeMeasurement :: String -> IO (M.Map Int Double)
+decodeMeasurement s =
+  maybe handleError handleResult (JSON.decode (BS.pack s))
+  where
+    handleResult = return
+    handleError = assertFailure ("Can't parse measurement: "++s) >> return (M.fromList [])
 
 runPy :: String -> IO String
 runPy prog = do
@@ -23,6 +35,7 @@ runPy prog = do
   assertBool ("Error while running program: "++err++"\nStdout:\n"++out++"\nCompiled Python code:\n"++prog) (err=="")
   exitCode @?= ExitSuccess
   return out
+
 
 pythonTests = testGroup "pythonTests"
   [ testCase "Python test" $
@@ -48,13 +61,13 @@ pythonTests = testGroup "pythonTests"
   , testCase "PI1010" $
     fullProg "\\pi^4 \\ket{1010}" >>= runPy >>= (@?= "10\n")
   , testCase "00" $
-    fullProg "\\ket{00}" >>= runPy >>= (@?= "{0: 1.0}\n")
+    fullProg "\\ket{00}" >>= runPy >>= (@?= "{\"0\": 1.0}\n")
   , testCase "11" $
-    fullProg "\\ket{11}" >>= runPy >>= (@?= "{3: 1.0}\n")
+    fullProg "\\ket{11}" >>= runPy >>= (@?= "{\"3\": 1.0}\n")
   , testCase "plus" $
-    fullProg "\\ket{+}" >>= runPy >>= (@?= "{0: 0.5, 1: 0.5}\n")
+    fullProg "\\ket{+}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.5),(1,0.5)]))
   , testCase "minus" $
-    fullProg "\\ket{-}" >>= runPy >>= (@?= "{0: 0.5, 1: 0.5}\n")
+    fullProg "\\ket{-}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.5),(1,0.5)]))
   , testCase "lambda 11" $
     fullProg "\\pi^2 ((\\x. x) \\ket{11})" >>= runPy >>= (@?= "3\n")
   , testCase "add one one qubit zero" $

@@ -76,3 +76,5 @@ tests:
     - smallcheck
     - process
     - regex-tdfa
+    - aeson
+    - bytestring

@@ -6,13 +6,14 @@ from qiskit import(
   execute,
   Aer)
 from collections import defaultdict
+import json
 
 
 class Circuit:
     # Use Aer's qasm_simulator
     BACKEND = Aer.get_backend('qasm_simulator')
     BASIS_GATES = ["u3","u2","u1","cx","id","u0","u","p","x","y","z","h","s","sdg","t","tdg","rx","ry","rz","sx","sxdg","cz","cy","swap","ch","ccx","cswap","crx","cry","crz","cu1","cp","cu3","csx","cu","rxx","rzz","rccx","rc3x","c3x","c3sqrtx","c4x"]
-    DEBUG_SHOTS = 500
+    DEBUG_SHOTS = 1000
     DEBUG = False
 
     def __init__(self, state: Union[str, list[complex]]):
@@ -63,7 +64,7 @@ class Circuit:
 
     def __str__(self):
         counts = self._measure_counts(Circuit.DEBUG_SHOTS, *range(0, self.n, 2))
-        return str(dict(counts))
+        return json.dumps(dict(counts))
 
     def _measure_counts(self, shots: int, *args):
         qs = list(args)
