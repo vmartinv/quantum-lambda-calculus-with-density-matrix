@@ -51,9 +51,9 @@ pythonTests = testGroup "pythonTests"
     fullProg "\\ket{00}" >>= runPy >>= (@?= "{0: 1.0}\n")
   , testCase "11" $
     fullProg "\\ket{11}" >>= runPy >>= (@?= "{3: 1.0}\n")
-  , testCase "+" $
+  , testCase "plus" $
     fullProg "\\ket{+}" >>= runPy >>= (@?= "{0: 0.5, 1: 0.5}\n")
-  , testCase "-" $
+  , testCase "minus" $
     fullProg "\\ket{-}" >>= runPy >>= (@?= "{0: 0.5, 1: 0.5}\n")
   , testCase "lambda 11" $
     fullProg "\\pi^2 ((\\x. x) \\ket{11})" >>= runPy >>= (@?= "3\n")

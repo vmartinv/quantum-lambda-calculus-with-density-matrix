@@ -69,25 +69,25 @@ class Circuit:
         qs = list(args)
         for q in qs:
             assert 0 <= q and q < self.n
-        self.circuit.measure(qs, qs)
         if Circuit.DEBUG:
             print(f"Measure called for qubits={qs}")
-            print("Circuit:")
+            print("Circuit before measuring:")
             print(self.circuit)
             job = execute(self.circuit, backend=Aer.get_backend('statevector_simulator'), shots=1, memory=True)
             job_result = job.result()
             print("Statevector:")
             print([round(v, 3) for v in job_result.get_statevector(self.circuit)])
-            shots = DEBUG_SHOTS
+            shots = Circuit.DEBUG_SHOTS
+        self.circuit.measure(qs, qs)
         job = execute(self.circuit, Circuit.BACKEND, shots=shots)
         counts = job.result().get_counts()
         if Circuit.DEBUG:
-            print("Unprocessed counts: {counts}")
+            print(f"Unprocessed counts: {counts}")
         processed_counts = defaultdict(int)
         for result, count in counts.items():
             processed_counts[self._process_result(qs, result)] += count / float(shots)
         if Circuit.DEBUG:
-            print("Processed counts: {counts}")
+            print(f"Processed counts: {counts}")
         return processed_counts
 
     def _process_result(self, qs: list[int], result: str) -> int:

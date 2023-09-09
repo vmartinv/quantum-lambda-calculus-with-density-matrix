@@ -16,7 +16,7 @@ translate (PLambda v exp) = dprint "PyLambda" $ PyLambda v (translate exp)
 translate (PFunApp exp1 exp2) = PyFunCall (translate exp1) [translate exp2]
 translate (PQubits qbits) = translateMatrix m
     where
-      m = toDensMatrix $ toVector qbits
+      m = dprint "toDensMatrix" $ toDensMatrix $ dprint "toVector" $ toVector qbits
 translate (PMatrix m) = translateMatrix (HM.fromLists m)
 translate (PPair b m) = PyPair (PyInt b) (translate (PMatrix m))
 translate (PGateApp gate exp) = PyFunCall (PyObjMethod (translate exp) gateName) gateArgs
