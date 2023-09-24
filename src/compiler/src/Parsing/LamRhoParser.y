@@ -42,8 +42,9 @@ import Data.Text (pack)
 %nonassoc '[' ']'
 %nonassoc '{' '}'
 %nonassoc '(' ')'
-%nonassoc MAT GAT PROJ OTIM APP LAMB
+%nonassoc MAT GAT PROJ OTIM LAMB
 %nonassoc var 'i' PI '\\' qubits gate letcase
+%left APP
 %left OTIMES ','
 
 %%
