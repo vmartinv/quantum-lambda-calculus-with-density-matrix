@@ -54,7 +54,6 @@ executables:
     - compiler
     - optparse-applicative
     - repline >= 0.3.0.0
-    - process
 
 tests:
   compiler-test:

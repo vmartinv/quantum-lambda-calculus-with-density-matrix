@@ -7,7 +7,6 @@ import           Control.Monad.Trans
 import           Data.List              (isPrefixOf)
 import           Python.PyRender
 import           System.Console.Repline
-import           System.Process         (callCommand)
 import           Typing.TypeChecker
 
 type Repl a = HaskelineT IO a
