@@ -1,4 +1,4 @@
-from typing import  Union
+from typing import  Generator
 from math import log2
 from qiskit import(
   QuantumCircuit,
@@ -16,7 +16,7 @@ class Circuit:
     DEBUG_SHOTS = 1000
     DEBUG = False
 
-    def __init__(self, state: Union[str, list[complex]]):
+    def __init__(self, state: list[complex]):
         assert len(state)>0
         self.n = int(log2(len(state)))
         assert 2**self.n == len(state)
@@ -88,7 +88,7 @@ class Circuit:
         for result, count in counts.items():
             processed_counts[self._process_result(qs, result)] += count / float(shots)
         if Circuit.DEBUG:
-            print(f"Processed counts: {counts}")
+            print(f"Processed counts: {dict(processed_counts)}")
         return processed_counts
 
     def _process_result(self, qs: list[int], result: str) -> int:
@@ -111,11 +111,12 @@ class Circuit:
     def compose(self, self2: 'Circuit'):
         circuit1, circuit2 = self.circuit, self2.circuit
         n1, n2 = self.n, self2.n
-        self.__init__(n1+n2)
+        self.n = n1+n2
+        self.circuit = QuantumCircuit(self.n, self.n)
         self.circuit \
-            .compose(circuit1, inplace=True)
+            .compose(circuit1, qubits=range(n2, n1+n2), clbits=range(n2, n1+n2), inplace=True)
         self.circuit \
-            .compose(circuit2, qubits=range(n1, n1+n2), clbits=range(n1, n1+n2), inplace=True)
+            .compose(circuit2, inplace=True)
         return self
 
 def letcase(result: int, cases):

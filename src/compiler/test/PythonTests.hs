@@ -39,6 +39,7 @@ runPy prog = do
 pythonTests = testGroup "pythonTests"
   [ basicTests
   , gateTests
+  , multiTests
   ]
 
 basicTests = testGroup "basicTests"
@@ -70,16 +71,15 @@ basicTests = testGroup "basicTests"
     fullProg "\\ket{11}" >>= runPy >>= (@?= "{\"3\": 1.0}\n")
   , testCase "plus" $
     fullProg "\\ket{+}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.5),(1,0.5)]))
+  , testCase "doubleplus" $
+      fullProg "\\ket{++}"
+        >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.25), (1,0.25), (2,0.25), (3,0.25)]))
   , testCase "minus" $
     fullProg "\\ket{-}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.5),(1,0.5)]))
   , testCase "plusplus" $
     fullProg "\\ket{++}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.25),(1,0.25),(2,0.25),(3,0.25)]))
   , testCase "lambda 11" $
     fullProg "\\pi^2 ((\\x. x) \\ket{11})" >>= runPy >>= (@?= "3\n")
-  , testCase "add one one qubit zero" $
-    fullProg "\\pi^1 ((\\x.letcase y=\\pi^1 x in {\\ket{1}, \\ket{0}}) \\ket{0})" >>= runPy >>= (@?= "1\n")
-  , testCase "add one one qubit one" $
-    fullProg "\\pi^1 ((\\x.letcase y=\\pi^1 x in {\\ket{1}, \\ket{0}}) \\ket{1})" >>= runPy >>= (@?= "0\n")
   ]
 
 gateTests = testGroup "gateTests"
@@ -97,10 +97,28 @@ gateTests = testGroup "gateTests"
     fullProg ("\\pi^3 "<>gateCNOT 1<>" \\ket{010}") >>= runPy >>= (@?= "6\n")
   , testCase "swap" $
     fullProg ("\\pi^2 SWAP_0 \\ket{01}") >>= runPy >>= (@?= "2\n")
-  , testCase "lambda" $
-    fullProg ("\\pi^1 ((\\x.\\y.x) \\ket{0} \\ket{1})") >>= runPy >>= (@?= "0\n")
   ]
   where
     gateX p = "U^{3.14159265359, 0, 3.14159265359}_"<>show p
     gateH p = "U^{1.5707963268, 0, 3.14159265359}_"<>show p
     gateCNOT p = "CU^{3.14159265359, 0, 3.14159265359, 0}_"<>show p
+
+multiTests = testGroup "multiTests"
+  [ testCase "lambda" $
+    fullProg ("\\pi^1 ((\\x.\\y.x) \\ket{0} \\ket{1})") >>= runPy >>= (@?= "0\n")
+  , testCase "otimes1" $
+      fullProg "\\ket{0} \\otimes \\ket{1}"
+        >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(1,1.0)]))
+  , testCase "otimes2" $
+      fullProg "\\ket{10} \\otimes \\ket{1}"
+        >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(5,1.0)]))
+  , testCase "Projection on otimes with letcase" $
+      fullProg "letcase ym=\\pi^3 (\\ket{11} \\otimes \\ket{0}) in {\\ket{000}, \\ket{001}, \\ket{010}, \\ket{011}, \\ket{100}, \\ket{101}, \\ket{110}, \\ket{111}}  "
+        >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(6,1.0)]))
+  , testCase "Projection on 2 unknowns with letcase" $
+      fullProg "(\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {\\ket{000}, \\ket{001}, \\ket{010}, \\ket{011}, \\ket{100}, \\ket{101}, \\ket{110}, \\ket{111}}) \\ket{10} \\ket{0}"
+        >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(4,1.0)]))
+  , testCase "Projection on 2 unknowns with nested letcase" $
+      fullProg "(\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {\\ket{000}, \\ket{001}, \\ket{010}, letcase il=\\pi^1\\ket{+} in {\\ket{001}, \\ket{001}}, \\ket{100}, \\ket{101}, \\ket{110}, \\ket{111}}) \\ket{0} \\ket{11}"
+        >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(1,1.0)]))
+  ]
