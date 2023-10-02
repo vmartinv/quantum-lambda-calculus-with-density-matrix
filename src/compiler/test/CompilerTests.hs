@@ -40,6 +40,10 @@ compilerTests = testGroup "compilerTests"
     compiStr "(\\x. (\\ket{0} \\otimes (U^{1,2,4} x))) \\ket{0}" @?= Right ("$(2)$","(lambda x: Circuit([1.0, 0.0, 0.0, 0.0,]).compose(x.u(1.0,2.0,4.0,0)))(Circuit([1.0, 0.0, 0.0, 0.0,]))")
   , testCase "gate" $
     compiStr "CU^{1,2,3,4}_1 \\ket{011}" @?= Right ("$(3)$","Circuit([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,]).cu(1.0,2.0,3.0,4.0,2,4)")
+  , testCase "Lambda otimes gate" $
+    compiStr "\\x.\\y. (CU^{1,2,3,4}_1 (x \\otimes y))" @?= Right ("$(2) -> ((1) -> (3))$","lambda x: lambda y: x.compose(y).cu(1.0,2.0,3.0,4.0,2,4)")
+  , testCase "Lambda otimes" $
+    compiStr "\\x.\\y. (x \\otimes y)" @?= Right ("$(1) -> ((1) -> (2))$","lambda x: lambda y: x.compose(y)")
   , testCase "one church" $
     compiStr "\\f. \\x. f x" @?= Right ("$((1) -> (1)) -> ((1) -> (1))$", "lambda f: lambda x: (f)(x)")
   , testCase "add one one qubit" $
