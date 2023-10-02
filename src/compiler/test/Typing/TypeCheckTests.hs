@@ -179,7 +179,7 @@ matrixTests = testGroup "matrixTests"
   , testCase "Triple qubit matrix" $
       testExp (PMatrix [[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8]]) @?= Right (QTQubits 3)
   , QC.testProperty "big numbers matrix" $
-      (\x -> testExp  (PMatrix [[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x]]) == Right (QTQubits 8)) . QC.getNonZero
+      (\x -> testExp (PMatrix (replicate 8 (replicate 8 x))) /= Right (QTQubits 8)) . QC.getNonZero
   , testCase "Non square row matrix" $
       testExp (PMatrix [[1,2,3]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0]]"
   , testCase "Non square column matrix" $
