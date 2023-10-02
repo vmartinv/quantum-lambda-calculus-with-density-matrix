@@ -7,6 +7,7 @@ import           Prettyprinter.Render.String
 import           Prettyprinter.Util
 import           Python.PyExp
 
+
 pyRenderStr :: PyExp -> String
 pyRenderStr = renderString . (layoutPretty layout) . pyRender
   where
@@ -26,9 +27,9 @@ pyRender(PyFunCall exp1 exps) = callee exp1 <> parens (args exps)
 pyRender (PyInt n) = pretty n
 pyRender (PyFloat f) = pretty f
 pyRender (PyComplex (r :+ i)) | i==0 = pretty r
-                              | i>0 = pretty r <> "+" <> pretty i <> "j"
-                              | i<0 = pretty r <> "-" <> pretty (-i) <> "j"
-pyRender (PyString s) = dquotes $ pretty s
+                              | i>0 = pretty r <> " + " <> pretty i <> "j"
+                              | i<0 = pretty r <> " - " <> pretty (-i) <> "j"
+-- pyRender (PyString s) = dquotes $ pretty s
 pyRender (PyPair a b) = parens $ pyRender a <> comma <+> pyRender b
 pyRender (PyList cases) = brackets $ enclose line line $ indent 4 $ sep $ (prettyCase <$> cases)
   where

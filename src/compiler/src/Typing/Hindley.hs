@@ -52,9 +52,6 @@ ftvExp (PProjector _ e) = ftvExp e
 ftvExp (POtimesExp t r) = (ftvExp t) `S.union` (ftvExp r)
 ftvExp (PLetCase v e _) = v `S.delete` (ftvExp e)
 
-letters :: [T.Text]
-letters = T.pack <$> ([1..] >>= flip replicateM ['a'..'z'])
-
 fresh :: HindleyM QType
 fresh = do
   s <- get
@@ -113,10 +110,11 @@ hindley ex = case ex of
     -- validate number is cases is a power of two
     -- also infers the number of qubits of the conditional
     let q = log2 (length es)
-    when ((2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
+    when (q<0 || (2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
     tcase <- fresh
     (t1, eq1) <- hindley e
     -- the cases should have a context with only the conditional variable defined
+    -- TODO: check if we need to remove the conditional variable
     let
       newEnv = TypeEnv (M.singleton x tcase)
       hindley' e = local (const newEnv) (hindley e)

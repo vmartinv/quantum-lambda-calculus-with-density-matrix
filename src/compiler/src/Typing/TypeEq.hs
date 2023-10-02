@@ -5,4 +5,4 @@ import           Typing.QType
 data TypeEq = SumSizeEq [QType] QType
         | AtLeastSizeEq [QType] QType
         | EqualTypeEq QType QType
-      deriving (Show)
+      deriving (Show, Eq)

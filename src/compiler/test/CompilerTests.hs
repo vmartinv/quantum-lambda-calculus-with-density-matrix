@@ -22,8 +22,24 @@ compiStr src = pretty <$> compileStr src
 compilerTests = testGroup "compilerTests"
   [ testCase "Lambda id" $
     compiStr "\\x.x" @?= Right ("$(1) -> (1)$", "lambda x: x")
+  , testCase "Lambda id program" $
+    makeProgram "lambda x: x" @?= "from preamble import *\n\nprog = lambda x: x\n\nprint(prog)"
+  , testCase "invalid" $
+    compiStr "\\f. \\x. z" @?= Left "UnboundVariable \"z\""
   , testCase "zero" $
     compiStr "\\f. \\x. x" @?= Right ("$(1) -> ((1) -> (1))$", "lambda f: lambda x: x")
+  , testCase "otimes simple" $
+    compiStr "\\ket{0} \\otimes \\ket{1}" @?= Right ("$(2)$","Circuit([1.0, 0.0, 0.0, 0.0,]).compose(Circuit([0.0, 0.0, 0.0, 1.0,]))")
+  , testCase "otimes gate" $
+    compiStr "\\ket{0} \\otimes (U^{1,2,4} \\ket{1})" @?= Right ("$(2)$","Circuit([1.0, 0.0, 0.0, 0.0,]).compose(Circuit([0.0, 0.0, 0.0, 1.0,]).u(1.0,2.0,4.0,0))")
+  , testCase "gate var" $
+    compiStr "\\x. U^{1,2,4} x" @?= Right ("$(1) -> (1)$","lambda x: x.u(1.0,2.0,4.0,0)")
+  , testCase "gate var app" $
+    compiStr "\\x. ((\\y.y) (U^{1,2,4} x))" @?= Right ("$(1) -> (1)$","lambda x: (lambda y: y)(x.u(1.0,2.0,4.0,0))")
+  , testCase "gate var app otimes" $
+    compiStr "(\\x. (\\ket{0} \\otimes (U^{1,2,4} x))) \\ket{0}" @?= Right ("$(2)$","(lambda x: Circuit([1.0, 0.0, 0.0, 0.0,]).compose(x.u(1.0,2.0,4.0,0)))(Circuit([1.0, 0.0, 0.0, 0.0,]))")
+  , testCase "gate" $
+    compiStr "CU^{1,2,3,4}_1 \\ket{011}" @?= Right ("$(3)$","Circuit([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,]).cu(1.0,2.0,3.0,4.0,2,4)")
   , testCase "one church" $
     compiStr "\\f. \\x. f x" @?= Right ("$((1) -> (1)) -> ((1) -> (1))$", "lambda f: lambda x: (f)(x)")
   , testCase "add one one qubit" $

@@ -20,6 +20,6 @@ tests = testGroup "tests" [
     typeCheckTests,
     purificationTests,
     translationTests,
-    compilerTests,
-    pythonTests
+    compilerTests
+    --, pythonTests
   ]

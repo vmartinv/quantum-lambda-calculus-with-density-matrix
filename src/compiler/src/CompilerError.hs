@@ -22,7 +22,6 @@ data CompilerError  = UnificationFail QType QType
               | MatrixIsNotSquare [[Complex Double]]
               | MatrixIsNotAPowerOfTwo [[Complex Double]]
               | MatrixHasZeroQubits [[Complex Double]]
-              | MatrixExceedsMaxSize Int [[Complex Double]]
               | InvalidPair Int [[Complex Double]]
               | ParsingError String
               deriving (Show,Eq)

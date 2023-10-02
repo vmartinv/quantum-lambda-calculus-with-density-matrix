@@ -4,8 +4,14 @@ import           Parsing.LamRhoExp
 import           Parsing.LamRhoParser
 import           Test.Tasty
 import           Test.Tasty.HUnit
+import CompilerError
+import Typing.Hindley
 import           Typing.QType
+import           Typing.TypeEq
 import           Typing.TypeChecker
+import           Test.Tasty.QuickCheck      as QC
+import           Test.Tasty.SmallCheck      as SC
+import qualified Data.Map             as M
 
 testExp = runExcept.(withExcept show).typeCheck
 testStr = runExcept.(withExcept show).(typeCheck<=<parseLambdaRho)
@@ -59,14 +65,34 @@ gateParamsTests = testGroup "gateParamsTests"
       testExp (PLambda "x" (PGateApp (PGate "CU" [1,2,3,4] 0) (PVar "x"))) @?= Right (QTFun (QTQubits 2) (QTQubits 2))
   , testCase "Lambda with gate with too many arguments" $
       testExp (PLambda "x" (PGateApp (PGate "CU" [1,2,3,4,5] 0) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"CU\" 4 5"
+  , testCase "Lambda with SWAP with too many arguments" $
+      testExp (PLambda "x" (PGateApp (PGate "SWAP" [1] 0) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"SWAP\" 0 1"
+  , testCase "Lambda with CCNOT" $
+      testExp (PLambda "x" (PGateApp (PGate "CCNOT" [] 0) (PVar "x"))) @?= Right (QTFun (QTQubits 3) (QTQubits 3))
+  , testCase "Lambda with CSWAP" $
+      testExp (PLambda "x" (PGateApp (PGate "CSWAP" [] 0) (PVar "x"))) @?= Right (QTFun (QTQubits 3) (QTQubits 3))
+  , testCase "Lambda with CCNOT with too many arguments" $
+      testExp (PLambda "x" (PGateApp (PGate "CCNOT" [1] 0) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"CCNOT\" 0 1"
+  , testCase "Lambda with CSWAP with too many arguments" $
+      testExp (PLambda "x" (PGateApp (PGate "CSWAP" [1] 0) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"CSWAP\" 0 1"
   , testCase "Lambda with gate with too few arguments" $
       testExp (PLambda "x" (PGateApp (PGate "CU" [1,2,3] 0) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"CU\" 4 3"
+  , testCase "Lambda with U gate with too many arguments" $
+      testExp (PLambda "x" (PGateApp (PGate "U" [1,2,3,5] 0) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"U\" 3 4"
+  , testCase "Lambda with unknown gate" $
+      testExp (PLambda "x" (PGateApp (PGate "WEIRD" [1,2] 0) (PVar "x"))) @?= Left "UnknownGate \"WEIRD\""
   , testCase "Lambda with identity of negative size" $
       testExp (PLambda "x" (PGateApp (PGate "I" [-1] 0) (PVar "x"))) @?= Left "IdentityGateIsNotIntegerSize \"I\" (-1.0)"
+  , testCase "Lambda with identity of float size" $
+      testExp (PLambda "x" (PGateApp (PGate "I" [1.2] 0) (PVar "x"))) @?= Left "IdentityGateIsNotIntegerSize \"I\" 1.2"
   , testCase "Lambda with identity of zero size" $
       testExp (PLambda "x" (PGateApp (PGate "I" [0] 0) (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTQubits 1))
+  , testCase "Lambda with identity of two size" $
+      testExp (PLambda "x" (PGateApp (PGate "I" [0,1] 0) (PVar "x"))) @?= Left "GateReceivedWrongNumberOfArguments \"I\" 1 2"
   , testCase "Lambda with identity with gate position" $
       testExp (PLambda "x" (PGateApp (PGate "I" [2] 2) (PVar "x"))) @?= Right (QTFun (QTQubits 4) (QTQubits 4))
+  , testCase "Lambda with U with gate position" $
+      testExp (PLambda "x" (PGateApp (PGate "U" [2,2,3] 2) (PVar "x"))) @?= Right (QTFun (QTQubits 3) (QTQubits 3))
   , testCase "Lambda with gate and position" $
       testExp (PLambda "x" (PGateApp (PGate "CU" [1,2,3,4] 4) (PVar "x"))) @?= Right (QTFun (QTQubits 6) (QTQubits 6))
   ]
@@ -81,6 +107,12 @@ letcaseTests = testGroup "letcaseTests"
   , testCase "Invalid num cases" $
       testStr "\\x.letcase xm=\\pi^2 x in {xm, xm, xm}" @?=
         Left "InvalidLetCaseNumCases 3"
+  , testCase "Invalid num cases 0" $
+      testExp (PLambda "x" (PLetCase "xm" (PProjector 2 (PVar "x")) [])) @?=
+        Left "InvalidLetCaseNumCases 0"
+  , testCase "Invalid num cases 0 intern" $
+      runExcept (runHindleyM (TypeEnv M.empty) (equalTypes [])) @?=
+        Left (InvalidLetCaseNumCases 0)
   , testCase "Invalid num cases 2" $
       testStr "letcase xm=\\pi^1 \\ket{+} in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Left "UnificationFail $(1, 1)$ $(2, 2)$"
@@ -116,6 +148,9 @@ eqSolvingTests = testGroup "eqSolvingTests"
   [ testCase "Big projection over unknowns with otimes" $
       testStr "\\x.\\y. \\pi^10 (x \\otimes y)" @?=
         Right (QTFun (QTQubits 9) (QTFun (QTQubits 1) (QTMeasuredQubits 10)))
+  , testCase "show equation" $
+      show (AtLeastSizeEq [QTQubits 9] (QTQubits 10)) @?=
+        "AtLeastSizeEq [$(9)$] $(10)$"
   , testCase "Big projection over unknowns with two otimes" $
       testStr "\\x.\\y.\\z. \\pi^10 (x \\otimes y \\otimes z)" @?=
         Right (QTFun (QTQubits 8) (QTFun (QTQubits 1)  (QTFun (QTQubits 1) (QTMeasuredQubits 10))))
@@ -143,12 +178,16 @@ matrixTests = testGroup "matrixTests"
       testExp (PMatrix [[1,2],[3,4]]) @?= Right (QTQubits 1)
   , testCase "Triple qubit matrix" $
       testExp (PMatrix [[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8]]) @?= Right (QTQubits 3)
+  , QC.testProperty "big numbers matrix" $
+      (\x -> testExp  (PMatrix [[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x],[x,x,x,x,x,x,x,x]]) == Right (QTQubits 8)) . QC.getNonZero
   , testCase "Non square row matrix" $
       testExp (PMatrix [[1,2,3]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0]]"
   , testCase "Non square column matrix" $
       testExp (PMatrix [[1],[1],[1]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0],[1.0 :+ 0.0],[1.0 :+ 0.0]]"
   , testCase "Different row/column size matrix" $
       testExp (PMatrix [[1],[1,2],[1]]) @?= Left "MatrixIsNotSquare [[1.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0],[1.0 :+ 0.0]]"
+  , testCase "Matrix not power of 2" $
+      testExp (PMatrix [[1,2,3],[1,2,3],[1,2,3]]) @?= Left "MatrixIsNotAPowerOfTwo [[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0]]"
   , testCase "Pair with qubit matrix" $
       testExp (PPair 1 [[1,2],[3,4]]) @?= Right (QTMeasuredQubits 1)
   , testCase "Pair with qubit matrix with invalid result" $

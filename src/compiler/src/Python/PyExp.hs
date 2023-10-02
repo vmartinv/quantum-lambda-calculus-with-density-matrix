@@ -6,7 +6,7 @@ import qualified Data.Text    as T
 data PyExp = PyInt Int
           | PyFloat Double
           | PyComplex (Complex Double)
-          | PyString T.Text
+          -- | PyString T.Text
           | PyVar T.Text
           | PyPair PyExp PyExp
           | PyLambda T.Text PyExp
@@ -14,4 +14,4 @@ data PyExp = PyInt Int
           | PyObjMethod PyExp T.Text
           | PyFunCall PyExp [PyExp]
           | PyList [PyExp]
-          deriving (Show,Eq)
+          deriving (Show, Eq)

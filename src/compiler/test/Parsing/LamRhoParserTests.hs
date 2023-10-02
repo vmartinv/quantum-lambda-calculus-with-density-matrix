@@ -15,7 +15,9 @@ testStr = runExcept.parseLambdaRho
 lamRhoParserTests = testGroup "lamRhoParserTests" [mixedTests, matrixTests, gateTests]
 
 mixedTests = testGroup "mixedTests"
-  [ testCase "Parsing var" $
+  [ testCase "Parsing invalid char" $
+      testStr "x\a" @?= Left (ParsingError "Invalid lexeme when scanning")
+  , testCase "Parsing var" $
       testStr "x" @?= Right (PVar "x")
   , testCase "Parsing projector" $
       testStr "\\pi^10 x" @?= Right (PProjector 10 (PVar "x"))
@@ -75,7 +77,9 @@ matrixTests = testGroup "matrixTests"
 
 gateTests = testGroup "gateTests"
   [ testCase "Parsing gate with no arguments" $
-    testStr "U x" @?= Right (PGateApp (PGate "U" [] 0) (PVar "x"))
+      testStr "U x" @?= Right (PGateApp (PGate "U" [] 0) (PVar "x"))
+  , testCase "Parsing gate with no arguments and show" $
+      (show . testStr) "U x" @?= "Right (PGateApp (PGate \"U\" [] 0) (PVar \"x\"))"
   , testCase "Parsing unfinished expression gate" $
       testStr "U" @?= Left (ParsingError "Unexpected end of Input")
   , testCase "Parsing gate with single argument" $

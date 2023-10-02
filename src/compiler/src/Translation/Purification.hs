@@ -9,7 +9,7 @@ import           Utils
 --                    | x>=q = 2*(x-q)+1
 interleavePerm :: Int -> Int -> Int
 interleavePerm q x | x`mod`2==0 = q + x`div`2
-                   | x`mod`2==1 = (x-1) `div` 2
+                   | otherwise = (x-1) `div` 2
 
 makePermutationGate :: Int -> (Int -> Int) -> HM.Matrix (Complex Double)
 makePermutationGate q perm = HM.complex (dprint "makePermutationGate" $ sum (f <$> [0..2^(2*q)-1]))
