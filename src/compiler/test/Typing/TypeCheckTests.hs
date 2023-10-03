@@ -153,6 +153,9 @@ otimesTests = testGroup "otimesTests"
   , testCase "Lambda with otimes" $
      testStr "\\x.\\y. x\\otimes y" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 2)))
+  , testCase "Lambda.otimes.projector" $
+     testStr "\\x.\\y. \\pi^3 (x\\otimes y)" @?=
+        Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTMeasuredQubits 3)))
   ]
 
 eqSolvingTests = testGroup "eqSolvingTests"
@@ -162,6 +165,9 @@ eqSolvingTests = testGroup "eqSolvingTests"
   , testCase "show equation" $
       show (AtLeastSizeEq [QTQubits 9] (QTQubits 10)) @?=
         "AtLeastSizeEq [$(9)$] $(10)$"
+  , testCase "eq equation" $
+      (AtLeastSizeEq [QTQubits 2] (QTQubits 10)) @?=
+        (AtLeastSizeEq [QTQubits 2] (QTQubits 10))
   , testCase "Big projection over unknowns with two otimes" $
       testStr "\\x.\\y.\\z. \\pi^10 (x \\otimes y \\otimes z)" @?=
         Right (QTFun (QTQubits 8) (QTFun (QTQubits 1)  (QTFun (QTQubits 1) (QTMeasuredQubits 10))))

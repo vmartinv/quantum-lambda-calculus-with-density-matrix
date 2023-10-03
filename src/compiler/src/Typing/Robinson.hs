@@ -46,10 +46,10 @@ unifyMany typeEqs = foldM f emptySubst (reverse typeEqs)
 -- core algorithm
 robinson :: [TypeEq] -> ExceptInfer Subst
 robinson eqs = do
-  su1 <- unifyMany eqs
+  su1 <- unifyMany $ dprint "robinsonEqs" $ eqs
   let eqs' = apply su1 eqs
   sol <- solveSums eqs'
-  su2 <- assignValues sol
+  su2 <- assignValues $ dprint "robinsonSol" $ sol
   return $ su1 `compose` su2
 
 -- given the solution to the sum of equations
@@ -60,7 +60,7 @@ assignValues sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol
     bindv (v, q) = v `bind` QTQubits q
 
 -- Given that the sum equations form a tree and are given in topological order
--- this function transform the equations into a flatten tree
+-- this function transforms the equations into a flat tree
 -- it does a map over the list of equations while keeping a state
 flattenTree :: [TypeEq] -> [TypeEq]
 flattenTree eqs = evalState (sequence (f <$> eqs)) M.empty
@@ -73,9 +73,6 @@ flattenTree eqs = evalState (sequence (f <$> eqs)) M.empty
       ls' <- gets (getVars ls)
       modify (M.insert v ls')
       return $ SumSizeEq ls' (QTVar v)
-    f (SumSizeEq ls q) = do
-      ls' <- gets (getVars ls)
-      return $ SumSizeEq ls' q
     f (AtLeastSizeEq ls q) = do
       ls' <- gets (getVars ls)
       return $ AtLeastSizeEq ls' q
@@ -84,25 +81,20 @@ flattenTree eqs = evalState (sequence (f <$> eqs)) M.empty
 -- this function should fail for other types
 typeSize :: QType -> Int
 typeSize (QTQubits q)         = q
-typeSize (QTMeasuredQubits q) = q
 
 -- given the sum equations returns a map from variables to their assigned size
 solveSums :: [TypeEq] -> ExceptInfer (M.Map VariableId Int)
 solveSums eqs = do
-  let eqs' = flattenTree eqs
+  let eqs' = flattenTree $ dprint "solveSums" $ eqs
       -- by default all variables are set to 1
       all1 =
         M.fromList ((,1) <$> S.toList (ftv eqs))
-  su <- foldM fstPass all1 eqs'
+  su <- foldM fstPass all1  $ dprint "solveSums'" $ eqs'
   return (foldl sndPass su eqs')
   where
     -- First pass solves the equations
     fstPass :: M.Map VariableId Int -> TypeEq -> ExceptInfer (M.Map VariableId Int)
     fstPass su (SumSizeEq ls (QTVar v)) = return su
-    fstPass su (SumSizeEq ls q) = do
-        maybeSol <- solveSingleEq ls (typeSize q)
-        let addSol = (flip (uncurry M.insert)) su
-        return $ maybe su addSol maybeSol
     fstPass su (AtLeastSizeEq ls q) = do
       maybeSol <- solveSingleIneq ls (typeSize q)
       let addSol = (flip (uncurry M.insert)) su
@@ -126,7 +118,6 @@ simplify :: [QType] -> (Int, [VariableId])
 simplify eqs = (q, [v | QTVar v <- eqs])
   where
     q = sum [q | QTQubits q <- eqs]
-        + sum [q | QTMeasuredQubits q <- eqs]
 
 -- finds v_1,...v_n / v_1+...+v_n+q_f>=q_t, if it exists
 -- by fixing v_2,..., v_n to 1 and returning (v_1, value)
@@ -138,12 +129,3 @@ solveSingleIneq vars qt | qf < qt && null vs = throwError InvalidOperatorSizes
     (qf, vs) = simplify vars
     v = head vs
     sol = (v, max 1 (qt - qf - length vs + 1))
-
--- finds v_1,...v_n / v_1+...+v_n+q_f=q_t, if it exists
--- by fixing v_2,..., v_n to 1 and returning (v_1, value)
-solveSingleEq :: [QType] -> Int -> ExceptInfer (Maybe (VariableId, Int))
-solveSingleEq vars qt | qf + length vs > qt = throwError InvalidOperatorSizes
-                        | qf /= qt && null vs = throwError InvalidOperatorSizes
-                        | otherwise = solveSingleIneq vars qt
-  where
-    (qf, vs) = simplify vars
