@@ -47,6 +47,8 @@ projectorTests = testGroup "projectorTests"
       Left "TypeNotQubits $(1, 1)$"
   , testCase "Lambda with projector" $
       testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
+  , testCase "qubit with too big projector" $
+      testExp (PProjector 2 (PQubits "0")) @?= Left "InvalidOperatorSizes"
   ]
 
 noCloningTests = testGroup "noCloningTests"
@@ -116,6 +118,12 @@ letcaseTests = testGroup "letcaseTests"
   , testCase "Invalid num cases 2" $
       testStr "letcase xm=\\pi^1 \\ket{+} in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Left "UnificationFail $(1, 1)$ $(2, 2)$"
+  , testCase "letcase with var" $
+      testStr "\\x.letcase xm=x in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
+        Right (QTFun (QTMeasuredQubits 2) (QTQubits 1))
+  , testCase "letcase with var applied" $
+      testStr "(\\x.letcase xm=x in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}) (\\pi^2 \\ket{101})" @?=
+        Right (QTQubits 1)
   , testCase "letcase with unused qubits" $
       testStr "letcase ym=\\pi^1 \\ket{++} in {\\ket{1}, \\ket{0}}" @?=
         Right (QTQubits 1)
@@ -128,6 +136,9 @@ letcaseTests = testGroup "letcaseTests"
   , testCase "Use external scope in cases 2" $
       testStr "\\x.\\y.\\z. letcase ym=\\pi^2 y in {U (x \\otimes y), U (y \\otimes z), x, z}" @?=
         Left "UnboundVariable \"x\""
+  , testCase "Use external scope in cases 3" $
+      testStr "\\x.\\y. letcase ym=\\pi^2 x in {y, \\ket{000}}" @?=
+        Left "UnboundVariable \"y\""
   ]
 
 otimesTests = testGroup "otimesTests"

@@ -15,7 +15,9 @@ import           Utils
 
 -- returns a susbstitution to replace a variable with a given type
 bind :: VariableId -> QType -> ExceptInfer Subst
+        -- unreachable vecause we cannot reuse variables
 bind a t | t == QTVar a     = return emptySubst
+        -- unreachable because is not possible to create infinite types
        | a `S.member` ftv t = throwError $ InfiniteType a t
        | otherwise       = return $ M.singleton a t
 
@@ -47,13 +49,13 @@ robinson eqs = do
   su1 <- unifyMany eqs
   let eqs' = apply su1 eqs
   sol <- solveSums eqs'
-  su2 <- assignValues eqs' sol
+  su2 <- assignValues sol
   return $ su1 `compose` su2
 
 -- given the solution to the sum of equations
 -- it creates the corresponding substition based on them
-assignValues :: [TypeEq] -> M.Map VariableId Int -> ExceptInfer Subst
-assignValues eqs sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol)
+assignValues :: M.Map VariableId Int -> ExceptInfer Subst
+assignValues sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol)
   where
     bindv (v, q) = v `bind` QTQubits q
 
@@ -98,17 +100,21 @@ solveSums eqs = do
     fstPass :: M.Map VariableId Int -> TypeEq -> ExceptInfer (M.Map VariableId Int)
     fstPass su (SumSizeEq ls (QTVar v)) = return su
     fstPass su (SumSizeEq ls q) = do
-        (v, q) <- solveSingleEq ls (typeSize q)
-        return (M.insert v q su)
+        maybeSol <- solveSingleEq ls (typeSize q)
+        let addSol = (flip (uncurry M.insert)) su
+        return $ maybe su addSol maybeSol
     fstPass su (AtLeastSizeEq ls q) = do
-      (v, q) <- solveSingleIneq ls (typeSize q)
-      return (M.insert v q su)
+      maybeSol <- solveSingleIneq ls (typeSize q)
+      let addSol = (flip (uncurry M.insert)) su
+      return $ maybe su addSol maybeSol
     fstPass su _ = return su
 
     -- Second pass sets the dependent variables
     sndPass :: M.Map VariableId Int -> TypeEq -> M.Map VariableId Int
     sndPass su (SumSizeEq ls (QTVar v)) = M.insert v q su
       where
+        -- we use withDefault to avoid complaining, but it should never happen
+        -- because all variables are set to 1 already
         getVal (QTVar v) = M.findWithDefault 1 v su
         getVal q         = typeSize q
         q = sum (getVal <$> ls)
@@ -124,10 +130,10 @@ simplify eqs = (q, [v | QTVar v <- eqs])
 
 -- finds v_1,...v_n / v_1+...+v_n+q_f>=q_t, if it exists
 -- by fixing v_2,..., v_n to 1 and returning (v_1, value)
-solveSingleIneq :: [QType] -> Int -> ExceptInfer (VariableId, Int)
+solveSingleIneq :: [QType] -> Int -> ExceptInfer (Maybe (VariableId, Int))
 solveSingleIneq vars qt | qf < qt && null vs = throwError InvalidOperatorSizes
-                        | null vs = return (-1, 0) --solution no vars
-                        | otherwise = return sol
+                        | null vs = return Nothing --solution=no vars
+                        | otherwise = return (Just sol)
   where
     (qf, vs) = simplify vars
     v = head vs
@@ -135,7 +141,7 @@ solveSingleIneq vars qt | qf < qt && null vs = throwError InvalidOperatorSizes
 
 -- finds v_1,...v_n / v_1+...+v_n+q_f=q_t, if it exists
 -- by fixing v_2,..., v_n to 1 and returning (v_1, value)
-solveSingleEq :: [QType] -> Int -> ExceptInfer (VariableId, Int)
+solveSingleEq :: [QType] -> Int -> ExceptInfer (Maybe (VariableId, Int))
 solveSingleEq vars qt | qf + length vs > qt = throwError InvalidOperatorSizes
                         | qf /= qt && null vs = throwError InvalidOperatorSizes
                         | otherwise = solveSingleIneq vars qt
