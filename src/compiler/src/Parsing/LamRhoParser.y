@@ -39,13 +39,12 @@ import Data.Text (pack)
     int { TokenInt $$ }
     double { TokenDouble $$ }
 
-%nonassoc '[' ']'
-%nonassoc '{' '}'
-%nonassoc '(' ')'
-%nonassoc MAT GAT PROJ OTIM LAMB
-%nonassoc var 'i' PI '\\' qubits gate letcase
+%nonassoc MAT GAT PROJ
+%left OTIM
 %left APP
-%left OTIMES ','
+%nonassoc LAMB
+%nonassoc '[' ']' '{' '}' '(' ')'
+%nonassoc var 'i' PI '\\' qubits gate letcase OTIMES ','
 
 %%
 

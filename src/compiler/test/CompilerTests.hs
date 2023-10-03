@@ -35,9 +35,9 @@ compilerTests = testGroup "compilerTests"
   , testCase "gate var" $
     compiStr "\\x. U^{1,2,4} x" @?= Right ("$(1) -> (1)$","lambda x: x.u(1.0,2.0,4.0,0)")
   , testCase "gate var app" $
-    compiStr "\\x. ((\\y.y) (U^{1,2,4} x))" @?= Right ("$(1) -> (1)$","lambda x: (lambda y: y)(x.u(1.0,2.0,4.0,0))")
+    compiStr "\\x. (\\y.y) (U^{1,2,4} x)" @?= Right ("$(1) -> (1)$","lambda x: (lambda y: y)(x.u(1.0,2.0,4.0,0))")
   , testCase "gate var app otimes" $
-    compiStr "(\\x. (\\ket{0} \\otimes (U^{1,2,4} x))) \\ket{0}" @?= Right ("$(2)$","(lambda x: Circuit([1.0, 0.0, 0.0, 0.0,]).compose(x.u(1.0,2.0,4.0,0)))(Circuit([1.0, 0.0, 0.0, 0.0,]))")
+    compiStr "(\\x. \\ket{0} \\otimes U^{1,2,4} x) \\ket{0}" @?= Right ("$(2)$","(lambda x: Circuit([1.0, 0.0, 0.0, 0.0,]).compose(x.u(1.0,2.0,4.0,0)))(Circuit([1.0, 0.0, 0.0, 0.0,]))")
   , testCase "gate" $
     compiStr "CU^{1,2,3,4}_1 \\ket{011}" @?= Right ("$(3)$","Circuit([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,]).cu(1.0,2.0,3.0,4.0,2,4)")
   , testCase "Lambda otimes gate" $
