@@ -18,7 +18,7 @@ translate (PQubits qbits) = translateMatrix m
     where
       m = dprint "toDensMatrix" $ toDensMatrix $ dprint "toVector" $ toVector qbits
 translate (PMatrix m) = translateMatrix (HM.fromLists m)
-translate (PPair b m) = PyPair (PyInt b) (translate (PMatrix m))
+translate (PPair b m rho) = PyPair (PyPair (PyInt b) (PyInt m)) (translate (PMatrix rho))
 translate (PGateApp gate exp) = PyFunCall (PyObjMethod (translate exp) gateName) gateArgs
   where
     (gateName, gateArgs) = translateGate gate

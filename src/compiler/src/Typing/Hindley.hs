@@ -111,16 +111,15 @@ hindley ex = case ex of
     -- also infers the number of qubits of the conditional
     let q = log2 (length es)
     when (q<0 || (2^q) /= (length es)) (throwError $ InvalidLetCaseNumCases (length es))
-    tcase <- fresh
+    xt <- fresh
     (t1, eq1) <- hindley e
     -- the cases should have a context with only the conditional variable defined
-    -- TODO: check if we need to remove the conditional variable
     let
-      newEnv = TypeEnv (M.singleton x tcase)
+      newEnv = TypeEnv (M.singleton x xt)
       hindley' e = local (const newEnv) (hindley e)
     (tts, eqcases) <- unzip <$> sequenceA (hindley' <$> es)
     (tv, eqcasesr) <- equalTypes tts
-    return (tv, eq1++concat eqcases ++ eqcasesr ++ [EqualTypeEq t1 (QTMeasuredQubits q)])
+    return (tv, eq1++concat eqcases ++ eqcasesr ++ [EqualTypeEq t1 (QTMeasuredQubits q xt), AtLeastSizeEq [xt] q])
 
   POtimesExp e1 e2 -> do
     tv <- fresh
@@ -131,17 +130,17 @@ hindley ex = case ex of
 
   PProjector d e -> do
     (t, eq) <- hindley e
-    return (QTMeasuredQubits d, eq++[AtLeastSizeEq [t] (QTQubits d)])
+    return (QTMeasuredQubits d t, eq++[AtLeastSizeEq [t] d])
 
-  PPair n m -> do
-    q <- (lift . lift) (getMatrixSize m)
-    when (n>=2^q) (throwError $ InvalidPair n m)
-    return (QTMeasuredQubits q, [])
+  PPair b m rho -> do
+    n <- (lift . lift) (getMatrixSize rho)
+    when (b<0 || m<1 || b>=2^m || m>n) (throwError $ InvalidPair b m rho)
+    return (QTMeasuredQubits n (QTQubits m), [])
 
   PGateApp gate@(PGate _n _a offset) e -> do
     (t, eq) <- hindley e
     sz <- (lift . lift) (getGateSize gate)
-    return (t, eq++[AtLeastSizeEq [t] (QTQubits (sz+offset))])
+    return (t, eq++[AtLeastSizeEq [t] (sz+offset)])
 
   PQubits q -> return (QTQubits (T.length q), [])
 

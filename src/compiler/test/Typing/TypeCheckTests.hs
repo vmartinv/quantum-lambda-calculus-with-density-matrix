@@ -46,7 +46,7 @@ projectorTests = testGroup "projectorTests"
     testStr "\\pi^1 \\pi^1 \\ket{0}" @?=
       Left "TypeNotQubits $(1, 1)$"
   , testCase "Lambda with projector" $
-      testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1))
+      testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1 (QTQubits 1)))
   , testCase "qubit with too big projector" $
       testExp (PProjector 2 (PQubits "0")) @?= Left "InvalidOperatorSizes"
   ]
@@ -102,7 +102,7 @@ gateParamsTests = testGroup "gateParamsTests"
 letcaseTests = testGroup "letcaseTests"
   [ testCase "letcase not measured" $
      testStr "letcase ym=\\ket{+} in {\\ket{1}, \\ket{0}}" @?=
-        Left "UnificationFail $(1)$ $(1, 1)$"
+        Left "UnificationFail $(1)$ $(1, V0)$"
   , testCase "letcase ok" $
       testStr "letcase ym=\\pi^1 \\ket{+} in {\\ket{1}, \\ket{0}}" @?=
         Right (QTQubits 1)
@@ -117,10 +117,10 @@ letcaseTests = testGroup "letcaseTests"
         Left (InvalidLetCaseNumCases 0)
   , testCase "Invalid num cases 2" $
       testStr "letcase xm=\\pi^1 \\ket{+} in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
-        Left "UnificationFail $(1, 1)$ $(2, 2)$"
-  , testCase "letcase with var" $
+        Left "UnificationFail $(1, 1)$ $(2, V0)$"
+  , testCase "letcase.with.var" $
       testStr "\\x.letcase xm=x in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
-        Right (QTFun (QTMeasuredQubits 2) (QTQubits 1))
+        Right (QTFun (QTMeasuredQubits 2 (QTQubits 2)) (QTQubits 1))
   , testCase "letcase with var applied" $
       testStr "(\\x.letcase xm=x in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}) (\\pi^2 \\ket{101})" @?=
         Right (QTQubits 1)
@@ -155,31 +155,41 @@ otimesTests = testGroup "otimesTests"
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 2)))
   , testCase "Lambda.otimes.projector" $
      testStr "\\x.\\y. \\pi^3 (x\\otimes y)" @?=
-        Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTMeasuredQubits 3)))
+        Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTMeasuredQubits 3 (QTQubits 3))))
   ]
 
 eqSolvingTests = testGroup "eqSolvingTests"
   [ testCase "Big projection over unknowns with otimes" $
       testStr "\\x.\\y. \\pi^10 (x \\otimes y)" @?=
-        Right (QTFun (QTQubits 9) (QTFun (QTQubits 1) (QTMeasuredQubits 10)))
+        Right (QTFun (QTQubits 9) (QTFun (QTQubits 1) (QTMeasuredQubits 10 (QTQubits 10))))
   , testCase "show equation" $
-      show (AtLeastSizeEq [QTQubits 9] (QTQubits 10)) @?=
-        "AtLeastSizeEq [$(9)$] $(10)$"
+      show (AtLeastSizeEq [QTQubits 9] 10) @?=
+        "AtLeastSizeEq [$(9)$] 10"
   , testCase "eq equation" $
-      (AtLeastSizeEq [QTQubits 2] (QTQubits 10)) @?=
-        (AtLeastSizeEq [QTQubits 2] (QTQubits 10))
+      (AtLeastSizeEq [QTQubits 3] 8) @?=
+        (AtLeastSizeEq [QTQubits 3] 8)
   , testCase "Big projection over unknowns with two otimes" $
       testStr "\\x.\\y.\\z. \\pi^10 (x \\otimes y \\otimes z)" @?=
-        Right (QTFun (QTQubits 8) (QTFun (QTQubits 1)  (QTFun (QTQubits 1) (QTMeasuredQubits 10))))
+        Right (QTFun (QTQubits 8) (QTFun (QTQubits 1)  (QTFun (QTQubits 1) (QTMeasuredQubits 10 (QTQubits 10)))))
   , testCase "Big projection over unknowns with many otimes" $
       testStr "\\a.\\b.\\c.\\d.\\e.\\f.\\g.\\h.\\i.\\j. \\pi^100 (a \\otimes b \\otimes c \\otimes d \\otimes e \\otimes f \\otimes g \\otimes h \\otimes i \\otimes j)" @?=
-        Right (QTFun (QTQubits 91) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100)))))))))))
+        Right (QTFun (QTQubits 91) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100 (QTQubits 100))))))))))))
   , testCase "Big projection over unknowns with many otimes different assoc" $
       testStr "\\a.\\b.\\c.\\d.\\e.\\f.\\g.\\h.\\i.\\x.\\y.\\z. \\pi^100 (x \\otimes (y \\otimes (z \\otimes a \\otimes b) \\otimes c \\otimes d) \\otimes e \\otimes (f \\otimes g)\\otimes h \\otimes i)" @?=
-        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 89) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100)))))))))))))
+        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 89) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100 
+          (QTQubits 100))))))))))))))
   , testCase "Projection on 3 unknowns with letcase" $
       testStr "\\x.\\y.\\z. letcase ym=\\pi^3 (x \\otimes y \\otimes z) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTQubits 1))))
+  , testCase "Projection.unknown.letcase.applying.gate.small" $
+      testStr "\\x. letcase y=\\pi^2 x in {SWAP_2 y, SWAP y, y, SWAP_1 y}" @?=
+        Right (QTFun (QTQubits 4) (QTQubits 4))
+  , testCase "Projection.unknown.letcase.applying.gate" $
+      testStr "\\x. letcase y=\\pi^2 x in {SWAP_11 y, SWAP_10 y, y, y}" @?=
+        Right (QTFun (QTQubits 13) (QTQubits 13))
+  , testCase "trying to use var inside letcase" $
+      testStr "\\z.\\x. letcase y=\\pi^2 x in {z, \\ket{0}}" @?=
+        Left "UnboundVariable \"z\""
   , testCase "Projection on 2 unknowns with letcase" $
       testStr "\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
@@ -206,7 +216,7 @@ matrixTests = testGroup "matrixTests"
   , testCase "Matrix not power of 2" $
       testExp (PMatrix [[1,2,3],[1,2,3],[1,2,3]]) @?= Left "MatrixIsNotAPowerOfTwo [[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0]]"
   , testCase "Pair with qubit matrix" $
-      testExp (PPair 1 [[1,2],[3,4]]) @?= Right (QTMeasuredQubits 1)
+      testExp (PPair 1 1 [[1,2],[3,4]]) @?= Right (QTMeasuredQubits 1 (QTQubits 1))
   , testCase "Pair with qubit matrix with invalid result" $
-      testExp (PPair 2 [[1,2],[3,4]]) @?= Left "InvalidPair 2 [[1.0 :+ 0.0,2.0 :+ 0.0],[3.0 :+ 0.0,4.0 :+ 0.0]]"
+      testExp (PPair 2 2 [[1,2],[3,4]]) @?= Left "InvalidPair 2 2 [[1.0 :+ 0.0,2.0 :+ 0.0],[3.0 :+ 0.0,4.0 :+ 0.0]]"
   ]

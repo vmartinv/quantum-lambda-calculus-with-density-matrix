@@ -72,7 +72,7 @@ matrixTests = testGroup "matrixTests"
   , testCase "Parsing lambda with i variable" $
       testStr "\\i.i" @?= Right (PLambda "i" (PVar "i"))
   , testCase "Parsing pair size 2" $
-      testStr "(1, [[1,2],[3,4]])" @?= Right (PPair 1 [[1.0, 2.0], [3.0, 4.0]])
+      testStr "(1^8, [[1,2],[3,4]])" @?= Right (PPair 1 8 [[1.0, 2.0], [3.0, 4.0]])
   ]
 
 gateTests = testGroup "gateTests"

@@ -27,11 +27,13 @@ unifies (EqualTypeEq t1 t2)                       | t1 == t2 = return emptySubst
 unifies (EqualTypeEq (QTVar v) t)                 = v `bind` t
 unifies (EqualTypeEq t (QTVar v))                 = v `bind` t
 unifies (EqualTypeEq (QTFun t1 t2) (QTFun t3 t4)) = unifyMany [EqualTypeEq t1 t3, EqualTypeEq t2 t4]
+unifies (EqualTypeEq (QTMeasuredQubits n1 t1) (QTMeasuredQubits n2 t2)) | n1==n2 =
+      unifies (EqualTypeEq t1 t2)
 unifies (EqualTypeEq t1 t2)                       = throwError $ UnificationFail t1 t2
 unifies (SumSizeEq ls q)                       =
   assertQubitOrVar q >> sequence_ (assertQubitOrVar <$> ls) >> return emptySubst
 unifies (AtLeastSizeEq ls q)                       =
-  assertQubitOrVar q >> sequence_ (assertQubitOrVar <$> ls) >> return emptySubst
+  sequence_ (assertQubitOrVar <$> ls) >> return emptySubst
 
 assertQubitOrVar :: QType -> ExceptInfer ()
 assertQubitOrVar (QTVar _)    = return ()
@@ -46,11 +48,11 @@ unifyMany typeEqs = foldM f emptySubst (reverse typeEqs)
 -- core algorithm
 robinson :: [TypeEq] -> ExceptInfer Subst
 robinson eqs = do
-  su1 <- unifyMany $ dprint "robinsonEqs" $ eqs
+  su1 <- dprint "su1" $ unifyMany $ dprint "robinsonEqs" $ eqs
   let eqs' = apply su1 eqs
   sol <- solveSums eqs'
-  su2 <- assignValues $ dprint "robinsonSol" $ sol
-  return $ su1 `compose` su2
+  su2 <- dprint "assignValues" $ assignValues $ dprint "robinsonSol" $ sol
+  return $ dprint "robinsonRet" $ su1 `compose` su2
 
 -- given the solution to the sum of equations
 -- it creates the corresponding substition based on them
@@ -96,8 +98,9 @@ solveSums eqs = do
     fstPass :: M.Map VariableId Int -> TypeEq -> ExceptInfer (M.Map VariableId Int)
     fstPass su (SumSizeEq ls (QTVar v)) = return su
     fstPass su (AtLeastSizeEq ls q) = do
-      maybeSol <- solveSingleIneq ls (typeSize q)
-      let addSol = (flip (uncurry M.insert)) su
+      maybeSol <- dprint "solveSingleIneq" $ solveSingleIneq ls q
+      -- insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+      let addSol = (flip (uncurry (M.insertWith max))) su :: (VariableId, Int) -> (M.Map VariableId Int)
       return $ maybe su addSol maybeSol
     fstPass su _ = return su
 

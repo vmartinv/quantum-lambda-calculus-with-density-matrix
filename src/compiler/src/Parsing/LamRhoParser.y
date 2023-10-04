@@ -57,7 +57,7 @@ LamRhoExp : var                              { PVar (pack $1) }
     | '\\' var '.' LamRhoExp %prec LAMB      { PLambda (pack $2) $4 }
     | LamRhoExp LamRhoExp %prec APP          { PFunApp $1 $2 }
     | qubits                                 { PQubits (pack $1) }
-    | '(' int ',' '[' Matrix ']' ')'         { PPair $2 (reverse $5) }
+    | '(' int '^' int ',' '[' Matrix ']' ')' { PPair $2 $4 (reverse $7) }
     | '[' Matrix ']'  %prec MAT              { PMatrix (reverse $2) }
     | GateP LamRhoExp %prec GAT              { PGateApp $1 $2 }
     | LamRhoExp OTIMES LamRhoExp %prec OTIM  { POtimesExp $1 $3 }

@@ -29,7 +29,7 @@ fullTypeCheck :: TypeEnv -> LamRhoExp -> ExceptInfer QType
 fullTypeCheck env ex = do
   (t, eqs) <- runHindley env ex
   subst <- robinson eqs
-  closeOver (apply subst t)
+  closeOver (dprint "robinsonApplied" $ apply subst t)
 
 closeOver :: QType -> ExceptInfer QType
 closeOver t = foldr apply t <$> mapM assign1 (S.toList (ftv t))
