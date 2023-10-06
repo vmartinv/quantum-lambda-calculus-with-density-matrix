@@ -39,30 +39,39 @@ import Data.Text (pack)
     int { TokenInt $$ }
     double { TokenDouble $$ }
 
-%nonassoc MAT GAT PROJ
-%left OTIM
-%left APP
-%nonassoc LAMB
 %nonassoc '[' ']' '{' '}' '(' ')'
-%nonassoc var 'i' PI '\\' qubits gate letcase OTIMES ','
+%nonassoc PI qubits gate letcase ','
+%nonassoc '\\' var 'i'
+%nonassoc LAMB
+%left OTIMES
+%nonassoc MAT GAT PROJ
 
 %%
 
 -- pack :: String -> Text
 
-LamRhoExp : var                              { PVar (pack $1) }
-    | 'i'                                    { PVar "i" }
-    | PI '^' int LamRhoExp %prec PROJ        { PProjector $3 $4 }
+LamRhoExp : letcase var '=' LamRhoExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
     | '\\' 'i' '.' LamRhoExp %prec LAMB      { PLambda "i" $4 }
     | '\\' var '.' LamRhoExp %prec LAMB      { PLambda (pack $2) $4 }
-    | LamRhoExp LamRhoExp %prec APP          { PFunApp $1 $2 }
-    | qubits                                 { PQubits (pack $1) }
-    | '(' int '^' int ',' '[' Matrix ']' ')' { PPair $2 $4 (reverse $7) }
-    | '[' Matrix ']'  %prec MAT              { PMatrix (reverse $2) }
+    | Form                                   { $1 }
+
+Form : LamRhoExp OTIMES LamRhoExp             { POtimesExp $1 $3 }
+    | PI '^' int LamRhoExp %prec PROJ        { PProjector $3 $4 }
     | GateP LamRhoExp %prec GAT              { PGateApp $1 $2 }
-    | LamRhoExp OTIMES LamRhoExp %prec OTIM  { POtimesExp $1 $3 }
-    | '(' LamRhoExp ')'                      { $2 }
-    | letcase var '=' LamRhoExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
+    | Juxt                        { $1 }
+
+Juxt : Juxt Atom                            { PFunApp $1 $2 }
+    | Atom                                  { $1 }
+
+Atom : '(' LamRhoExp ')'                      { $2 }
+    | var                              { PVar (pack $1) }
+    | 'i'                                    { PVar "i" }
+    | qubits                                 { PQubits (pack $1) }
+    | '[' Matrix ']'  %prec MAT              { PMatrix (reverse $2) }
+    | '(' int '^' int ',' '[' Matrix ']' ')' { PPair $2 $4 (reverse $7) }
+    
+
+
 
 Gate : gate '^' NumExp                { PGate (pack $1) [$3] }
     | gate                            { PGate (pack $1) [] }

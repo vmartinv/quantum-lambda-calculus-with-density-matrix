@@ -5,6 +5,9 @@ import           Data.Complex
 import qualified Data.Set             as S
 import qualified Data.Text            as T
 import           Typing.QType
+import Typing.TypeEq
+import Typing.Subst
+
 
 data CompilerError  = UnificationFail QType QType
               | InfiniteType VariableId QType
@@ -14,7 +17,9 @@ data CompilerError  = UnificationFail QType QType
               | TypeNotQubits QType
               | TypeNotMeasuredQubits QType
               | UnificationMismatch [QType] [QType]
-              | InvalidOperatorSizes
+              | InvalidOperatorSizes [TypeEq]
+              | InvalidOperatorSizesNotIntegerSolution [TypeEq]
+              | InvalidOperatorSizesCheckFailed [TypeEq] Subst
               | VariableAlreadyInScope T.Text
               | VariablesUsedMoreThanOnce (S.Set T.Text)
               | UnknownGate T.Text

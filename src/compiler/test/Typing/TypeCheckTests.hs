@@ -47,8 +47,8 @@ projectorTests = testGroup "projectorTests"
       Left "TypeNotQubits $(1, 1)$"
   , testCase "Lambda with projector" $
       testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1 (QTQubits 1)))
-  , testCase "qubit with too big projector" $
-      testExp (PProjector 2 (PQubits "0")) @?= Left "InvalidOperatorSizes"
+  , testCase "qubit.with.too.big.projector" $
+      testExp (PProjector 2 (PQubits "0")) @?= Left "InvalidOperatorSizesCheckFailed [AtLeastSizeEq [$(1)$] 2] (fromList [])"
   ]
 
 noCloningTests = testGroup "noCloningTests"
@@ -170,13 +170,13 @@ eqSolvingTests = testGroup "eqSolvingTests"
         (AtLeastSizeEq [QTQubits 3] 8)
   , testCase "Big projection over unknowns with two otimes" $
       testStr "\\x.\\y.\\z. \\pi^10 (x \\otimes y \\otimes z)" @?=
-        Right (QTFun (QTQubits 8) (QTFun (QTQubits 1)  (QTFun (QTQubits 1) (QTMeasuredQubits 10 (QTQubits 10)))))
+        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1)  (QTFun (QTQubits 8) (QTMeasuredQubits 10 (QTQubits 10)))))
   , testCase "Big projection over unknowns with many otimes" $
       testStr "\\a.\\b.\\c.\\d.\\e.\\f.\\g.\\h.\\i.\\j. \\pi^100 (a \\otimes b \\otimes c \\otimes d \\otimes e \\otimes f \\otimes g \\otimes h \\otimes i \\otimes j)" @?=
-        Right (QTFun (QTQubits 91) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100 (QTQubits 100))))))))))))
+        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 91) (QTMeasuredQubits 100 (QTQubits 100))))))))))))
   , testCase "Big projection over unknowns with many otimes different assoc" $
       testStr "\\a.\\b.\\c.\\d.\\e.\\f.\\g.\\h.\\i.\\x.\\y.\\z. \\pi^100 (x \\otimes (y \\otimes (z \\otimes a \\otimes b) \\otimes c \\otimes d) \\otimes e \\otimes (f \\otimes g)\\otimes h \\otimes i)" @?=
-        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 89) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100 
+        Right (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 89) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTFun (QTQubits 1) (QTMeasuredQubits 100 
           (QTQubits 100))))))))))))))
   , testCase "Projection on 3 unknowns with letcase" $
       testStr "\\x.\\y.\\z. letcase ym=\\pi^3 (x \\otimes y \\otimes z) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
@@ -192,7 +192,7 @@ eqSolvingTests = testGroup "eqSolvingTests"
         Right (QTFun (QTQubits 4) (QTQubits 6))
   , testCase "Projection.unknown.letcase.applying.gate.lambda.eq.fail" $
       testStr "\\x. (letcase y=\\pi^2 x in {\\z.z \\otimes SWAP_2 y, \\z.y \\otimes SWAP z, \\z.y \\otimes z, \\z.\\ket{10101}}) \\ket{01}" @?=
-        Left ""
+        Left "InvalidOperatorSizes [AtLeastSizeEq [$V2$] 2,AtLeastSizeEq [$V2$] 4,SumSizeEq [$(2)$,$V2$] $(5)$,AtLeastSizeEq [$(2)$] 2,SumSizeEq [$V2$,$(2)$] $(5)$,SumSizeEq [$V2$,$(2)$] $(5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2, V2)$ $(2, V2)$,AtLeastSizeEq [$V2$] 2,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$]"
   , testCase "Projection.unknown.letcase.applying.gate" $
       testStr "\\x. letcase y=\\pi^2 x in {SWAP_11 y, SWAP_10 y, y, y}" @?=
         Right (QTFun (QTQubits 13) (QTQubits 13))

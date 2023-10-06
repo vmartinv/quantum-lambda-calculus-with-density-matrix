@@ -11,6 +11,7 @@ import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck      as QC
 import           Test.Tasty.SmallCheck      as SC
 import           TestUtils
+import           Parsing.LamRhoParser
 import           Utils
 
 

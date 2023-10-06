@@ -29,6 +29,8 @@ mixedTests = testGroup "mixedTests"
       testStr "\\ket{2}" @?= Left (ParsingError "Unexpected lexeme: TokenLBrace")
   , testCase "Parsing otimes" $
       testStr "x \\otimes y" @?= Right (POtimesExp (PVar "x") (PVar "y"))
+  , testCase "Parsing otimes assoc" $
+      testStr "x \\otimes y \\otimes z" @?= Right (POtimesExp (POtimesExp (PVar "x") (PVar "y")) (PVar "z"))
   , testCase "Parsing lambda" $
       testStr "\\x.y" @?= Right (PLambda "x" (PVar "y"))
   , testCase "Parsing parenthesis" $
@@ -46,6 +48,12 @@ mixedTests = testGroup "mixedTests"
   , testCase "Parsing nested letcase" $
       testStr "\\x.\\y. letcase ym=\\pi^1 (letcase zz=\\pi^3 (x \\otimes y) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}) in {\\ket{1}, \\ket{+}}"
         @?=  Right (PLambda "x" (PLambda "y" (PLetCase "ym" (PProjector 1 (PLetCase "zz" (PProjector 3 (POtimesExp (PVar "x") (PVar "y"))) [PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0",PQubits "0"])) [PQubits "1",PQubits "+"])))
+  , testCase "projector.lambda" $
+      testStr "\\pi^1 ((\\x.\\y.x) \\ket{0} \\ket{1})"
+        @?= Right (PProjector 1 (PFunApp (PFunApp (PLambda "x" (PLambda "y" (PVar "x"))) (PQubits "0")) (PQubits "1")))
+  , testCase "lambda.app.gate" $
+      testStr "\\x. (\\y.y) (U^{1,2,4} x)"
+        @?= Right (PLambda "x" (PFunApp (PLambda "y" (PVar "y")) (PGateApp (PGate "U" [1.0,2.0,4.0] 0) (PVar "x"))))
     ]
 
 matrixTests = testGroup "matrixTests"

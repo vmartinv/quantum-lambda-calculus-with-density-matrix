@@ -13,13 +13,13 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "tests" [
-    utilsTests,
-    lamRhoParserTests,
-    qTypeTests,
-    typeCheckTests,
-    purificationTests,
-    translationTests,
-    compilerTests
-    --, pythonTests
-  ]
+tests = testGroup "tests"
+    [ utilsTests
+    , lamRhoParserTests
+    , qTypeTests
+    , typeCheckTests
+    , purificationTests
+    , translationTests
+    , compilerTests
+    , pythonTests
+    ]

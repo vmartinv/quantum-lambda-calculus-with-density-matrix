@@ -12,6 +12,11 @@ import           Typing.QType
 import           Typing.Subst
 import           Typing.TypeEq
 import           Utils
+import qualified Data.Vector as V
+import Numeric.LinearProgramming
+
+
+
 
 -- returns a susbstitution to replace a variable with a given type
 bind :: VariableId -> QType -> ExceptInfer Subst
@@ -50,70 +55,9 @@ robinson :: [TypeEq] -> ExceptInfer Subst
 robinson eqs = do
   su1 <- dprint "su1" $ unifyMany $ dprint "robinsonEqs" $ eqs
   let eqs' = apply su1 eqs
-  sol <- solveSums eqs'
-  su2 <- dprint "assignValues" $ assignValues $ dprint "robinsonSol" $ sol
+  su2 <- dprint "solveSumsAndInequalities" $ solveSumsAndInequalities eqs'
+  verifyEqsAfterSubst eqs' su2
   return $ dprint "robinsonRet" $ su1 `compose` su2
-
--- given the solution to the sum of equations
--- it creates the corresponding substition based on them
-assignValues :: M.Map VariableId Int -> ExceptInfer Subst
-assignValues sol = foldr compose emptySubst <$> sequence (bindv <$> M.toList sol)
-  where
-    bindv (v, q) = v `bind` QTQubits q
-
--- Given that the sum equations form a tree and are given in topological order
--- this function transforms the equations into a flat tree
--- it does a map over the list of equations while keeping a state
-flattenTree :: [TypeEq] -> [TypeEq]
-flattenTree eqs = evalState (sequence (f <$> eqs)) M.empty
-  where
-    expand m (QTVar v) = fromMaybe [QTVar v] (M.lookup v m)
-    expand m q         = [q]
-    getVars ls m = concat $ expand m <$> ls
-    f :: TypeEq -> State (M.Map VariableId [QType]) TypeEq
-    f (SumSizeEq ls (QTVar v)) = do
-      ls' <- gets (getVars ls)
-      modify (M.insert v ls')
-      return $ SumSizeEq ls' (QTVar v)
-    f (AtLeastSizeEq ls q) = do
-      ls' <- gets (getVars ls)
-      return $ AtLeastSizeEq ls' q
-    f eq = return eq
-
--- this function should fail for other types
-typeSize :: QType -> Int
-typeSize (QTQubits q)         = q
-
--- given the sum equations returns a map from variables to their assigned size
-solveSums :: [TypeEq] -> ExceptInfer (M.Map VariableId Int)
-solveSums eqs = do
-  let eqs' = flattenTree $ dprint "solveSums" $ eqs
-      -- by default all variables are set to 1
-      all1 =
-        M.fromList ((,1) <$> S.toList (ftv eqs))
-  su <- foldM fstPass all1  $ dprint "solveSums'" $ eqs'
-  return (foldl sndPass su eqs')
-  where
-    -- First pass solves the equations
-    fstPass :: M.Map VariableId Int -> TypeEq -> ExceptInfer (M.Map VariableId Int)
-    fstPass su (SumSizeEq ls (QTVar v)) = return su
-    fstPass su (AtLeastSizeEq ls q) = do
-      maybeSol <- dprint "solveSingleIneq" $ solveSingleIneq ls q
-      -- insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-      let addSol = (flip (uncurry (M.insertWith max))) su :: (VariableId, Int) -> (M.Map VariableId Int)
-      return $ maybe su addSol maybeSol
-    fstPass su _ = return su
-
-    -- Second pass sets the dependent variables
-    sndPass :: M.Map VariableId Int -> TypeEq -> M.Map VariableId Int
-    sndPass su (SumSizeEq ls (QTVar v)) = M.insert v q su
-      where
-        -- we use withDefault to avoid complaining, but it should never happen
-        -- because all variables are set to 1 already
-        getVal (QTVar v) = M.findWithDefault 1 v su
-        getVal q         = typeSize q
-        q = sum (getVal <$> ls)
-    sndPass su _ = su
 
 -- given a set of variables adds all the defined sizes together
 -- and puts the variables apart
@@ -122,13 +66,75 @@ simplify eqs = (q, [v | QTVar v <- eqs])
   where
     q = sum [q | QTQubits q <- eqs]
 
--- finds v_1,...v_n / v_1+...+v_n+q_f>=q_t, if it exists
--- by fixing v_2,..., v_n to 1 and returning (v_1, value)
-solveSingleIneq :: [QType] -> Int -> ExceptInfer (Maybe (VariableId, Int))
-solveSingleIneq vars qt | qf < qt && null vs = throwError InvalidOperatorSizes
-                        | null vs = return Nothing --solution=no vars
-                        | otherwise = return (Just sol)
+
+getLinearEquations :: Int -> [TypeEq] -> Constraints
+getLinearEquations numCols eqs = Sparse $ catMaybes $ makeRow <$> eqs
   where
-    (qf, vs) = simplify vars
-    v = head vs
-    sol = (v, max 1 (qt - qf - length vs + 1))
+    setValue value var = value#(1+var)
+    makeRow :: TypeEq -> Maybe (Bound [(Double, VariableId)])
+    makeRow (SumSizeEq ls r) =
+        Just (row :==: fromIntegral (qr-ql))
+      where (ql, vl) = simplify ls
+            (qr, vr) = simplify [r]
+            row = (setValue 1 <$> vl) ++ (setValue (-1) <$> vr)
+    makeRow (AtLeastSizeEq ls qr) =
+        Just (row :>=: fromIntegral (qr-ql))
+      where (ql, vl) = simplify ls
+            row = (setValue 1 <$> vl)
+    makeRow _eq = Nothing
+
+-- given the sum equations returns a map from variables to their assigned size
+solveSumsAndInequalities :: [TypeEq] -> ExceptInfer Subst
+solveSumsAndInequalities eqs | not (S.null (ftv eqs)) = do
+  let numCols = S.findMax (ftv eqs) + 1
+      linEq = getLinearEquations numCols $ dprint "solveSums" $ eqs
+  sol <- solveLinear numCols linEq eqs
+  unifyMany [EqualTypeEq (QTVar v) (QTQubits q) | (v, q) <- (zip [0..] sol), v `S.member` (ftv eqs)]
+solveSumsAndInequalities _ = return M.empty
+
+getQubitSize :: QType -> Maybe Int
+getQubitSize (QTQubits q) = return q
+getQubitSize t            = Nothing
+
+verifyEq :: TypeEq -> Maybe ()
+verifyEq (SumSizeEq ls q) = do
+  left <- sum <$> sequence (getQubitSize <$> ls)
+  right <- getQubitSize q
+  if (left==right)
+    then Just ()
+    else Nothing
+verifyEq (AtLeastSizeEq ls right) = do
+  left <- sum <$> sequence (getQubitSize <$> ls)
+  if (left>=right)
+    then Just ()
+    else Nothing
+verifyEq _ = Just ()
+
+verifyEqsAfterSubst :: [TypeEq] -> Subst -> ExceptInfer ()
+verifyEqsAfterSubst eqs su =
+  maybe err return verifyMaybe
+  where
+      err = throwError $ InvalidOperatorSizesCheckFailed eqs su
+      verifyMaybe = sequence_ $ verifyEq <$> (apply su eqs)
+
+solveLinear :: Int -> Constraints -> [TypeEq] -> ExceptInfer [Int]
+solveLinear 0 _ _ = return []
+solveLinear numCols constraints eqs = convert (simplex optimization constraints varBounds) >>= roundsOrFails
+  where
+    varBounds = [i :>=: 1 | i <- [1..numCols]]
+    optimization = Minimize (replicate numCols 1)
+    convert :: Solution -> ExceptInfer [Double]
+    convert (Feasible (_, s)) = return s
+    convert (Optimal (_, s))  = return s
+    convert _                 = throwError $ InvalidOperatorSizes eqs
+    roundOrFail :: Double -> ExceptInfer Int
+    roundOrFail x = when (x /= fromInteger (round x)) (throwError $ InvalidOperatorSizesNotIntegerSolution eqs) >> return (round x)
+    roundsOrFails :: [Double] -> ExceptInfer [Int]
+    roundsOrFails xs = sequence (roundOrFail <$> xs)
+
+
+
+
+
+
+
