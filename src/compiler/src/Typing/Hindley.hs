@@ -130,6 +130,7 @@ hindley ex = case ex of
 
   PProjector d e -> do
     (t, eq) <- hindley e
+    when (d<=0) (throwError $ InvalidProjectorSize d)
     return (QTMeasuredQubits d t, eq++[AtLeastSizeEq [t] d])
 
   PPair b m rho -> do

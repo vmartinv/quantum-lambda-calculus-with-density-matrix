@@ -10,6 +10,7 @@ data CompilerError  = UnificationFail QType QType
               | InfiniteType VariableId QType
               | UnboundVariable T.Text
               | InvalidLetCaseNumCases Int
+              | InvalidProjectorSize Int
               | TypeNotQubits QType
               | TypeNotMeasuredQubits QType
               | UnificationMismatch [QType] [QType]

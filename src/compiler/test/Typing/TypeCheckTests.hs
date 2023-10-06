@@ -187,6 +187,12 @@ eqSolvingTests = testGroup "eqSolvingTests"
   , testCase "Projection.unknown.letcase.applying.gate.lambda" $
       testStr "\\x. (letcase y=\\pi^2 x in {\\z.z \\otimes SWAP_2 y, \\z.y \\otimes SWAP z, \\z.y \\otimes z, \\z.z \\otimes SWAP_1 y}) \\ket{01}" @?=
         Right (QTFun (QTQubits 4) (QTQubits 6))
+  , testCase "Projection.unknown.letcase.applying.gate.lambda.eq.ok" $
+      testStr "\\x. (letcase y=\\pi^2 x in {\\z.z \\otimes SWAP_2 y, \\z.y \\otimes SWAP z, \\z.y \\otimes z, \\z.\\ket{101011}}) \\ket{01}" @?=
+        Right (QTFun (QTQubits 4) (QTQubits 6))
+  , testCase "Projection.unknown.letcase.applying.gate.lambda.eq.fail" $
+      testStr "\\x. (letcase y=\\pi^2 x in {\\z.z \\otimes SWAP_2 y, \\z.y \\otimes SWAP z, \\z.y \\otimes z, \\z.\\ket{10101}}) \\ket{01}" @?=
+        Left ""
   , testCase "Projection.unknown.letcase.applying.gate" $
       testStr "\\x. letcase y=\\pi^2 x in {SWAP_11 y, SWAP_10 y, y, y}" @?=
         Right (QTFun (QTQubits 13) (QTQubits 13))
