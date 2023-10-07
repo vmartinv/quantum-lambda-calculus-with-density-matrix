@@ -40,35 +40,34 @@ import Data.Text (pack)
     double { TokenDouble $$ }
 
 %nonassoc '[' ']' '{' '}' '(' ')'
-%nonassoc PI qubits gate letcase ','
-%nonassoc '\\' var 'i'
+%nonassoc PI qubits gate letcase '\\' var 'i'
 %nonassoc LAMB
 %left OTIMES
-%nonassoc MAT GAT PROJ
+%nonassoc GAT
 
 %%
 
 -- pack :: String -> Text
 
-LamRhoExp : letcase var '=' LamRhoExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
-    | '\\' 'i' '.' LamRhoExp %prec LAMB      { PLambda "i" $4 }
-    | '\\' var '.' LamRhoExp %prec LAMB      { PLambda (pack $2) $4 }
-    | Form                                   { $1 }
+LamRhoExp : '\\' 'i' '.' LamRhoExp %prec LAMB       { PLambda "i" $4 }
+    | '\\' var '.' LamRhoExp %prec LAMB             { PLambda (pack $2) $4 }
+    | letcase var '=' LamRhoExp in '{' CaseList '}' { PLetCase (pack $2) $4 (reverse $7) }
+    | Form                                          { $1 }
 
-Form : LamRhoExp OTIMES LamRhoExp             { POtimesExp $1 $3 }
-    | PI '^' int LamRhoExp %prec PROJ        { PProjector $3 $4 }
-    | GateP LamRhoExp %prec GAT              { PGateApp $1 $2 }
-    | Juxt                        { $1 }
+Form : LamRhoExp OTIMES LamRhoExp                   { POtimesExp $1 $3 }
+    | PI '^' int LamRhoExp %prec GAT                { PProjector $3 $4 }
+    | GateP LamRhoExp %prec GAT                     { PGateApp $1 $2 }
+    | Juxt                                          { $1 }
 
-Juxt : Juxt Atom                            { PFunApp $1 $2 }
-    | Atom                                  { $1 }
+Juxt : Juxt Atom                                    { PFunApp $1 $2 }
+    | Atom                                          { $1 }
 
-Atom : '(' LamRhoExp ')'                      { $2 }
-    | var                              { PVar (pack $1) }
-    | 'i'                                    { PVar "i" }
-    | qubits                                 { PQubits (pack $1) }
-    | '[' Matrix ']'  %prec MAT              { PMatrix (reverse $2) }
-    | '(' int '^' int ',' '[' Matrix ']' ')' { PPair $2 $4 (reverse $7) }
+Atom : '(' LamRhoExp ')'                            { $2 }
+    | 'i'                                           { PVar "i" }
+    | var                                           { PVar (pack $1) }
+    | qubits                                        { PQubits (pack $1) }
+    | '[' Matrix ']'                                { PMatrix (reverse $2) }
+    | '(' int '^' int ',' '[' Matrix ']' ')'        { PPair $2 $4 (reverse $7) }
     
 
 
