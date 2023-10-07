@@ -17,8 +17,8 @@ data CompilerError  = UnificationFail QType QType
               | TypeNotQubits QType
               | TypeNotMeasuredQubits QType
               | UnificationMismatch [QType] [QType]
-              | InvalidOperatorSizes [TypeEq]
-              | InvalidOperatorSizesNotIntegerSolution [TypeEq]
+              | InvalidOperatorSizesNoSolution [TypeEq]
+              | InvalidOperatorSizesNotIntegerSolution Double [TypeEq]
               | InvalidOperatorSizesCheckFailed [TypeEq] Subst
               | VariableAlreadyInScope T.Text
               | VariablesUsedMoreThanOnce (S.Set T.Text)

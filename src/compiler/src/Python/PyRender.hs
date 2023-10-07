@@ -15,7 +15,7 @@ pyRenderStr = renderString . (layoutPretty layout) . pyRender
 
 pyRender :: PyExp -> Doc ()
 pyRender (PyVar v)            = pretty v
-pyRender (PyLambda "" exp)     = "lambda" <> colon <+> pyRender exp
+-- pyRender (PyLambda "" exp)     = "lambda" <> colon <+> pyRender exp
 pyRender (PyLambda v exp)     = "lambda" <+> pretty v <> colon <+> pyRender exp
 pyRender(PyFunCall exp1 exps) = callee exp1 <> parens (args exps)
     where
@@ -29,7 +29,6 @@ pyRender (PyInt n) = pretty n
 pyRender (PyFloat f) = pretty f
 pyRender (PyDiv a b) = parens (pyRender a) <> " // " <> parens (pyRender b)
 pyRender (PyDiff a b) = parens (pyRender a) <> " - " <> parens (pyRender b)
-pyRender (PyTimes (PyInt a) b) = pretty a <> "*" <> parens (pyRender b)
 pyRender (PyPower (PyInt a) b) = pretty a <> "**" <> parens (pyRender b)
 pyRender (PyComplex (r :+ i)) | i==0 = pretty r
                               | i>0 = pretty r <> " + " <> pretty i <> "j"

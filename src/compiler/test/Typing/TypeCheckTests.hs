@@ -9,14 +9,16 @@ import Typing.Hindley
 import           Typing.QType
 import           Typing.TypeEq
 import           Typing.TypeChecker
+import Typing.Robinson
 import           Test.Tasty.QuickCheck      as QC
 import           Test.Tasty.SmallCheck      as SC
 import qualified Data.Map             as M
+import Numeric.LinearProgramming
 
 testExp = runExcept.(withExcept show).typeCheck
 testStr = runExcept.(withExcept show).(typeCheck<=<parseLambdaRho)
 
-typeCheckTests = testGroup "typeCheckTests" [qubitTests, lambdaAppTests, projectorTests, noCloningTests, gateParamsTests, letcaseTests, otimesTests, eqSolvingTests, matrixTests]
+typeCheckTests = testGroup "typeCheckTests" [qubitTests, lambdaAppTests, projectorTests, noCloningTests, gateParamsTests, letcaseTests, otimesTests, eqSolvingTests, matrixTests, betterCoverageTests]
 
 qubitTests = testGroup "qubitTests"
   [ testCase "Single qubit" $
@@ -24,6 +26,31 @@ qubitTests = testGroup "qubitTests"
   , testCase "Multiple qubits" $
       testExp (PQubits "01+-") @?= Right (QTQubits 4)
   ]
+
+betterCoverageTests = testGroup "betterCoverageTests"
+  [ testCase "Bind var to itself" $ 
+      (runExcept.(withExcept show) $ (5 `bind` (QTVar 5))) @?= Right (M.empty)
+  , testCase "Bind infinite type" $ 
+      (runExcept.(withExcept show) $ (5 `bind` (QTFun (QTQubits 1) (QTVar 5)))) @?= Left "InfiniteType 5 $(1) -> V5$" 
+  , testCase "assertQubitOrVar var" $ 
+      (runExcept.(withExcept show) $ (assertQubitOrVar (QTVar 4))) @?= Right ()
+  , testCase "assertQubitOrVar qubits" $ 
+      (runExcept.(withExcept show) $ (assertQubitOrVar (QTQubits 100))) @?= Right ()
+  , testCase "getQubitSize not qubit" $ 
+      getQubitSize (QTVar 3) @?= Nothing
+  , testCase "verifyEq at least ok" $ 
+      verifyEq (AtLeastSizeEq [QTQubits 1,QTQubits 2,QTQubits 10] 12) @?= Just ()
+  , testCase "verifyEq sum ok" $ 
+      verifyEq (SumSizeEq [QTQubits 1,QTQubits 2,QTQubits 10] (QTQubits 13)) @?= Just ()
+  , testCase "verifyEq sum fail" $ 
+      verifyEq (SumSizeEq [QTQubits 1,QTQubits 2,QTQubits 10] (QTQubits 12)) @?= Nothing
+  , testCase "verifyEq not eq" $ 
+      verifyEq (EqualTypeEq (QTQubits 1) (QTQubits 2)) @?= Just ()
+  , testCase "solveLinear notInteger sol" $
+      (runExcept.(withExcept show) $ solveLinear 1 notIntSolution []) @?= Left "InvalidOperatorSizesNotIntegerSolution 1.5 []" 
+  ]
+  where
+      notIntSolution = Sparse [[(2#1)] :==: 3.0]
 
 lambdaAppTests = testGroup "lambdaAppTests"
   [ testCase "Identity" $
@@ -194,7 +221,7 @@ eqSolvingTests = testGroup "eqSolvingTests"
         Right (QTFun (QTQubits 4) (QTQubits 6))
   , testCase "Projection.unknown.letcase.applying.gate.lambda.eq.fail" $
       testStr "\\x. (letcase y=\\pi^2 x in {\\z.z \\otimes SWAP_2 y, \\z.y \\otimes SWAP z, \\z.y \\otimes z, \\z.\\ket{10101}}) \\ket{01}" @?=
-        Left "InvalidOperatorSizes [AtLeastSizeEq [$V2$] 2,AtLeastSizeEq [$V2$] 4,SumSizeEq [$(2)$,$V2$] $(5)$,AtLeastSizeEq [$(2)$] 2,SumSizeEq [$V2$,$(2)$] $(5)$,SumSizeEq [$V2$,$(2)$] $(5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2, V2)$ $(2, V2)$,AtLeastSizeEq [$V2$] 2,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$]"
+        Left "InvalidOperatorSizesNoSolution [AtLeastSizeEq [$V2$] 2,AtLeastSizeEq [$V2$] 4,SumSizeEq [$(2)$,$V2$] $(5)$,AtLeastSizeEq [$(2)$] 2,SumSizeEq [$V2$,$(2)$] $(5)$,SumSizeEq [$V2$,$(2)$] $(5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$,EqualTypeEq $(2, V2)$ $(2, V2)$,AtLeastSizeEq [$V2$] 2,EqualTypeEq $(2) -> (5)$ $(2) -> (5)$]"
   , testCase "Projection.unknown.letcase.applying.gate" $
       testStr "\\x. letcase y=\\pi^2 x in {SWAP_11 y, SWAP_10 y, y, y}" @?=
         Right (QTFun (QTQubits 13) (QTQubits 13))
@@ -203,7 +230,7 @@ eqSolvingTests = testGroup "eqSolvingTests"
         Left "UnboundVariable \"z\""
   , testCase "sumeq fail" $
       testStr "letcase ym=\\pi^1 \\ket{+} in {\\ket{1}\\otimes\\ket{11}, \\ket{0}\\otimes\\ket{0}}" @?=
-       Left "InvalidOperatorSizes [AtLeastSizeEq [$(1)$] 1,SumSizeEq [$(1)$,$(2)$] $V2$,SumSizeEq [$(1)$,$(1)$] $V2$,EqualTypeEq $V2$ $V2$,EqualTypeEq $(1, 1)$ $(1, 1)$,AtLeastSizeEq [$(1)$] 1]"
+       Left "InvalidOperatorSizesNoSolution [AtLeastSizeEq [$(1)$] 1,SumSizeEq [$(1)$,$(2)$] $V2$,SumSizeEq [$(1)$,$(1)$] $V2$,EqualTypeEq $V2$ $V2$,EqualTypeEq $(1, 1)$ $(1, 1)$,AtLeastSizeEq [$(1)$] 1]"
   , testCase "Projection on 2 unknowns with letcase" $
       testStr "\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))

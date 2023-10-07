@@ -125,9 +125,9 @@ solveLinear numCols constraints eqs = convert (simplex optimization constraints 
     convert :: Solution -> ExceptInfer [Double]
     convert (Feasible (_, s)) = return s
     convert (Optimal (_, s))  = return s
-    convert _                 = throwError $ InvalidOperatorSizes eqs
+    convert _                 = throwError $ InvalidOperatorSizesNoSolution eqs
     roundOrFail :: Double -> ExceptInfer Int
-    roundOrFail x = when (x /= fromInteger (round x)) (throwError $ InvalidOperatorSizesNotIntegerSolution eqs) >> return (round x)
+    roundOrFail x = when (x /= fromInteger (round x)) (throwError $ InvalidOperatorSizesNotIntegerSolution x eqs) >> return (round x)
     roundsOrFails :: [Double] -> ExceptInfer [Int]
     roundsOrFails xs = sequence (roundOrFail <$> xs)
 

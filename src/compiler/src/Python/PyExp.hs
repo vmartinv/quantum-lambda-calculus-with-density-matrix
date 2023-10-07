@@ -10,7 +10,6 @@ data PyExp = PyInt Int
           | PyVar T.Text
           | PyDiv PyExp PyExp
           | PyDiff PyExp PyExp
-          | PyTimes PyExp PyExp
           | PyPower PyExp PyExp
           | PyPair PyExp PyExp
           | PyLambda T.Text PyExp
