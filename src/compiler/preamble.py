@@ -24,6 +24,21 @@ class Circuit:
         self.circuit.initialize(params=state)
         self.circuit = transpile(self.circuit, backend=Circuit.BACKEND, basis_gates=Circuit.BASIS_GATES)
 
+    @staticmethod
+    def fromInt(n, m):
+        qubits = "{0:b}".format(m).zfill(n)
+        purified = [val for pair in zip(qubits, qubits) for val in pair]
+        state = [1]
+        for q in purified:
+            qv = [[1, 0], [0, 1]][int(q)]
+            state = [v*q for v in state for q in qv]
+        if Circuit.DEBUG:
+            print("fromInt called: ", n, m, len(state))
+        return Circuit(state)
+
+    def size(self):
+        return self.n
+
     def u(self, th: float, ph: float, la: float, q: int):
         self.circuit.u(th, ph, la, q)
         return self
@@ -119,5 +134,6 @@ class Circuit:
             .compose(circuit2, inplace=True)
         return self
 
-def letcase(result: int, cases):
-    return cases[result]()
+def letcase(result: ((int, int), Circuit), cases):
+    ((b, _m), rho) = result
+    return cases[b](rho)

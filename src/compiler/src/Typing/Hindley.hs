@@ -136,7 +136,7 @@ hindley ex = case ex of
   PPair b m rho -> do
     n <- (lift . lift) (getMatrixSize rho)
     when (b<0 || m<1 || b>=2^m || m>n) (throwError $ InvalidPair b m rho)
-    return (QTMeasuredQubits n (QTQubits m), [])
+    return (QTMeasuredQubits m (QTQubits n), [])
 
   PGateApp gate@(PGate _n _a offset) e -> do
     (t, eq) <- hindley e

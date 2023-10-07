@@ -28,17 +28,21 @@ translationTests = testGroup "translationTests"
   , testCase "matrix" $
     translateStr (PMatrix [[0:+1, 1:+(-1)],[(-3.1415):+0,0.123:+ (99999e3)]]) @?= "Circuit([0.7071067589725651 + 0.7071067811865474j,2.22139819202576e-8 - 2.221398116775141e-8j,8.697547077083506e-14 - 1.4142206476362872e-4j,7071.032460786757 + 7071.032452089297j,])"
   , testCase "projector" $
-    translateStr (PProjector 1 (PQubits "0")) @?= qubit0Str<>".measure(0)"
+    translateStr (PProjector 1 (PQubits "0")) @?=
+      "(lambda _rho: (lambda _r: (((_r) // (2**(((_rho.size()) // (2)) - (1))), 1), Circuit.fromInt((_rho.size()) // (2),_r)))(_rho.measure(*range(0,_rho.size(),2))))("<>qubit0Str<>")"
   , testCase "show fun name" $
     pyRenderStr (PyFun "asdf") @?= "asdf"
   , testCase "lambda and projector" $
-    translateStr (PLambda "x" (PProjector 1 (PVar "x"))) @?= "lambda x: x.measure(0)"
+    translateStr (PLambda "x" (PProjector 1 (PVar "x"))) @?=
+      "lambda x: (lambda _rho: (lambda _r: (((_r) // (2**(((_rho.size()) // (2)) - (1))), 1), Circuit.fromInt((_rho.size()) // (2),_r)))(_rho.measure(*range(0,_rho.size(),2))))(x)"
   , testCase "gate" $
     translateStr (PGateApp (PGate "CU" [1,2,3] 8) (PVar "x")) @?= "x.cu(1.0,2.0,3.0)"
   , testCase "Letcase" $
-    translateStr (PLetCase "y" (PProjector 1 (PQubits "1")) [PQubits "1",PQubits "0"]) @?= "letcase("<>qubit1Str<>".measure(0),[lambda: "<>qubit1Str<>",lambda: "<>qubit0Str<>",])"
+    translateStr (PLetCase "y" (PProjector 1 (PQubits "1")) [PQubits "1",PQubits "0"]) @?=
+      "letcase((lambda _rho: (lambda _r: (((_r) // (2**(((_rho.size()) // (2)) - (1))), 1), Circuit.fromInt((_rho.size()) // (2),_r)))(_rho.measure(*range(0,_rho.size(),2))))("<>qubit1Str<>"),[lambda y: "<>qubit1Str<>",lambda y: "<>qubit0Str<>",])"
   , testCase "add one two qubits" $
-    translateStr (PLambda "x" (PLetCase "y" (PProjector 1 (PVar "x")) [PQubits "1",PQubits "0"])) @?= "lambda x: letcase(x.measure(0),[lambda: "<>qubit1Str<>",lambda: "<>qubit0Str<>",])"
+    translateStr (PLambda "x" (PLetCase "y" (PProjector 1 (PVar "x")) [PQubits "1",PQubits "0"])) @?=
+      "lambda x: letcase((lambda _rho: (lambda _r: (((_r) // (2**(((_rho.size()) // (2)) - (1))), 1), Circuit.fromInt((_rho.size()) // (2),_r)))(_rho.measure(*range(0,_rho.size(),2))))(x),[lambda y: "<>qubit1Str<>",lambda y: "<>qubit0Str<>",])"
   ]
   where
       qubit0Str = translateStr (PQubits "0")

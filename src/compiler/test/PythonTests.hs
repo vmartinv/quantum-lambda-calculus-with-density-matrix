@@ -49,23 +49,27 @@ basicTests = testGroup "basicTests"
   , testCase "Preamble test" $
     runPy "import preamble" >>= (@?= "")
   , testCase "PI0" $
-    fullProg "\\pi^1 \\ket{0}" >>= runPy >>= (@?= "0\n")
-  , testCase "PI1" $
-    fullProg "\\pi^1 \\ket{1}" >>= runPy >>= (@?= "1\n")
+    fullProg "\\pi^1 \\ket{0}" >>= runPy >>= isClassicMeasurement 0
+  , testCase "pair letcase" $
+    fullProg "letcase x=(0^1, [[1,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]) in {x, \\ket{11}}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,1.0)]))
+  , testCase "pair letcase 1" $
+    fullProg "letcase x=(1^1, [[1,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]) in {x, \\ket{11}}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(3,1.0)]))
+  , testCase "PI1" $ 
+    fullProg "\\pi^1 \\ket{1}" >>= runPy >>= isClassicMeasurement 1
   , testCase "PI00" $
-    fullProg "\\pi^2 \\ket{00}" >>= runPy >>= (@?= "0\n")
+    fullProg "\\pi^2 \\ket{00}" >>= runPy >>= isClassicMeasurement 0
   , testCase "PI01" $
-    fullProg "\\pi^2 \\ket{01}" >>= runPy >>= (@?= "1\n")
+    fullProg "\\pi^2 \\ket{01}" >>= runPy >>= isClassicMeasurement 1
   , testCase "PI10" $
-    fullProg "\\pi^2 \\ket{10}" >>= runPy >>= (@?= "2\n")
+    fullProg "\\pi^2 \\ket{10}" >>= runPy >>= isClassicMeasurement 2
   , testCase "PI11" $
-    fullProg "\\pi^2 \\ket{11}" >>= runPy >>= (@?= "3\n")
+    fullProg "\\pi^2 \\ket{11}" >>= runPy >>= isClassicMeasurement 3
   , testCase "PI111" $
-    fullProg "\\pi^3 \\ket{111}" >>= runPy >>= (@?= "7\n")
+    fullProg "\\pi^3 \\ket{111}" >>= runPy >>=isClassicMeasurement 7
   , testCase "PI110" $
-    fullProg "\\pi^3 \\ket{110}" >>= runPy >>= (@?= "6\n")
+    fullProg "\\pi^3 \\ket{110}" >>= runPy >>= isClassicMeasurement 6
   , testCase "PI1010" $
-    fullProg "\\pi^4 \\ket{1010}" >>= runPy >>= (@?= "10\n")
+    fullProg "\\pi^4 \\ket{1010}" >>= runPy >>= isClassicMeasurement 10
   , testCase "00" $
     fullProg "\\ket{00}" >>= runPy >>= (@?= "{\"0\": 1.0}\n")
   , testCase "11" $
@@ -80,24 +84,24 @@ basicTests = testGroup "basicTests"
   , testCase "plusplus" $
     fullProg "\\ket{++}" >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(0,0.25),(1,0.25),(2,0.25),(3,0.25)]))
   , testCase "lambda 11" $
-    fullProg "\\pi^2 ((\\x. x) \\ket{11})" >>= runPy >>= (@?= "3\n")
+    fullProg "\\pi^2 ((\\x. x) \\ket{11})" >>= runPy >>= isClassicMeasurement 3
   ]
 
 gateTests = testGroup "gateTests"
   [ testCase "x1" $
-    fullProg ("\\pi^1 "<>gateX 0<>"\\ket{1}") >>= runPy >>= (@?= "0\n")
+    fullProg ("\\pi^1 "<>gateX 0<>"\\ket{1}") >>= runPy >>= isClassicMeasurement 0
   , testCase "x000" $
-    fullProg ("\\pi^3 "<>gateX 2<>gateX 1<>" \\ket{000}") >>= runPy >>= (@?= "6\n")
+    fullProg ("\\pi^3 "<>gateX 2<>gateX 1<>" \\ket{000}") >>= runPy >>= isClassicMeasurement 6
   , testCase "h0" $
     fullProg (gateH 0<>" \\ket{110}") >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(6,0.5),(7,0.5)]))
   , testCase "h0letcase" $
-    fullProg ("\\pi^2 (letcase y=\\pi^1 "<>gateH 0<>" \\ket{0} in {\\ket{11}, \\ket{11}})") >>= runPy >>= (@?= "3\n")
+    fullProg ("\\pi^2 (letcase y=\\pi^1 "<>gateH 0<>" \\ket{0} in {\\ket{11}, \\ket{11}})") >>= runPy >>= isClassicMeasurement 3
   , testCase "cnot1" $
-    fullProg ("\\pi^3 "<>gateCNOT 1<>" \\ket{110}") >>= runPy >>= (@?= "2\n")
+    fullProg ("\\pi^3 "<>gateCNOT 1<>" \\ket{110}") >>= runPy >>= isClassicMeasurement 2
   , testCase "cnot0" $
-    fullProg ("\\pi^3 "<>gateCNOT 1<>" \\ket{010}") >>= runPy >>= (@?= "6\n")
+    fullProg ("\\pi^3 "<>gateCNOT 1<>" \\ket{010}") >>= runPy >>= isClassicMeasurement 6
   , testCase "swap" $
-    fullProg ("\\pi^2 SWAP_0 \\ket{01}") >>= runPy >>= (@?= "2\n")
+    fullProg ("\\pi^2 SWAP_0 \\ket{01}") >>= runPy >>= isClassicMeasurement 2
   ]
   where
     gateX p = "U^{3.14159265359, 0, 3.14159265359}_"<>show p
@@ -106,7 +110,7 @@ gateTests = testGroup "gateTests"
 
 multiTests = testGroup "multiTests"
   [ testCase "lambda" $
-    fullProg ("\\pi^1 ((\\x.\\y.x) \\ket{0} \\ket{1})") >>= runPy >>= (@?= "0\n")
+    fullProg ("\\pi^1 ((\\x.\\y.x) \\ket{0} \\ket{1})") >>= runPy >>= isClassicMeasurement 0
   , testCase "otimes1" $
       fullProg "\\ket{0} \\otimes \\ket{1}"
         >>= runPy >>= decodeMeasurement >>= st . (approxEqualMeasurement (M.fromList [(1,1.0)]))

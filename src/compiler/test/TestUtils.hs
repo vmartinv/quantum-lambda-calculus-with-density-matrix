@@ -57,6 +57,12 @@ matchesRegex reg out =
     match = out =~ reg
     errorMsg = "Output doesn't match regex.\nOutput:\n"<>out<>"\nRegex:\n"<>reg
 
+isClassicMeasurement :: Int -> String -> Assertion
+isClassicMeasurement val out = st $
+    matchesRegex regex (T.pack out)
+  where
+    regex = T.pack $ "\\(\\("<>show val<>", [0-9]+\\), <preamble.Circuit object at 0x[0-9a-f]+>\\)\n"
+
 removeWhiteSpaces :: T.Text -> T.Text
 removeWhiteSpaces =  T.replace "    " "" . T.replace "\n" ""
 

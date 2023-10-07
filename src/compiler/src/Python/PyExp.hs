@@ -8,6 +8,10 @@ data PyExp = PyInt Int
           | PyComplex (Complex Double)
           -- | PyString T.Text
           | PyVar T.Text
+          | PyDiv PyExp PyExp
+          | PyDiff PyExp PyExp
+          | PyTimes PyExp PyExp
+          | PyPower PyExp PyExp
           | PyPair PyExp PyExp
           | PyLambda T.Text PyExp
           | PyFun T.Text

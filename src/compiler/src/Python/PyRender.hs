@@ -22,10 +22,15 @@ pyRender(PyFunCall exp1 exps) = callee exp1 <> parens (args exps)
       callee (PyFun name)             = pretty name
       callee (PyObjMethod obj method) = pyRender obj <> dot <> pretty method
       callee exp                      = parens $ pyRender exp
+      args [] = ""
       args [x] = pyRender x
       args xs  = enclose line line $ indent 4 $ vsep $ punctuate comma $ (pyRender <$> xs)
 pyRender (PyInt n) = pretty n
 pyRender (PyFloat f) = pretty f
+pyRender (PyDiv a b) = parens (pyRender a) <> " // " <> parens (pyRender b)
+pyRender (PyDiff a b) = parens (pyRender a) <> " - " <> parens (pyRender b)
+pyRender (PyTimes (PyInt a) b) = pretty a <> "*" <> parens (pyRender b)
+pyRender (PyPower (PyInt a) b) = pretty a <> "**" <> parens (pyRender b)
 pyRender (PyComplex (r :+ i)) | i==0 = pretty r
                               | i>0 = pretty r <> " + " <> pretty i <> "j"
                               | otherwise = pretty r <> " - " <> pretty (-i) <> "j"

@@ -22,11 +22,19 @@ translate (PPair b m rho) = PyPair (PyPair (PyInt b) (PyInt m)) (translate (PMat
 translate (PGateApp gate exp) = PyFunCall (PyObjMethod (translate exp) gateName) gateArgs
   where
     (gateName, gateArgs) = translateGate gate
-translate (PProjector n exp) = PyFunCall (PyObjMethod (translate exp) "measure") (PyInt <$> [0,2..2*n-1])
+translate (PProjector m exp) = 
+    PyFunCall (PyLambda "_rho" (PyFunCall (PyLambda "_r" buildPair) [measure])) [rho]
+  where
+    rho = translate exp
+    n = PyFunCall (PyObjMethod (PyVar "_rho") "size") []
+    measure = PyFunCall (PyObjMethod (PyVar "_rho") "measure") [PyFunCall (PyFun "*range") [PyInt 0, n, PyInt 2]]
+    b = (PyVar "_r") `PyDiv` ((PyInt 2) `PyPower` ((n `PyDiv` (PyInt 2)) `PyDiff` (PyInt m))) -- r // (2**(n-m))
+    rho' = PyFunCall (PyFun "Circuit.fromInt") [n `PyDiv` (PyInt 2), PyVar "_r"]
+    buildPair = (b `PyPair` (PyInt m)) `PyPair` rho' -- ((b, m), rho)
 translate (POtimesExp exp1 exp2) = PyFunCall (PyObjMethod (translate exp1) "compose") [translate exp2]
 translate (PLetCase v exp exps) = PyFunCall (PyFun "letcase") [translate exp, PyList cases]
   where
-    cases = (PyLambda "".translate) <$> exps
+    cases = (PyLambda v.translate) <$> exps
 
 translateGate :: PGate -> (T.Text, [PyExp])
 translateGate gdef@(PGate name params offset) =

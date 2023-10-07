@@ -48,10 +48,10 @@ compilerTests = testGroup "compilerTests"
     compiStr "\\f. \\x. f x" @?= Right ("$((1) -> (1)) -> ((1) -> (1))$", "lambda f: lambda x: (f)(x)")
   , testCase "add one one qubit" $
     compiStr "\\x.letcase y=\\pi^1 x in {\\ket{1}, \\ket{0}}" @?= Right
-      ("$(1) -> (1)$","lambda x: letcase(x.measure(0),[lambda: "<>qubit1Str<>",lambda: "<>qubit0Str<>",])")
+      ("$(1) -> (1)$","lambda x: letcase((lambda _rho: (lambda _r: (((_r) // (2**(((_rho.size()) // (2)) - (1))), 1), Circuit.fromInt((_rho.size()) // (2),_r)))(_rho.measure(*range(0,_rho.size(),2))))(x),[lambda y: Circuit([0.0, 0.0, 0.0, 1.0,]),lambda y: Circuit([1.0, 0.0, 0.0, 0.0,]),])")
   , testCase "pair" $
-    compiStr "(2^3, \\ket{01010})" @?= Right
-      ("$(3, 5)$","((3, 5), Circuit())")
+    compiStr "(0^1, [[1,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]])" @?= Right
+      ("$(1, 2)$","((0, 1), Circuit([1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,]))")
   ]
   where
     qubit1Str = translateStr (PQubits "1")
