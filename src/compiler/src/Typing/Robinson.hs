@@ -53,7 +53,7 @@ unifyMany typeEqs = foldM f emptySubst (reverse typeEqs)
 -- core algorithm
 robinson :: [TypeEq] -> ExceptInfer Subst
 robinson eqs = do
-  su1 <- dprint "su1" $ unifyMany $ dprint "robinsonEqs" $ eqs
+  su1 <- dprint "unifyMany" $ unifyMany $ dprint "robinsonEqs" $ eqs
   let eqs' = apply su1 eqs
   su2 <- dprint "solveSumsAndInequalities" $ solveSumsAndInequalities eqs'
   verifyEqsAfterSubst eqs' su2
@@ -67,8 +67,8 @@ simplify eqs = (q, [v | QTVar v <- eqs])
     q = sum [q | QTQubits q <- eqs]
 
 
-getLinearEquations :: Int -> [TypeEq] -> Constraints
-getLinearEquations numCols eqs = Sparse $ catMaybes $ makeRow <$> eqs
+getLinearEquations :: [TypeEq] -> Constraints
+getLinearEquations eqs = Sparse $ catMaybes $ makeRow <$> eqs
   where
     setValue value var = value#(1+var)
     makeRow :: TypeEq -> Maybe (Bound [(Double, VariableId)])
@@ -87,7 +87,7 @@ getLinearEquations numCols eqs = Sparse $ catMaybes $ makeRow <$> eqs
 solveSumsAndInequalities :: [TypeEq] -> ExceptInfer Subst
 solveSumsAndInequalities eqs | not (S.null (ftv eqs)) = do
   let numCols = S.findMax (ftv eqs) + 1
-      linEq = getLinearEquations numCols $ dprint "solveSums" $ eqs
+      linEq = getLinearEquations $ dprint "solveSums" $ eqs
   sol <- solveLinear numCols linEq eqs
   unifyMany [EqualTypeEq (QTVar v) (QTQubits q) | (v, q) <- (zip [0..] sol), v `S.member` (ftv eqs)]
 solveSumsAndInequalities _ = return M.empty
@@ -97,15 +97,15 @@ getQubitSize (QTQubits q) = return q
 getQubitSize t            = Nothing
 
 verifyEq :: TypeEq -> Maybe ()
+verifyEq (AtLeastSizeEq ls right) = do
+  left <- sum <$> sequence (getQubitSize <$> ls)
+  if (left>=right)
+    then Just ()
+    else Nothing
 verifyEq (SumSizeEq ls q) = do
   left <- sum <$> sequence (getQubitSize <$> ls)
   right <- getQubitSize q
   if (left==right)
-    then Just ()
-    else Nothing
-verifyEq (AtLeastSizeEq ls right) = do
-  left <- sum <$> sequence (getQubitSize <$> ls)
-  if (left>=right)
     then Just ()
     else Nothing
 verifyEq _ = Just ()
@@ -118,7 +118,6 @@ verifyEqsAfterSubst eqs su =
       verifyMaybe = sequence_ $ verifyEq <$> (apply su eqs)
 
 solveLinear :: Int -> Constraints -> [TypeEq] -> ExceptInfer [Int]
-solveLinear 0 _ _ = return []
 solveLinear numCols constraints eqs = convert (simplex optimization constraints varBounds) >>= roundsOrFails
   where
     varBounds = [i :>=: 1 | i <- [1..numCols]]

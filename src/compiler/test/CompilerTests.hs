@@ -49,6 +49,9 @@ compilerTests = testGroup "compilerTests"
   , testCase "add one one qubit" $
     compiStr "\\x.letcase y=\\pi^1 x in {\\ket{1}, \\ket{0}}" @?= Right
       ("$(1) -> (1)$","lambda x: letcase(x.measure(0),[lambda: "<>qubit1Str<>",lambda: "<>qubit0Str<>",])")
+  , testCase "pair" $
+    compiStr "(2^3, \\ket{01010})" @?= Right
+      ("$(3, 5)$","((3, 5), Circuit())")
   ]
   where
     qubit1Str = translateStr (PQubits "1")

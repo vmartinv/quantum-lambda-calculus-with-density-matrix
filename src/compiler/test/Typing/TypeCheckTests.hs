@@ -45,6 +45,8 @@ projectorTests = testGroup "projectorTests"
   [ testCase "Double projector" $
     testStr "\\pi^1 \\pi^1 \\ket{0}" @?=
       Left "TypeNotQubits $(1, 1)$"
+  , testCase "zero projector" $
+    testExp (PProjector 0 (PQubits "0")) @?= Left "InvalidProjectorSize 0"
   , testCase "Lambda with projector" $
       testExp (PLambda "x" (PProjector 1 (PVar "x"))) @?= Right (QTFun (QTQubits 1) (QTMeasuredQubits 1 (QTQubits 1)))
   , testCase "qubit.with.too.big.projector" $
@@ -199,6 +201,9 @@ eqSolvingTests = testGroup "eqSolvingTests"
   , testCase "trying to use var inside letcase" $
       testStr "\\z.\\x. letcase y=\\pi^2 x in {z, \\ket{0}}" @?=
         Left "UnboundVariable \"z\""
+  , testCase "sumeq fail" $
+      testStr "letcase ym=\\pi^1 \\ket{+} in {\\ket{1}\\otimes\\ket{11}, \\ket{0}\\otimes\\ket{0}}" @?=
+       Left "InvalidOperatorSizes [AtLeastSizeEq [$(1)$] 1,SumSizeEq [$(1)$,$(2)$] $V2$,SumSizeEq [$(1)$,$(1)$] $V2$,EqualTypeEq $V2$ $V2$,EqualTypeEq $(1, 1)$ $(1, 1)$,AtLeastSizeEq [$(1)$] 1]"
   , testCase "Projection on 2 unknowns with letcase" $
       testStr "\\x.\\y. letcase ym=\\pi^3 (x \\otimes y) in {\\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}, \\ket{0}}" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTQubits 1)))
