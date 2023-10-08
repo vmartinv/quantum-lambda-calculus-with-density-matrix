@@ -3,6 +3,7 @@ module Typing.MatrixChecker where
 import           CompilerError
 import           Control.Monad.Except
 import           Data.Complex
+import           Data.Matrix as M
 import           Utils
 
 getMatrixSize :: [[Complex Double]] -> ExceptInfer Int
@@ -14,4 +15,6 @@ getMatrixSize m = do
   let q = log2 n
   when ((2^q) /= n) (throwError $ MatrixIsNotAPowerOfTwo m)
   when (q==0) (throwError $ MatrixHasZeroQubits m)
+  let tr = trace (M.fromLists m)
+  when (magnitude (tr-1.0) >= 1e-9) (throwError $ MatrixTraceNot1 m tr)
   return q

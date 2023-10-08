@@ -80,7 +80,7 @@ getLinearEquations eqs = Sparse $ catMaybes $ makeRow <$> eqs
     makeRow (AtLeastSizeEq ls qr) =
         Just (row :>=: fromIntegral (qr-ql))
       where (ql, vl) = simplify ls
-            row = (setValue 1 <$> vl)
+            row = setValue 1 <$> vl
     makeRow _eq = Nothing
 
 -- given the sum equations returns a map from variables to their assigned size

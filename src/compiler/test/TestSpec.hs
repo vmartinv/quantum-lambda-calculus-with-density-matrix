@@ -21,5 +21,5 @@ tests = testGroup "tests"
     , purificationTests
     , translationTests
     , compilerTests
-    -- , pythonTests
+    , pythonTests
     ]

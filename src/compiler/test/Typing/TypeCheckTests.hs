@@ -242,10 +242,12 @@ eqSolvingTests = testGroup "eqSolvingTests"
 matrixTests = testGroup "matrixTests"
   [ testCase "Zero qubit matrix" $
       testExp (PMatrix [[1]]) @?= Left "MatrixHasZeroQubits [[1.0 :+ 0.0]]"
+  , testCase "Invalid matrix trace" $
+      testExp (PMatrix [[1,0],[0,0.1]]) @?= Left "MatrixTraceNot1 [[1.0 :+ 0.0,0.0 :+ 0.0],[0.0 :+ 0.0,0.1 :+ 0.0]] (1.1 :+ 0.0)"
   , testCase "Single qubit matrix" $
-      testExp (PMatrix [[1,2],[3,4]]) @?= Right (QTQubits 1)
+      testExp (PMatrix [[1,0],[0,0]]) @?= Right (QTQubits 1)
   , testCase "Triple qubit matrix" $
-      testExp (PMatrix [[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8]]) @?= Right (QTQubits 3)
+      testExp (PMatrix [[0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,1]]) @?= Right (QTQubits 3)
   , QC.testProperty "big numbers matrix" $
       (\x -> testExp (PMatrix (replicate 8 (replicate 8 x))) /= Right (QTQubits 8)) . QC.getNonZero
   , testCase "Non square row matrix" $
@@ -257,7 +259,7 @@ matrixTests = testGroup "matrixTests"
   , testCase "Matrix not power of 2" $
       testExp (PMatrix [[1,2,3],[1,2,3],[1,2,3]]) @?= Left "MatrixIsNotAPowerOfTwo [[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0],[1.0 :+ 0.0,2.0 :+ 0.0,3.0 :+ 0.0]]"
   , testCase "Pair with qubit matrix" $
-      testExp (PPair 1 1 [[1,2],[3,4]]) @?= Right (QTMeasuredQubits 1 (QTQubits 1))
+      testExp (PPair 1 1 [[0,0],[0,1]]) @?= Right (QTMeasuredQubits 1 (QTQubits 1))
   , testCase "Pair with qubit matrix with invalid result" $
-      testExp (PPair 2 2 [[1,2],[3,4]]) @?= Left "InvalidPair 2 2 [[1.0 :+ 0.0,2.0 :+ 0.0],[3.0 :+ 0.0,4.0 :+ 0.0]]"
+      testExp (PPair 2 2 [[0,0],[0,1]]) @?= Left "InvalidPair 2 2 [[0.0 :+ 0.0,0.0 :+ 0.0],[0.0 :+ 0.0,1.0 :+ 0.0]]"
   ]
