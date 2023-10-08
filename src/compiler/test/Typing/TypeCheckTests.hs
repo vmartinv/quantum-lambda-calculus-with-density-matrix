@@ -4,6 +4,7 @@ import           Parsing.LamRhoExp
 import           Parsing.LamRhoParser
 import           Test.Tasty
 import           Test.Tasty.HUnit
+import Data.Complex
 import CompilerError
 import Typing.Hindley
 import           Typing.QType
@@ -244,6 +245,8 @@ matrixTests = testGroup "matrixTests"
       testExp (PMatrix [[1]]) @?= Left "MatrixHasZeroQubits [[1.0 :+ 0.0]]"
   , testCase "Invalid matrix trace" $
       testExp (PMatrix [[1,0],[0,0.1]]) @?= Left "MatrixTraceNot1 [[1.0 :+ 0.0,0.0 :+ 0.0],[0.0 :+ 0.0,0.1 :+ 0.0]] (1.1 :+ 0.0)"
+  , testCase "Invalid matrix not positive" $
+      testExp (PMatrix [[1,1],[0:+1,0]]) @?= Left "MatrixNotPositive [[1.0 :+ 0.0,1.0 :+ 0.0],[0.0 :+ 1.0,0.0 :+ 0.0]] [1.3002425902201207 :+ 0.624810533843827,(-0.30024259022012034) :+ (-0.6248105338438266)]"
   , testCase "Single qubit matrix" $
       testExp (PMatrix [[1,0],[0,0]]) @?= Right (QTQubits 1)
   , testCase "Triple qubit matrix" $
