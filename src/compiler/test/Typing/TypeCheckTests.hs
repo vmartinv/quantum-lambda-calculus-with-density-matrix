@@ -47,11 +47,7 @@ betterCoverageTests = testGroup "betterCoverageTests"
       verifyEq (SumSizeEq [QTQubits 1,QTQubits 2,QTQubits 10] (QTQubits 12)) @?= Nothing
   , testCase "verifyEq not eq" $ 
       verifyEq (EqualTypeEq (QTQubits 1) (QTQubits 2)) @?= Just ()
-  , testCase "solveLinear notInteger sol" $
-      (runExcept.(withExcept show) $ solveLinear 1 notIntSolution []) @?= Left "InvalidOperatorSizesNotIntegerSolution 1.5 []" 
   ]
-  where
-      notIntSolution = Sparse [[(2#1)] :==: 3.0]
 
 lambdaAppTests = testGroup "lambdaAppTests"
   [ testCase "Identity" $
@@ -229,6 +225,9 @@ eqSolvingTests = testGroup "eqSolvingTests"
   , testCase "x+y>=3" $
       testStr "\\x.\\y. \\pi^3 (x\\otimes y)" @?=
         Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTMeasuredQubits 3 (QTQubits 3))))
+  , testCase "ejemplo2.2" $
+      testStr "letcase x=\\pi^2 \\ket{00} in {\\a.\\b.\\c. a \\otimes b, \\a.\\b.\\c. b \\otimes c, \\a.\\b.\\c. a \\otimes c,  \\a.\\b.\\c. \\ket{00000}}" @?=
+        Left "InvalidOperatorSizesNotIntegerSolution 2.5 [AtLeastSizeEq [$(2)$] 2,SumSizeEq [$V5$,$V6$] $(5)$,SumSizeEq [$V6$,$V7$] $(5)$,SumSizeEq [$V5$,$V7$] $(5)$,EqualTypeEq $V5 -> (V6 -> (V7 -> (5)))$ $V5 -> (V6 -> (V7 -> (5)))$,EqualTypeEq $V5 -> (V6 -> (V7 -> (5)))$ $V5 -> (V6 -> (V7 -> (5)))$,EqualTypeEq $V5 -> (V6 -> (V7 -> (5)))$ $V5 -> (V6 -> (V7 -> (5)))$,EqualTypeEq $(2, 2)$ $(2, 2)$,AtLeastSizeEq [$(2)$] 2]"
   , testCase "trying to use var inside letcase" $
       testStr "\\z.\\x. letcase y=\\pi^2 x in {z, \\ket{0}}" @?=
         Left "UnboundVariable \"z\""
