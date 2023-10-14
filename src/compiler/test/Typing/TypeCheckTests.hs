@@ -226,6 +226,9 @@ eqSolvingTests = testGroup "eqSolvingTests"
   , testCase "Projection.unknown.letcase.applying.gate" $
       testStr "\\x. letcase y=\\pi^2 x in {SWAP_11 y, SWAP_10 y, y, y}" @?=
         Right (QTFun (QTQubits 13) (QTQubits 13))
+  , testCase "x+y>=3" $
+      testStr "\\x.\\y. \\pi^3 (x\\otimes y)" @?=
+        Right (QTFun (QTQubits 2) (QTFun (QTQubits 1) (QTMeasuredQubits 3 (QTQubits 3))))
   , testCase "trying to use var inside letcase" $
       testStr "\\z.\\x. letcase y=\\pi^2 x in {z, \\ket{0}}" @?=
         Left "UnboundVariable \"z\""
