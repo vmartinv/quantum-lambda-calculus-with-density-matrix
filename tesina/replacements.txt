@@ -1,0 +1,25 @@
+# Empty lines beginning with a pound sign are ignored
+# Search and replace patterns are separated by a tab
+# find    replace
+# foo     bar
+# Patterns can also be regular expressions
+\\texorpdfstring\{(.*)\}\{(.*)\}	                $1  $2 
+\\(begin|end)\{observacion\}	\$1{center}     
+\\(begin|end)\{ejemplo\}	\$1{center} 
+\\(begin|end)\{ejemplos\}	\$1{center}  
+\\(begin|end)\{definicion\}	\$1{center}    
+\\(begin|end)\{teorema\}	\$1{center} 
+\\(begin|end)\{proof\}	\$1{center}
+\\(begin|end)\{corolario\}	\$1{center}   
+\\(begin|end)\{propiedades\}	\$1{center}     
+\\(begin|end)\{lema\}	\$1{center}
+\\begin\{adjustwidth\}\{.*\}\{.*\}	\begin{center}          
+\\end\{adjustwidth\}	\end{center}     
+\\(begin|end)\{spacing\}(\{.*\})?	\$1{center} 
+\\(begin|end)\{description\}	\$1{itemize}    
+\\begin\{multicols\}\{\d+\}	\begin{center}      
+\\end\{multicols\}	\end{center}
+\\(begin|end)\{displayquote\}	\$1{center}      
+\\(begin|end)\{figure\}	\$1{Figure}      
+\\(begin|end)\{titlepage\}	\$1{center}   
+\\(begin|end)\{it\}	\$1{center}
