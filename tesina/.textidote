@@ -3,7 +3,7 @@
 --firstlang en
 --dict dict.txt
 --replace replacements.txt
---remove gather*,bmatrix,verbatim,flalign*,bsmallmatrix,cases,equation,equation*,tabular,align,align*,split,tikzpicture,mdframed,array
---remove-macros qed,item,raisebox,infer,baselineskip,pagenumbering,blankpage,cleardoublepage,tableofcontents,centering,bfseries,onehalfspacing,thetitle,textwidth,thedate,theauthor,vfill,addcontentsline,leavevmode,smallskip,footnotemark,linebreak,newline,label
+--remove verbatim,tikzpicture
+--remove-macros qed,qedhere,raisebox,baselineskip,pagenumbering,blankpage,cleardoublepage,tableofcontents,centering,bfseries,onehalfspacing,thetitle,textwidth,thedate,theauthor,vfill,addcontentsline,leavevmode,smallskip,footnotemark,linebreak,newline,includegraphics,rule,vspace,conlista,columnbreak
 --ignore lt:es:SINGLE_CHARACTER,sh:seclen,sh:nsubdiv,sh:figref
 "Traduccion de lambda rho a Qiskit/main.tex"

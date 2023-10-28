@@ -1,7 +1,6 @@
 Qiskit
 Hindley
 tipado
-Tipado
 correctitud
 NP
 tipada
@@ -11,15 +10,8 @@ Simplex
 tipar
 qubit
 qubits
-Qubit
-Qubits
-Lambda Rho
 tupla
 tuplas
-\emph{ket}
-\textit{job}
-NP-hard
-Branch and Bound
 Hilbert
 Quantum
 QRAM
@@ -35,9 +27,6 @@ subexpresiones
 subexpresión
 decidible
 decidibles
-Notación Bra
-diagrama de Venn
-Call-by-value
 parsing
 Stack
 QuickCheck
@@ -48,6 +37,9 @@ lazy
 Compiler
 GHC
 Happy
+Hadamard
+Pauli
+NOT
 parsers
 yacc
 lex
@@ -62,9 +54,9 @@ regex-tdfa
 Tasty
 SmallCheck
 aeston
-Testing
 testing
 regex-td
 GHCi
 subpartes
 metadata
+PhraseInDict

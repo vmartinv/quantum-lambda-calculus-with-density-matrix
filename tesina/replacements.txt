@@ -3,23 +3,19 @@
 # find    replace
 # foo     bar
 # Patterns can also be regular expressions
-\\texorpdfstring\{(.*)\}\{(.*)\}	                $1  $2 
-\\(begin|end)\{observacion\}	\$1{center}     
-\\(begin|end)\{ejemplo\}	\$1{center} 
-\\(begin|end)\{ejemplos\}	\$1{center}  
-\\(begin|end)\{definicion\}	\$1{center}    
-\\(begin|end)\{teorema\}	\$1{center} 
-\\(begin|end)\{proof\}	\$1{center}
-\\(begin|end)\{corolario\}	\$1{center}   
-\\(begin|end)\{propiedades\}	\$1{center}     
-\\(begin|end)\{lema\}	\$1{center}
-\\begin\{adjustwidth\}\{.*\}\{.*\}	\begin{center}          
-\\end\{adjustwidth\}	\end{center}     
-\\(begin|end)\{spacing\}(\{.*\})?	\$1{center} 
+\\texorpdfstring\{(.*)\}\{(.*)\}			$1  $2 
 \\(begin|end)\{description\}	\$1{itemize}    
-\\begin\{multicols\}\{\d+\}	\begin{center}      
-\\end\{multicols\}	\end{center}
-\\(begin|end)\{displayquote\}	\$1{center}      
-\\(begin|end)\{figure\}	\$1{Figure}      
-\\(begin|end)\{titlepage\}	\$1{center}   
-\\(begin|end)\{it\}	\$1{center}
+\\(begin|end)\{figure\}		\$1{Figure}      
+\\(begin|end)\{(mdframed|it|titlepage|displayquote|lema|propiedades|corolario|proof|teorema|definicion|ejemplos|ejemplo|observacion)\}		\$1{center}
+\\(begin|end)\{(spacing|multicols|adjustwidth)\}(\{.*\})?(\{.*\})?		\$1{center}
+\\textcolor\{.*\}\{(.*)\}		$1
+NP-hard		PhraseInDict
+\\textit\{job\}			PhraseInDict
+\\emph\{ket\}		PhraseInDict
+Call-by-value	PhraseInDict
+Branch and Bound	PhraseInDict
+Notación Bra		PhraseInDict
+Diagrama de Venn		PhraseInDict
+Lambda Rho		PhraseInDict
+Reducibility Among Combinatorial Problems		PhraseInDict
+Richard Karp		PhraseInDict
