@@ -1,0 +1,869 @@
+\chapter{\texorpdfstring{Tipado de $\lambda_\rho$}{Tipado de Lambda Rho}}\label{ch:tipado}
+
+Antes de traducir una expresión dada de $\lambda_\rho$, resulta conveniente verificar si es válida. Esto se puede hacer realizando una derivación de tipos utilizando las reglas dadas en la Definición~\ref{def:tipado_lambda}.
+
+Esto no es trivial, ya que $\lambda_\rho$ es un lenguaje de tipado implícito, es decir, el tipo de las variables no está indicado en las expresiones. Por ejemplo, la expresión $\lambda x.x$ tiene infinitos tipos porque $x$ puede ser de cualquier tipo. Otras expresiones tienen solo un tipo: $\ket{0}\bra{0}$, puesto que es una matriz de densidad de un solo qubit. Dada una expresión basta con encontrar un tipo para demostrar que es válida.
+
+\section{Inferencia de tipos simples}
+
+El proceso de asignarle un tipo a una expresión se conoce como inferencia de tipos. Se habla de tipos simples debido a que los tipos de $\lambda_\rho$ no son polimórficos. Existen dos algoritmos que en conjunto logran esta tarea: el algoritmo de Hindley y el de unificación de Robinson. Inicialmente, Hindley procesa la expresión y genera una serie de ecuaciones de tipos que el tipado final debe satisfacer para ser válida. A continuación, el algoritmo de Robinson resuelve estas ecuaciones utilizando un método de unificación para llegar al tipado final.
+
+En el capítulo de 6 del libro~\cite{intro_programming_languages} se explican ambas etapas para un lenguaje genérico similar al cálculo lambda (PCF). Aquí se presentan dichos algoritmos adaptados para $\lambda_\rho$.
+
+\begin{observacion}
+Es posible combinar las etapas de Hindley y Robinson en una sola, sin embargo, no es aplicable para el caso de $\lambda_\rho$ debido a las inecuaciones involucradas, como se verá más adelante.
+\end{observacion}
+
+\subsection{\texorpdfstring{Dificultades al tipar $\lambda_\rho$}{Dificultades al tipar Lambda Rho}}
+
+Las adaptaciones necesarias a los algoritmos de inferencia clásicos no son triviales, puesto que nuestro lenguaje tiene naturales como parte del tipo. Veamos como esta característica tiene el efecto de producir inecuaciones.
+\begin{ejemplo}\label{ej:lamrho_tip}
+    Dada la siguiente expresión: $\lambda y.\lambda x.\pi^5(x \otimes y)$, podemos hacerle la siguiente derivación de tipo:
+\begin{equation*}
+\infer[\multimap_i]
+{\vdash\lambda y.\lambda x.\pi^5(x\otimes y) : 4 \multimap (1 \multimap (5, 5))}
+{\infer[\multimap_i]
+    {y: 4 \vdash \lambda x.\pi^5(x\otimes y) : 1 \multimap (5, 5)}
+    {\infer[m]
+        {y: 4, x:1 \vdash \pi^5(x\otimes y) : (5, 5)}
+        {\infer[\otimes]
+            {y: 4, x:1 \vdash x\otimes y : 5}
+            {\infer[\mathtt{ax}]{x:1 \vdash x : 1}{} \quad \infer[\mathtt{ax}]{y:4 \vdash y :4}{}}
+    }}}
+\end{equation*}
+
+    Sin embargo, este no es el único tipo posible. Intuitivamente, observamos que únicamente se requiere que el tamaño de $x \otimes y$ sea mayor o igual a 5. En este caso otros tipos válidos son:
+    \begin{itemize}
+        \item $3 \multimap (2 \multimap (5, 5))$
+        \item $1 \multimap (100 \multimap (5, 101))$
+    \end{itemize}
+    O más generalmente $X \multimap (Y\multimap (5, X+Y)), X+Y\geq 5$.
+\end{ejemplo}
+
+Una posible solución a este problema sería  dar un tipado polimórfico (es decir con variables de tipo) y tipar la expresión anterior como $X \multimap (Y \multimap (5, X+Y))$. El problema con esto es que hay expresiones que son inválidas porque no existe ninguna asignación a las variables de tipo que las satisfagan. Esto se ejemplifica a continuación.
+
+\begin{ejemplo}\label{ej:ec_tipado}
+    Intentemos tipar la siguiente expresión:
+    \begin{align*}
+        \textsf{letcase }x &= \pi^2 \ket{00}\bra{00} \textrm{ in } \\
+        &\{\lambda a.\lambda b.\lambda c.a\otimes b,\;\lambda a.\lambda b.\lambda c.b\otimes c,\;\lambda a.\lambda b.\lambda c.a\otimes c, \;\lambda a.\lambda b.\lambda c.\ket{00000}\bra{00000}\}
+    \end{align*}
+     Debido a la regla $\mathtt{lc}$, todos los casos deben tener el mismo tipo. Como son funciones, esto significa que tanto los argumentos recibidos como el tipo de retorno deben ser qubits del mismo tamaño. El cuarto caso fija el valor de retorno en $5$. Si el tipo de los casos son de la forma $a\multimap b \multimap c \multimap 5$. Se puede ver que un tipado válido debe satisfacer las siguientes ecuaciones:
+    \begin{align*}
+        \begin{cases}
+            a+b=5\\
+            b+c=5\\
+            a+c=5
+        \end{cases}
+    \end{align*}
+    Este sistema no tiene soluciones enteras, por lo que la expresión es inválida.
+\end{ejemplo}
+\begin{observacion}[Equivalencia con sistemas de ecuaciones lineales]
+    Sea un sistema de ecuaciones de la forma $Ax=b$ con $x,b\in \mathbb{N}^n, x_i\geq 1, b_i\geq 1$, donde $A$ está formado por ceros o unos. Es posible construir una expresión de $\lambda_\rho$ de manera similar al Ejemplo~\ref{ej:ec_tipado} cuyo tipado sea equivalente a encontrar una solución de tal sistema. Más aún, el sistema tiene solución si y solo si tal expresión tiene un tipo. Esta afirmación no se va a demostrar, ya que vamos a enfocarnos en un resultado más importante con el Teorema~\ref{teo:hindley_np}, pero sirve para ilustrar la potencial complejidad que es tipar $\lambda_\rho$.
+\end{observacion}
+
+Basándonos en estos ejemplos observamos que el algoritmo de Hindley para $\lambda_\rho$ tiene que producir inecuaciones también. Y sucesivamente en el algoritmo de Robinson debemos resolverlas.
+
+\section{Algoritmo de Hindley}
+
+Podemos describir esta primera etapa usando un conjunto de reglas en el estilo de una semántica grandes pasos. El resultado obtenido del algoritmo es una tupla compuesta por el tipo para la expresión y un conjunto de ecuaciones. Escribimos $\Gamma \vdash t \leadsto A, E$ para simbolizar que dado un término $t$ bajo un entorno $\Gamma$, el algoritmo de Hindley devuelve el tipo $A$ y las ecuaciones $E$ que debe satisfacer.
+
+Nótese que para poder expresar las ecuaciones debemos admitir temporalmente variables de tipo. Es decir, el tipo $A$ devuelto por el algoritmo aún no está totalmente resuelto. En la Sección~\ref{sec:robinson} se reemplazan estas variables por tipos concretos. 
+
+\begin{definicion}[Variables de tipo libres]
+    Definimos la función $\ftv$ sobre un tipo de $\lambda_\rho$ como el conjunto de variables de tipo que contiene. Esta función se extiende de manera intuitiva a los contextos ($\ftv(\Gamma)=\ftv(a:A,b:B,c:C,\dots)=\ftv(A)\cup\ftv(B)\cup\ftv(C)\cup\dots$), ecuaciones y sustituciones. También utilizamos la notación $\ftv(A;B;C;\dots) = \ftv(A)\cup\ftv(B)\cup\ftv(C)\cup\dots$.
+\end{definicion}
+
+Cuando sea necesario vamos a distinguir entre la igualdad entre tipos $=_\rho$ y la igualdad entre los números naturales $=_\mathbb{N}$, se sobreentiende que el operador $\geq$ aplica solo para los naturales. Para la igualdad entre ecuaciones usamos $\equiv$, dado que las ecuaciones mismas ya contienen $=$.
+
+\begin{definicion}[Algoritmo de Hindley para $\lambda_\rho$]
+\label{def:hindley}
+ \[\arraycolsep=5pt\def\arraystretch{2.6}
+   \begin{array}{cc}
+     \infer[\text{H}\mathtt{ax}]
+     {\Gamma, x : A \vdash x \leadsto A, \emptyset}
+     {}
+     &
+         \infer[\text{H}\multimap_i]
+         {\Gamma \vdash \lambda x.t  \leadsto A \multimap B, E}
+         {\Gamma, x : A \vdash t  \leadsto B, E}
+   \end{array}
+ \]
+ \[\arraycolsep=5pt\def\arraystretch{2.6}
+   \begin{array}{c}
+         \infer[\text{H}\multimap_e]
+         {\Gamma, \Delta \vdash t\;r  \leadsto B, E \cup F \cup \{C =_\rho A \multimap B\}}
+         {\Gamma \vdash t  \leadsto C,E \quad \Delta \vdash r  \leadsto A, F}
+   \end{array}
+ \]
+ \[\arraycolsep=5pt\def\arraystretch{2.6}
+   \begin{array}{cc}
+     \infer[\text{H}\mathtt{ax}_\rho]
+     {\Gamma \vdash \rho^n  \leadsto n, \emptyset}
+     {}
+     &
+         \infer[\text{H}\mathtt{u}]
+         {\Gamma \vdash U^m\;t  \leadsto A, E \cup \{A \geq m\}}
+         {\Gamma \vdash t  \leadsto A, E}
+   \end{array}
+ \]
+ \[\arraycolsep=5pt\def\arraystretch{2.6}
+   \begin{array}{c}
+         \infer[\text{H}m]
+         {\Gamma \vdash \pi^m t  \leadsto (m, A), E \cup \{A \geq m\}}
+         {\Gamma \vdash t  \leadsto A, E}
+   \end{array}
+ \]
+ \[\arraycolsep=5pt\def\arraystretch{2.6}
+   \begin{array}{c}
+         \infer[\text{H}\otimes]
+         {\Gamma, \Delta \vdash t \otimes r  \leadsto C, E \cup F \cup \{C =_\mathbb{N} A + B\}}
+         {\Gamma \vdash t \leadsto A, E \quad \Delta \vdash r  \leadsto B, F}
+   \end{array} 
+ \]
+ \[\arraycolsep=5pt\def\arraystretch{2.6}
+   \begin{array}{c}
+     \infer[\text{H}\mathtt{ax_{am}}]
+     {\Gamma \vdash (b^m, \rho^n)  \leadsto (m, n), \emptyset}
+     {}
+   \end{array}
+ \]
+ \vspace{10pt}
+ \[\arraycolsep=5pt\def\arraystretch{2.6}
+   \begin{array}{c}
+     \infer[\text{H}\mathtt{lc}]
+     {\Gamma \vdash \textsf{letcase } x = r \textsf{ in  }\{t_0,\dots,t_{2^m-1}\}  \leadsto A_0,\bigcup\begin{cases}
+              E_0,\;\dots,\;E_{2^m-1} \\
+              F \\
+              \{A_0=_\rho A_1\}\\
+              \quad\;\;\vdots\\
+              \{A_0=_\rho A_{2^m-1}\}\\
+              \{B =_\rho (m, X)\}\\
+              \{X \geq m\}
+          \end{cases}}
+     {\begin{aligned}
+         x: X\vdash t_0  &\leadsto A_0, E_0 \\
+         &\dots\\
+         \quad x: X\vdash t_{2^m-1} &\leadsto A_{2^m-1}, E_{2^m-1} \qquad \Gamma \vdash r\leadsto B, F
+     \end{aligned}}
+   \end{array}
+ \]
+donde:
+
+\begin{itemize}
+    \item
+    \item $B \notin \ftv(\Gamma;\Delta;A;C;E;F)$ para la regla $\text{H}\multimap_e$.
+    \item $C \notin \ftv(\Gamma;\Delta;A;B;E;F)$ para la regla $\text{H}\otimes$.
+    \item $X \notin \ftv(\Gamma;B;E)$ para la regla $\text{H}\mathtt{lc}$.
+    % \item $|\cdot|$ es una función sobre los tipos de $\lambda_\rho$ definida como:\\
+    %         $\begin{cases}
+    %             |n| = n, \text{si } n \in \mathbb{N}_0 \\
+    %             |x| = \perp, \text{si } x \notin \mathbb{N}_0
+    %         \end{cases}$
+\end{itemize}
+
+\end{definicion}
+
+% \begin{definicion}[Extensión del tipado de $\lambda_\rho$]
+% \label{def:extension}
+% El algoritmo de Hindler-Minler trabaja adicionalmente con variables de tipo, por lo que es necesario aumentar el tipado para definir el mismo.
+% \begin{align} 
+%     A := n | (m) | A \multimap A | \sum [A, \dot A] | \text{Var }n
+% \end{align}
+% donde $n,m\in \mathbb{N}$
+% \end{definicion}
+
+% \begin{definicion}[Unificación]
+% \label{def:unificacion}
+% Se define la función de unificación $\mathcal{U}$ que dados dos tipos de $\lambda_\rho$ devuelve una sustitución que los unifica, o arroja error si no es posible unificarlos. Se define de la siguiente forma:
+% \begin{align}
+%     \mathcal{U}(t, t) &= [-] \\
+%     \mathcal{U}(t, t) &= [-] \\
+%     \mathcal{U}(t, t) &= [-] \\
+%     \mathcal{U}(t, t) &= [-] \\
+%     \mathcal{U}(t, t) &= [-]
+% \end{align}
+% \end{definicion}
+
+% \begin{definicion}[Hindley-Milner para $\lambda_\rho$]
+% \label{def:milner}
+%  \[\arraycolsep=5pt\def\arraystretch{2.6}
+%    \begin{array}{cc}
+%      \infer[\text{H}\mathtt{ax}]
+%      {\Gamma, x : A \vdash x \leadsto A, [-]}
+%      {}
+%      &
+%          \infer[\text{H}\multimap_i]
+%          {\Gamma \vdash \lambda x.t  \leadsto A \multimap B, \sigma}
+%          {\Gamma, x : A \vdash t  \leadsto B, \sigma}
+%    \end{array}
+%  \]
+%  \[\arraycolsep=5pt\def\arraystretch{2.6}
+%    \begin{array}{c}
+%          \infer[\text{H}\multimap_e]
+%          {\Gamma, \Delta \vdash t\;r  \leadsto \tau(C), \tau\circ \sigma_1 \circ \sigma_2}
+%          {\Gamma \vdash t  \leadsto B,\sigma_1 \quad \Delta \vdash r  \leadsto A, \sigma_2 \quad \tau = \mathcal{U}(B, A \multimap C )}
+%    \end{array}
+%  \]
+%  \[\arraycolsep=5pt\def\arraystretch{2.6}
+%    \begin{array}{cc}
+%      \infer[\text{H}\mathtt{ax}_\rho]
+%      {\Gamma \vdash \rho^n  \leadsto n, [-]}
+%      {}
+%      &
+%          \infer[\text{H}\mathtt{u}]
+%          {\Gamma \vdash G\;t  \leadsto |G|, \tau \circ \sigma}
+%          {\Gamma \vdash t  \leadsto A, \sigma \quad \tau=\mathcal{U}(|G|, A)}
+%    \end{array}
+%  \]
+%  \[\arraycolsep=5pt\def\arraystretch{2.6}
+%    \begin{array}{c}
+%          \infer[\text{H}\pi]
+%          {\Gamma \vdash \pi^m t  \leadsto (m), \tau \circ \sigma}
+%          {\Gamma \vdash t  \leadsto A, \sigma \quad \tau = \mathcal{M}(m , A)}
+%    \end{array}
+%  \]
+%  \[\arraycolsep=5pt\def\arraystretch{2.6}
+%    \begin{array}{c}
+%          \infer[\text{H}\otimes]
+%          {\Gamma, \Delta \vdash t \otimes r  \leadsto A + B, \sigma_1 \circ \sigma_2}
+%          {\Gamma \vdash t \leadsto A, \sigma_1 \quad \Delta \vdash r  \leadsto B, \sigma_2}
+%    \end{array} 
+%  \]
+%  \[\arraycolsep=5pt\def\arraystretch{2.6}
+%    \begin{array}{c}
+%      \infer[\text{H}\mathtt{ax_{am}}]
+%      {\Gamma \vdash b^m  \leadsto (m), [-]}
+%      {}
+%    \end{array}
+%  \]
+%  \[\arraycolsep=5pt\def\arraystretch{2.6}
+%    \begin{array}{c}
+%      \infer[\text{H}\mathtt{lc}]
+%      {\stackanchor{$\Gamma \vdash \textsf{letcase } x = r \textsf{ in  }\{t_0,\dots,t_{2^m-1}\}  \leadsto A_0,$}{$ 
+% \bigcirc_{i=1}^{2^m-1} \mathcal{U}(A_0, A_i) \circ \mathcal{U}(B, (m)) \circ \bigcirc_{i=0}^{2^m-1} \sigma_i \circ \tau$}}
+%      {\vdash t_0  \leadsto A_0, \sigma_0 \quad \dots\quad \vdash t_{2^m-1} \leadsto A_{2^m-1}, \sigma_{2^m-1} \quad \Gamma \vdash r \leadsto B, \tau}
+%    \end{array}
+%  \]
+% donde $C$ no aparece en $A,B,\sigma_1$ ni $\sigma_2$ en la regla $\text{H}\multimap_e$.
+
+% \end{definicion}
+
+\begin{figure}[H]
+\begin{ejemplo}
+    Se presenta el árbol de derivación del algoritmo para la expresión del Ejemplo~\ref{ej:lamrho_tip}: $\lambda y.\lambda x.\pi^5(x \otimes y)$.
+\begin{equation*}
+\infer[\text{H}\multimap_i]
+{\vdash\lambda y.\lambda x.\pi^5(x\otimes y) \leadsto X \multimap Y \multimap (5, Z), \{Z=X+Y, Z \geq 5\}}
+{\infer[\text{H}\multimap_i]
+    {y : Y \vdash\lambda x.\pi^5(x\otimes y) \leadsto X \multimap (5, Z), \{Z=X+Y, Z \geq 5\}}
+    {\infer[\text{H}m]
+        {y : Y, x:X \vdash\pi^5(x\otimes y) \leadsto (5, Z), \{Z=X+Y, Z \geq 5\}}
+        {\infer[\text{H}\otimes]
+            {y: Y, x:X \vdash x\otimes y : Z, \{Z=X+Y\}}
+            {\infer[\text{H}\mathtt{ax}]{x:X \vdash x : X, \emptyset}{} \quad \infer[\text{H}\mathtt{ax}]{y:Y \vdash y :Y, \emptyset}{}}
+    }}}
+\end{equation*}
+\end{ejemplo}
+\end{figure}
+Para demostrar la correctitud de este algoritmo resulta útil primero definir que se considera como una solución del sistema de ecuaciones.
+
+\begin{definicion}[Solución]
+Sea $E$ un sistema de ecuaciones con variables de tipo $X_0,\dots,X_{n-1}$. Una sustitución $\sigma = [V_0 / X_0, \dots, V_{n-1} / X_{n-1}]$ es una \emph{solución} de $E$ si por cada ecuación $C = D$ en $E$, se cumple que $\sigma C = \sigma D$, análogamente por cada ecuación $C \geq D$ en $E$, se cumple que $\sigma C \geq \sigma D$. Podemos también decir que $\sigma E$ se satisface (es decir todas sus ecuaciones son trivialmente ciertas).
+\end{definicion}
+
+\begin{observacion}
+    Si $\sigma$ satisface la ecuación $C=_\mathbb{N} A+B$, es decir, se cumple $\sigma C =_\mathbb{N} \sigma A + \sigma B$, queda implícito que $\sigma A, \sigma B, \sigma C \in \mathbb{N}$. De igual manera, si la ecuación es de la forma $A\geq B$, $\sigma A, \sigma B \in \mathbb{N}$.
+\end{observacion}
+
+
+ En el siguiente teorema vamos a demostrar la correctitud probando que, si una solución verifica las ecuaciones generadas por el algoritmo de Hindley para un término $t$, entonces tal solución se puede usar para dar un tipo válido a $t$.
+ 
+\begin{teorema}[Correctitud de Hindley]\label{teo:hindley_proof}
+Si tenemos que $\Gamma \vdash t \leadsto A, E$ y $\sigma$ es una solución de $E$, entonces $\sigma \Gamma \vdash t: \sigma A$.
+\end{teorema}
+\begin{proof}
+Se procede por inducción en el árbol de derivación de $\leadsto$.
+
+\begin{itemize}
+    \item[\textbf{Caso}] $\text{H}\mathtt{ax}$
+
+Dado $\Gamma, x: A \vdash x \leadsto A, \emptyset$. Sea $\sigma$ la sustitución vacía que satisface trivialmente $\emptyset$. Por la regla $\mathtt{ax}$ de la Definición~\ref{def:tipado_lambda} sobre $\sigma \Gamma, x: \sigma A \vdash x$, se tiene:
+
+$\sigma \Gamma, x: \sigma A \vdash x : \sigma A$.
+
+    \item[\textbf{Caso}] $\text{H}\multimap_i$
+
+Dado $\Gamma \vdash \lambda x.t \leadsto A \multimap B, E$.
+Por hipótesis de inducción: $\sigma \Gamma, x: \sigma A \vdash t: \sigma B$ y $\sigma$ satisface $E$. Aplicando la regla $\multimap_i$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma \Gamma \vdash \lambda x .t : \sigma A \multimap \sigma B$.
+
+    \item[\textbf{Caso}] $\text{H}\multimap_e$
+
+Dado $\Gamma, \Delta \vdash t\;r  \leadsto B, E \cup F \cup \{C =_\rho A \multimap B\}$. Sea $\sigma$ una solución de $E \cup F \cup \{C =_\rho A \multimap B\}$.
+
+
+Como $\sigma$ satisface $E$ y $F$, por HI: $\sigma \Gamma \vdash t  : \sigma C = \sigma A \multimap \sigma B$ y $\sigma \Delta \vdash r : \sigma A$. Aplicando la regla $\multimap_e$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma \Gamma, \sigma \Delta \vdash t\;r: \sigma B$.
+
+    \item[\textbf{Caso}] $\text{H}\mathtt{ax}_\rho$
+
+Dado $\Gamma \vdash \rho^n  \leadsto n, \emptyset$. Sea $\sigma$ la sustitución vacía. Por $\mathtt{ax}_\rho$ de la Definición~\ref{def:tipado_lambda} sobre $\sigma \Gamma \vdash \rho^n$, se tiene:
+
+$\sigma \Gamma \vdash \rho^n : n = \sigma n$.
+
+    \item[\textbf{Caso}] $\text{H}\mathtt{u}$
+
+Dado $\Gamma \vdash U^m\;t  \leadsto A, E \cup \{A \geq m\}$. Sea $\sigma$ una solución de $E \cup \{A \geq m\}$.
+
+Como $\sigma$ es solución de $E$, por HI: $\sigma \Gamma \vdash t: \sigma A$.  Como $\sigma$ es solución de $A \geq m$, sabemos que $\sigma A \geq m$, por lo que se puede aplicar la regla $\mathtt{u}$ de la Definición~\ref{def:tipado_lambda} obteniendo $\sigma \Gamma \vdash U^m\;t: \sigma A$.
+
+    \item[\textbf{Caso}] $\text{H}m$
+
+Dado $\Gamma \vdash \pi^m t  \leadsto (m, A), E \cup \{A \geq m\}$. Sea $\sigma$ una solución de $E \cup \{A \geq m\}$.
+
+Como $\sigma$ satisface $E$, por HI: $\sigma \Gamma \vdash t : \sigma A$. Puesto que $\sigma A \geq m$ (y a su vez $\sigma A \in \mathbb{N}$), se puede aplicar la regla $m$ de la Definición~\ref{def:tipado_lambda} llegando a $\sigma \Gamma \vdash \pi^m\;t: (m, \sigma A) = \sigma (m, A)$.
+
+    \item[\textbf{Caso}] $\text{H}\otimes$
+
+
+Dado $\Gamma, \Delta \vdash t \otimes r  \leadsto C, E \cup F \cup \{C =_\mathbb{N} A + B\}$. Sea $\sigma$ una solución de $E \cup F \cup \{C =_\mathbb{N} A + B\}$.
+
+
+Como $\sigma$ satisface $E$ y $F$, por HI: $\sigma \Gamma \vdash t: \sigma A$ y $\sigma \Delta \vdash r :\sigma B$. A su vez como $\sigma$ satisface $C=_\mathbb{N} A+B$, $\sigma C =_\mathbb{N} \sigma A + \sigma B$ y $\sigma A,\sigma B, \sigma C \in \mathbb{N}$.
+
+Aplicando la regla $\otimes$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma \Gamma , \sigma \Delta \vdash t \otimes r : \sigma A + \sigma B =_\mathbb{N} \sigma C$.
+
+    \item[\textbf{Caso}] $\text{H}\mathtt{ax_{am}}$
+
+Dado $\Gamma \vdash (b^m, \rho^n)  \leadsto (m, n), \emptyset$. Sea $\sigma$ la sustitución vacía. Por la regla $\mathtt{ax_{am}}$ de la Definición~\ref{def:tipado_lambda} sobre $\sigma \Gamma \vdash (b^m, \rho^n) $ se tiene que $\sigma \Gamma \vdash (b^m, \rho^n) : (m, n)$.
+
+    \item[\textbf{Caso}] $\text{H}\mathtt{lc}$
+
+
+Dado $\Gamma \vdash \textsf{letcase } x = r \textsf{ in  }\{t_0,\dots,t_{2^m-1}\}  \leadsto A_0, \bigcup_{i=0}^{2^m-1} E_i \cup F \cup \{A_0=A_1, \dots, A_0=_\rho A_{2^m-1}, B =_\rho (m, X), X\geq m\}$. Sea $\sigma$ una solución de $\bigcup_{i=0}^{2^m-1} E_i \cup F \cup \{A_0=_\rho A_1, \dots, A_0=_\rho A_{2^m-1}, B =_\rho (m, X), X\geq m\}$.
+
+Para cada $i \in \{0\dots 2^m-1\}$, tenemos que:
+\begin{itemize}
+    \item Como $\sigma$ satisface $E_i$, por HI: $x: \sigma X \vdash t_i: \sigma A_i$.
+    \item Como $\sigma$ satisface $A_0=_\rho A_i \implies \sigma A_0 =_\rho \sigma A_i \implies x: \sigma X \vdash t_i: \sigma A_0$.
+\end{itemize}
+A su vez:
+\begin{itemize}
+    \item Como $\sigma$ satisface $F$, por HI: $\Gamma \vdash r:\sigma B$.
+    \item Como $\sigma$ satisface $B =_\rho (m, X)\implies\sigma B =_\rho \sigma (m, X) = (m, \sigma X)$.
+\end{itemize}
+
+Finalmente, resulta posible aplicar la regla $\mathtt{lc}$ de la Definición~\ref{def:tipado_lambda}:
+\begin{equation*}
+     \infer
+     {\sigma \Gamma \vdash \textsf{letcase } x = r \textsf{ in  }\{t_0,\dots,t_{2^m-1}\} : \sigma A_0}
+     {x:\sigma X\vdash t_0 : \sigma A_0  \quad \dots\quad x:\sigma X\vdash t_{2^m-1}:\sigma A\quad \sigma \Gamma \vdash r:(m, \sigma X)}
+\end{equation*}
+\end{itemize}
+\end{proof}
+
+
+
+
+% \begin{teorema}[Correctitud de Hindley-Milner]\label{t:milner_proof}
+% Si tenemos que $\Gamma \vdash t \leadsto A, \sigma$, entonces $\sigma \Gamma \vdash t: \sigma A$.
+% \end{teorema}
+% \begin{proof}
+% Se procede por inducción en el árbol de derivación de $\leadsto$.
+
+% \begin{itemize}
+%     \item[\textbf{Caso}] $\text{H}\mathtt{ax}$
+
+% Dado $\Gamma, x: A \vdash x \leadsto A, [-]$. Por la regla $\mathtt{ax}$ de la Definición~\ref{def:tipado_lambda} sobre $[-] \Gamma, x: [-] A \vdash x$, se tiene:
+
+% $[-] \Gamma, x: [-] A \vdash x : [-] A$.
+
+%     \item[\textbf{Caso}] $\text{H}\multimap_i$
+
+% Dado $\Gamma \vdash \lambda x.t \leadsto A \multimap B, \sigma$.
+% Por hipótesis de inducción: $\sigma \Gamma, x: \sigma A \vdash t: \sigma B$. Aplicando la regla $\multimap_i$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma \Gamma \vdash \lambda x .t : \sigma A \multimap \sigma B = \sigma (A \multimap B)$.
+
+%     \item[\textbf{Caso}] $\text{H}\multimap_e$
+
+% Dado $\Gamma, \Delta \vdash t\;r  \leadsto \tau(C), \sigma^*$, con $\sigma^*=\tau 
+% \circ \sigma_1 \circ \sigma_2$.
+
+
+% Por HI: $\sigma_1 \Gamma \vdash t  : \sigma_1 B$ y $\sigma_2 \Delta \vdash r : \sigma_2 A$.
+
+% {por que?}
+
+% Tenemos que $\sigma^* \Gamma \vdash t  : \sigma^* A \multimap \sigma^* C$ y $\sigma^* \Delta \vdash r : \sigma^* A$. Aplicando la regla $\multimap_e$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma^* (\Gamma, \Delta) \vdash t\;r: \sigma^* C$.
+
+%     \item[\textbf{Caso}] $\text{H}\mathtt{ax}_\rho$
+
+% Dado $\Gamma \vdash \rho^n  \leadsto n, [-]$. Por $\mathtt{ax}_\rho$ de la Definición~\ref{def:tipado_lambda} sobre $\Gamma \vdash \rho^n$, se tiene:
+
+% $[-] \Gamma \vdash \rho^n : n = [-] n$.
+
+%     \item[\textbf{Caso}] $\text{H}\mathtt{u}$
+
+% Dado $\Gamma \vdash G\;t  \leadsto |G|, \sigma^*$, con $\sigma^* = \tau \circ \sigma$.
+
+% Por HI: $\sigma \Gamma \vdash t: \sigma A$.
+% {por qué?}
+
+% Tenemos que $\sigma^* \Gamma \vdash t:\sigma^* A$. Aplicando la regla $\mathtt{u}$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma^* \Gamma \vdash G\;t: |G| = \sigma^* A$.
+
+%     \item[\textbf{Caso}] $\text{H}\pi$
+
+% Dado $\Gamma \vdash \pi^m t  \leadsto (m), \sigma^*$, con $\sigma ^* = \tau \circ \sigma$.
+
+% Por HI: $\sigma \Gamma \vdash t : \sigma A$. 
+
+% Tenemos que $\sigma^* \Gamma \vdash t : \sigma^* A$.
+% Puesto que $m \leq |\sigma^* A|$ (y a su vez $\sigma^* A \in \mathbb{N}$), se puede aplicar la regla $\pi$ de la Definición~\ref{def:tipado_lambda} llegando a $\sigma^* \Gamma \vdash \pi^m\;t: (m)$.
+
+%     \item[\textbf{Caso}] $\text{H}\otimes$
+
+
+% Dado $\Gamma, \Delta \vdash t \otimes r  \leadsto A+B, \sigma^*$, con $\sigma^* = \sigma_1 \circ \sigma_2$.
+
+
+% Por HI: $\sigma_1 \Gamma \vdash t: \sigma_1 A$ y $\sigma_2 \Delta \vdash r :\sigma_2 B$.
+
+% Tenemos que $\sigma^* \Gamma \vdash t: \sigma^* A$ y $\sigma^* \Delta \vdash r :\sigma^* B$ {por qué?}
+
+
+% A su vez como $|\sigma^* C| = |\sigma^* A| + |\sigma^* B|$, $\exists n,m / |\sigma^* A| = n, |\sigma^* B| = m$.
+
+% Aplicando la regla $\otimes$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma \Gamma , \sigma \Delta \vdash t \otimes r : n + m =  |\sigma^* A| + |\sigma^* B| = |\sigma^* C| = \sigma^* C$.
+
+%     \item[\textbf{Caso}] $\text{H}\mathtt{ax_{am}}$
+
+% Dado $\Gamma \vdash b^m  \leadsto (m), \emptyset$. Sea $\sigma$ la sustitución vacía. Por la regla $\mathtt{ax_{am}}$ de la Definición~\ref{def:tipado_lambda} sobre $\sigma \Gamma \vdash b^m $ se tiene que $\sigma \Gamma \vdash b^m : (m)$.
+
+%     \item[\textbf{Caso}] $\text{H}\mathtt{lc}$
+
+
+% Dado $\Gamma \vdash \textsf{letcase } x = r \textsf{ in  }\{t_0,\dots,t_{2^m-1}\}  \leadsto A_0, \bigcup_{i=0}^{2^m-1} E_i \cup F \cup \{A_0=\dots=A_{2^m-1}, B = (m)\}$. Sea $\sigma$ una solución de $\bigcup_{i=0}^{2^m-1} E_i \cup F \cup \{A_0=\dots=A_{2^m-1}, B = (m)\}$.
+
+% Como $\sigma$ satisface $E_i$, por HI: $\vdash t_i: \sigma A_i = \sigma A_0$, para cada $i \in {0\dots 2^m-1}$. 
+
+% Como $\sigma$ satisface $F$, por HI: $\Gamma \vdash r:\sigma B = (m)$.
+
+% Aplicando la regla $\mathtt{lc}$ de la Definición~\ref{def:tipado_lambda} se tiene que $\sigma \Gamma \vdash \textsf{letcase } x = r \textsf{ in  }\{t_0,\dots,t_{2^m-1}\} : \sigma A_0$.
+
+
+% \end{itemize}
+% \qed
+% \end{proof}
+
+
+\begin{lema}\label{lem:hindley_sep}
+    Podemos asumir que las variables de tipos en los distintos contextos, conjuntos y ecuaciones en las premisas de las reglas de Hindley son disjuntos. Es decir:
+    \begin{itemize}
+        \item Para la regla $\text{H}\multimap_e$: $\ftv(\Gamma;C;E)\cap\ftv(\Delta;A;F) = \emptyset$.
+        \item Para la regla $\text{H}\otimes$: $\ftv(\Gamma;A;E)\cap\ftv(\Delta;B;F) = \emptyset$.
+        \item Para la regla $\text{H}\mathtt{lc}$: $\left(\bigcup_i \ftv(A_i;E_i)\cup \{X\}\right)\cap\ftv(\Gamma;B;F) = \emptyset$.
+    \end{itemize} \qed
+\end{lema}
+
+El siguiente teorema resulta imprescindible para probar la validez del algoritmo. Más aún será utilizado para probar más adelante que el tipado de $\lambda_\rho$ es un problema NP-hard (Teorema~\ref{teo:hindley_np}), puesto que todo tipado provee implícitamente una solución para las ecuaciones de Hindley.
+
+\begin{teorema}[Completitud de Hindley]\label{teo:comp_hindley} 
+Si $\Gamma \vdash t: A$, entonces $\exists\Gamma',A',E,\sigma$ tal que:
+\begin{enumerate}
+    \item $\Gamma' \vdash t \leadsto A',E$.
+    \item $\sigma$ satisface $E$.
+    \item $\sigma A' = A \wedge \sigma \Gamma'=\Gamma$.
+    \item $\dom(\sigma) \subseteq \ftv(\Gamma';A';E)$
+\end{enumerate}
+\end{teorema}
+\begin{proof}
+Se procede por inducción en la derivación del tipo $t: A$.
+
+\begin{itemize}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\mathtt{ax}]
+     {\Gamma, x : A \vdash x : A}
+     {}}$
+
+Por $\text{H}\mathtt{ax}$, tenemos que $\Gamma, X: A \vdash x\leadsto A, \emptyset$. Sea $\sigma=\emptyset$. Trivialmente se da que $\sigma A = A$ y $\sigma (\Gamma, x:A) = \sigma \Gamma, x:\sigma A = \Gamma, x:A$. A su vez $\dom(\sigma) \subseteq S\;\forall S$.
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\multimap_i]
+         {\Gamma \vdash \lambda x.t : A \multimap B}
+         {\Gamma, x : A \vdash t : B}}$
+
+Por hipótesis de inducción tenemos que: $\Gamma', x: A' \vdash t\leadsto B', E$ y $\exists \sigma / \sigma$ satisface las ecuaciones de $E$, $\sigma B'=B, \sigma \Gamma'=\Gamma,  \sigma A'=A, \dom(\sigma)\subseteq \ftv(\Gamma';A';E)$.
+
+Aplicando la regla $\text{H}\multimap_i$, $\Gamma' \vdash \lambda x.t \leadsto A'\multimap B', E$.
+
+A su vez $\sigma (A'\multimap B') = \sigma A'\multimap \sigma B' = A\multimap B$ y $\sigma \Gamma'=\Gamma$.
+
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\multimap_e]
+         {\Gamma, \Delta \vdash t\;r : B}
+         {\Gamma \vdash t : A \multimap B \quad \Delta \vdash r : A}}$
+
+Por hipótesis de inducción tenemos que:
+\begin{itemize}
+    \item $\Gamma'\vdash t \leadsto C',E$ y $\exists \sigma / \sigma$ satisface las ecuaciones de $E$ y $\sigma \Gamma' = \Gamma, \sigma C'=A\multimap B, \dom(\sigma)\subseteq \ftv(\Gamma';C';E)$.
+    \item $\Delta'\vdash r \leadsto A',F$. y $\exists \mu / \mu$ satisface las ecuaciones de $F$ y $\mu \Delta' = \Delta, \mu A'= A, \dom(\mu)\subseteq \ftv(\Delta';A';F)$.
+\end{itemize}
+
+Aplicando la regla $\text{H}\multimap_e$:
+\[\Gamma',\Delta' \vdash t\;r \leadsto B', E \cup F \cup \{C'=_\rho A'\multimap B'\}\]
+donde $B'\notin \ftv(\Gamma';\Delta';E;F;A';C')$.
+ 
+Sea $\tau = [B/B'] \circ \mu \circ \sigma$ (composición de las sustituciones). Se tiene que:
+   
+\begin{itemize}
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\mu)\cap\ftv(E)=\emptyset$ y $B'\notin \ftv(E)$ por lo que $\tau E = ([B/B'] \circ \mu\circ \sigma)E=\sigma E$. De esta manera como $\sigma E$ se satisface, $\tau E$ se satisface.
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\sigma)\cap\ftv(F)=\emptyset$ por lo que $\sigma F=F$. Luego como $B'\notin \ftv(F)$ tenemos que $\tau F=\mu F$. De esta manera como $\mu$ satisface $F$, $\tau$ satisface $F$.
+    \item $\tau (C' =_\rho A'\multimap B') \equiv (\tau C' =_\rho \tau A' \multimap \tau B') \equiv (A\multimap B =_\rho A \multimap B)$. Por lo que $\tau$ satisface $\{C' =_\rho A'\multimap B'\}$
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\sigma)\cap \ftv(\Delta')=\emptyset  \wedge \dom(\mu)\cap \ftv(\Gamma')=\emptyset \wedge B'\notin \ftv(\Gamma';\Delta') \implies \tau (\Gamma', \Delta') = \tau \Gamma', \tau \Delta' = \sigma \Gamma', \mu \Delta' = \Gamma, \Delta$.
+    \item Como $B' \notin \dom(\mu)\cup\dom(\sigma)$, $\tau B' = [B/B']B' = B$.
+    \item $ \dom(\tau) = \dom(\sigma)\cup\dom(\mu)\cup\{B'\} \subseteq \ftv(\Gamma';C';E)\cup\ftv(\Delta';A';F)\cup\{B'\} =\ftv(\Gamma';\Delta';B';E;F;\{C'=_\rho A'\multimap B'\})$.
+\end{itemize}
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\mathtt{ax}_\rho]
+     {\Gamma \vdash \rho^n : n}
+     {}}\)
+
+
+Por $\text{H}\mathtt{ax}_\rho$, tenemos que $\Gamma \vdash \rho^n\leadsto n, \emptyset$. Sea $\sigma=\emptyset$. Trivialmente se da que $\sigma n = n$ y $\sigma \Gamma = \Gamma$. A su vez $\dom(\sigma) \subseteq S\;\forall S$.
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\mathtt{u}]
+         {\Gamma \vdash U^m\;t : n}
+         {\Gamma \vdash t : n}}\)
+
+Por hipótesis de inducción: $\Gamma' \vdash t \leadsto A', E$ y $\exists \sigma / \sigma$ satisface las ecuaciones de $E, \sigma A'=n, \sigma \Gamma'=\Gamma, \dom(\sigma) \subseteq \ftv(\Gamma';A';E)$.
+
+Aplicando la regla $\text{H}\mathtt{u}$ tenemos que:
+
+\[\Gamma'\vdash U^m\;t \leadsto A', E \cup \{A' \geq m\}\]
+
+Ahora, $\sigma (A' \geq m) \equiv \sigma A' \geq m \equiv n \geq m$, lo cual es cierto porque es un requerimiento de la regla de tipado $\mathtt{u}$. En consecuencia, $\sigma$ satisface $E\cup \{A' \geq m\}$.
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\mathtt{m}]
+         {\Gamma \vdash \pi^m t : (m, n)}
+         {\Gamma \vdash t : n}}\)
+
+Por hipótesis de inducción: $\Gamma' \vdash t \leadsto A', E$ y $\exists \sigma / \sigma$ satisface las ecuaciones de $E, \sigma A'=n, \sigma \Gamma'=\Gamma, \dom(\sigma) \subseteq \ftv(\Gamma';A';E)$.
+
+Aplicando la regla $\text{H}\mathtt{m}$ tenemos que:
+
+\[\Gamma'\vdash \pi^m t \leadsto (m, A'), E \cup \{A' \geq m\}\]
+
+Notar que $\sigma (m, A') = (m, \sigma A') = (m, n)$. Ahora, $\sigma (A' \geq m) \equiv (\sigma A' \geq m) \equiv (n \geq m)$, lo cual es cierto porque es un requerimiento de la regla de tipado $\mathtt{m}$. Por lo tanto, $\sigma$ satisface $E\cup \{A' \geq m\}$.
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\otimes]
+     {\Gamma, \Delta \vdash t \otimes r : n + m}
+     {\Gamma \vdash t: n \quad \Delta \vdash r : m}}\)
+
+
+Por hipótesis de inducción tenemos que:
+\begin{itemize}
+    \item $\Gamma'\vdash t \leadsto A',E$ y $\exists \sigma / \sigma$ satisface las ecuaciones de $E$ y $\sigma \Gamma' = \Gamma, \sigma A'=n, \dom(\sigma)\subseteq \ftv(\Gamma';A';E)$.
+    \item $\Delta'\vdash r \leadsto B',F$. y $\exists \mu / \mu$ satisface las ecuaciones de $F$ y $\mu \Delta' = \Delta, \mu B'= B, \dom(\mu)\subseteq \ftv(\Delta';B';F)$.
+\end{itemize}
+
+Aplicando la regla $\text{H}\otimes$:
+\[\Gamma',\Delta' \vdash t\otimes r \leadsto C', E \cup F \cup \{C'=_\mathbb{N} A'+ B'\}\]
+donde $C' \notin \ftv(\Gamma';\Delta';E;F;A';B')$.
+
+Sea $\tau = [n+m/C'] \circ \mu \circ \sigma$ (composición de las sustituciones). Se tiene que:
+   
+\begin{itemize}
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\mu)\cap\ftv(E)=\emptyset$ y $C'\notin \ftv(E)$ por lo que \(
+    \tau E = ([n+m/C'] \circ \mu\circ \sigma)E=\sigma E\). De esta manera como $\sigma E$ se satisface, $\tau E$ se satisface.
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\sigma)\cap\ftv(F)=\emptyset$ por lo que $\sigma F=F$. Luego como $C'\notin \ftv(F)$ tenemos que $\tau F=\mu F$. De esta manera como $\mu$ satisface $F$, $\tau$ satisface $F$.
+    \item $\tau (C' =_\mathbb{N} A'+ B') \equiv (\tau C' =_\mathbb{N} \tau A' + \tau B') \equiv (n+m =_\mathbb{N} n + m)$. Por lo que $\tau$ satisface $\{C' =_\mathbb{N} A'+ B'\}$
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\sigma)\cap \ftv(\Delta')=\emptyset  \wedge \dom(\mu)\cap \ftv(\Gamma')=\emptyset \wedge C'\notin \ftv(\Gamma';\Delta') \implies \tau (\Gamma', \Delta') = \tau \Gamma', \tau \Delta' = \sigma \Gamma', \mu \Delta' = \Gamma, \Delta$.
+    \item Como $C' \notin \dom(\mu)\cup\dom(\sigma)$, $\tau C' = [n+m/C']C' = n+m$.
+    \item $ \dom(\tau) = \dom(\sigma)\cup\dom(\mu)\cup\{C'\} \subseteq \ftv(\Gamma';A';E)\cup\ftv(\Delta';B';F)\cup\{C'\} =\ftv(\Gamma';\Delta';C';E;F;\{C'=_\mathbb{N} A'+ B'\})$.
+\end{itemize}
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\mathtt{ax_{am}}]
+         {\Gamma \vdash (b^m, \rho^n) : (m, n)}
+         {}}\)
+
+
+Por $\text{H}\mathtt{ax_{am}}$, tenemos que $\Gamma \vdash (b^m, \rho^n)\leadsto (m, n), \emptyset$. Sea $\sigma=\emptyset$. Trivialmente se da que $\sigma (m, n) = (m, n)$ y $\sigma \Gamma = \Gamma$. A su vez $\dom(\sigma) \subseteq S\;\forall S$.
+
+\vspace{\baselineskip}
+     \item[\textbf{Caso}] \(\quad\raisebox{-.35\baselineskip}{\infer[\mathtt{lc}]
+     {\Gamma \vdash \textsf{letcase } x = r \textsf{ in  }\{t_0,\dots,t_{2^m-1}\} : A}
+     {x:n\vdash t_0 : A \quad \dots\quad x:n\vdash t_{2^m-1}:A\quad \Gamma \vdash r:(m, n)}}\)
+
+Por hipótesis de inducción tenemos que:
+\begin{itemize}
+    \item $\Gamma' \vdash r \leadsto B', F$ y $\exists \sigma / \sigma$ satisface las ecuaciones de $F$ y $\sigma \Gamma'=\Gamma, \sigma B' = (m, n), \dom(\sigma) \subseteq \ftv(\Gamma',B',F)$. 
+    \item $x: X'_i \vdash t_i \leadsto A'_i, E_i$ y $\exists \mu_i/\mu_i$ satisface las ecuaciones de $E_i$ y $\mu_i X'_i = n, \mu_i A'_i = A, \dom(\mu_i)\subseteq \ftv(X'_i,A'_i,E_i) \quad \forall i \in [0,\dots,2^m-1]$.
+\end{itemize}
+
+Como $X'_i$ es solo una variable de tipo y $\mu_i X'_i=n\;\forall i$, podemos unificarlas en una sola: $X' \leftarrow X'_i\;\forall i$. Luego, aplicando la regla $\text{H}\mathtt{lc}$:
+\[\Gamma'\vdash \textsf{letcase } x = r \textsf{ in } \{t_0,\dots,t_{2^m-1}\} \leadsto A'_0, G\]
+donde $X' \notin \ftv(\Gamma';B';F)$ y \(G=\bigcup \begin{cases}
+    E_0, \dots, E_{2^m-1} \\
+    F \\
+    \{A'_0 =_\rho A'_1\} \\
+    \quad\; \vdots \\
+    \{A'_0 =_\rho A'_{2^m-1}\} \\
+    \{B' =_\rho (m, X')\} \\
+    \{X'\geq m\}
+\end{cases}\).
+
+Sea $\tau = \left(\bigcirc_{i=0}^{2^m-1} \mu_i\right) \circ \sigma$ (es decir $\tau$ aplica la sustitución $\sigma$, luego $\mu_{2^m-1}, \mu_{2^m-2}$, $\dots$ y así sucesivamente hasta aplicar $\mu_0$). Primero veamos que $\tau$ satisface $G$:
+   
+\begin{itemize}
+    \item Para cada $E_j, j \in [0,\dots,2^m-1]$ podemos aplicar el Lema~\ref{lem:hindley_sep} para saber que $\dom(\sigma)\cap\ftv(E_j)=\emptyset$. Entonces $\tau E_j = (\bigcirc_{i=0}^{2^m-1} \mu_i) E_j$. Ahora, aplicando nuevamente el Lema~\ref{lem:hindley_sep}, $\dom(\mu_j)\cap\ftv(E_i)=\emptyset\;\forall i\neq j$. Por lo tanto, $\tau E_j = \mu_j E_j$. De esta manera como $\mu_j E_j$ se satisface, $\tau E_j$ se satisface.
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\mu_i)\cap\ftv(F)=\emptyset\;\forall i$ por lo que $\mu_i F=F$. En consecuencia, $\tau F=\sigma F$. De esta manera como $\sigma$ satisface $F$, $\tau$ satisface $F$.
+    \item Para cada $i \in [1,\dots,2^m-1]$, $\tau (A'_0 =_\rho A'_i) \equiv (\tau A'_0 =_\rho \tau A'_i) \equiv(\mu_0 A'_0 =_\rho \mu_i A'_i) \equiv (A =_\rho A)$. Por lo que $\tau$ satisface $\{A'_0 =_\rho A'_i\}$.
+    \item $\tau (B' =_\rho (m, X')) \equiv (\tau B' =_\rho (m, \tau X')) \equiv (\sigma B' =_\rho (m, \mu_{2^m-1} X')) \equiv ((m, n) =_\rho (m, n))$. Por lo que $\tau$ satisface $\{B' =_\rho (m, X')\}$.
+    \item $\tau (X'\geq m) \equiv (\tau X' \geq m) \equiv (\mu_{2^m-1} X' \geq m) \equiv (n \geq m)$. Lo cual es cierto porque es un requerimiento para aplicar la regla de tipado $\mathtt{lc}$. Por lo que $\tau$ satisface $\{X'\geq m\}$.
+\end{itemize}
+
+Y finalmente probamos el resto de las condiciones:
+\begin{itemize}
+    \item Aplicando el Lema~\ref{lem:hindley_sep}, $\dom(\mu_i)\cap \ftv(\Gamma')=\emptyset \;\forall i\implies \tau \Gamma' = \sigma \Gamma' = \Gamma$.
+    \item Como $A'_0 \notin \dom(\sigma)\cup\dom(\mu_i)\;\forall i\geq1$, $\tau A'_0 = \mu_0 A'_0 = A$.
+    \item \begin{flalign*}
+        \dom(\tau) &= \bigcup_i^{2^m-1}\dom(\mu_i)\cup\dom(\sigma)&& \\
+        &\subseteq \bigcup_i^{2^m-1}\ftv(X';A'_i;E_i)\cup\ftv(\Gamma';B';F)&&\\
+        &=\ftv(\Gamma';A'_0;G).
+    \end{flalign*}
+\end{itemize}
+
+\vspace{\baselineskip}
+\end{itemize}
+\end{proof}
+\begin{observacion}
+    La demostración del Teorema~\ref{teo:comp_hindley} no solo prueba la existencia de la solución, sino que muestra además como construirla a partir del árbol de derivación del tipo. 
+\end{observacion}
+
+\section{Algoritmo de unificación de Robinson}\label{sec:robinson}
+El algoritmo de Robinson recibe las ecuaciones generadas por Hindley y las resuelve para producir una solución. La idea es resolver primero las ecuaciones basadas en $=_\rho$ y a continuación las que usen $=_\mathbb{N}$ y $\geq$. El algoritmo de Robinson se encuentra detallado en la Definición~\ref{def:robinson}.
+
+\begin{lema}
+    El algoritmo de Hindley no puede generar una ecuación de la forma $A = X$ o $X=A$, donde $X$ ocurre en $A$ y $A\neq X$.
+    \qed
+\end{lema}
+\begin{definicion}[Robinson para $\lambda_\rho$]\label{def:robinson}
+Dado el sistema de ecuaciones $E$ para construir la solución $\sigma$, se debe aplicar de manera iterativa y mientras sea posible los siguientes pasos:
+\begin{itemize}
+    \item Si una ecuación en el sistema es de la forma $A \multimap B =_\rho C \multimap D$, reemplazarla por las ecuaciones $A =_\rho C$ y $B =_\rho D$.
+    \item Si una ecuación es de la forma $(m, A) =_\rho (m, B)$, reemplazarla por las ecuaciones $A =_\rho B$.
+    \item Si una ecuación es de la forma $X = X$, remover esa ecuación.
+    \item Si una ecuación es de la forma $V =_\rho X$ o $X=_\rho V$, donde $X$ no ocurre en $V$, la $X$ es sustituida por $V$ en todas las ecuaciones.
+    \item Dado $n,m,o \in \mathbb{N}$, si alguna ecuación es de la forma:
+        \begin{itemize}
+            \item $n = A \multimap B$ o $A\multimap B = n$,
+            \item $(m, n) = A \multimap B$ o $A\multimap B = (m, n)$,
+            \item $n = (m, o)$,
+            \item $A + B = C$ o $A \geq B$, con algún $A, B, C \notin \mathbb{N}^+$,
+            \item $n = m$ o $(n, a) = (m, b)$, con $n\neq m$ o $a\neq b$;
+        \end{itemize}
+    el algoritmo debe fallar.
+\end{itemize}
+
+Cuando no se puedan aplicar más reglas, quedan solo las ecuaciones de la forma $A + B =_\mathbb{N} C$ y $A \geq B$, cada uno de $A, B, C$ o bien son naturales o variables de tipos por lo que pertenecen a $\mathbb{N}$. Por lo tanto, se puede resolver el sistema de ecuaciones con algún procedimiento de álgebra lineal. Si el sistema es indeterminado el algoritmo debe fallar.
+
+Si el algoritmo termina sin fallar, entonces el sistema final es de la forma $X_0 = V_0, \dots, X_{n-1} = V_{n-1}$, donde las $X_i$ son variables diferentes y no ocurren en las $A_i$. En este caso, la sustitución $\sigma = [A_0/X_0, \dots, A_{n-1}/X_{n-1}]$ es una solución del sistema inicial.  
+\end{definicion}
+
+La prueba de la correctitud y completitud de este algoritmo de deja como trabajo a futuro (ver la Sección~\ref{sec:robinson_proof}).
+
+\begin{corolario}
+Es posible validar un término de $\lambda_\rho$ aplicando el algoritmo modificado de Hindley para obtener un tipo con variables $A$ y un conjunto de ecuaciones. El algoritmo de Robinson definido en~\ref{def:robinson} puede encontrar una solución $\sigma$ a las ecuaciones. Si no existe solución el término no es válido. Utilizando el Teorema~\ref{teo:hindley_proof} con el entorno vacío, se puede obtener un tipo como resultado, validando el término.
+\end{corolario}
+ 
+
+
+\section{Resolución del sistema de ecuaciones lineales}
+
+La Definición~\ref{def:robinson} no especifica qué algoritmo emplear para resolver el sistema de ecuaciones e inecuaciones lineales sobre enteros positivos generado en su última parte. La resolución de este sistema eficientemente no es simple, puesto que se requiere encontrar soluciones enteras. 
+
+Una forma fácil de resolver el sistema es usando un algoritmo de fuerza bruta que pruebe todas las posibles soluciones y verifique si satisfacen las ecuaciones. Esto es posible siempre y cuando las variables involucradas no sean de muchos qubits, puesto que en tal caso el tipado tardaría demasiado en ejecutarse debido a la inherente complejidad exponencial.
+
+Una opción viable que existe es recurrir al algoritmo de Simplex, presentado en la Sección~\ref{sec:simplex}. A continuación, vemos cómo es posible aplicarlo a este problema.
+
+\subsection{Simplificación y aplicación de Simplex}
+Antes de poder aplicar Simplex es necesario adaptar el problema a un formato compatible con el mismo. Si el sistema generado por el algoritmo de Robinson genera $m$ ecuaciones y $p$ inecuaciones sobre $n$ variables de tipo que son enteros positivos, podemos expresar tal sistema en formato matricial de la siguiente forma:
+
+\begin{figure}[H]
+\begin{mdframed}
+Encontrar $x$ tal que:
+\begin{align*}
+    Ax &= b \\
+    Cx &\geq d \\
+    x_i &\geq 1\quad \forall i
+\end{align*}
+donde $x\in\mathbb{N}^n, b\in\mathbb{N}^m, d\in\mathbb{N}^p, A\in\mathbb{N}^{m\times n}_0,C\in\mathbb{N}^{p\times n}_0$.
+\end{mdframed}
+\end{figure}
+\vspace{-2\baselineskip}
+En primer lugar, podemos resolver el sistema para $y_i \leftarrow x_i-1$.
+$Ax = b \implies A(x-1) = b - A\overline{1}$. A su vez, $Cx \geq d \implies C(x-1) \geq d - C\overline{1}$. Haciendo $b'=b - A\overline{1}, \;d'=d - C\overline{1}$ tenemos:
+\begin{figure}[H]
+\begin{mdframed}
+Encontrar $y$ tal que:
+\begin{align*}
+    Ay &= b' \\
+    Cy &\geq d' \\
+    y_i &\geq 0\quad \forall i
+\end{align*}
+donde $y\in\mathbb{N}^n_0, b'\in\mathbb{N}^m_0, d'\in\mathbb{N}^p_0, A\in\mathbb{N}^{m\times n}_0,C\in\mathbb{N}^{p\times n}_0$.
+\end{mdframed}
+\end{figure}
+\vspace{-2\baselineskip}
+Seguidamente, podemos reemplazar las inecuaciones por igualdades agregando $p$ variables al sistema.
+
+Para cada inecuación tenemos que $\sum_{j=0}^n C_{ij} y_j \geq d'_i$, entonces $\exists s_i\in\mathbb{N}_0^+ / \sum_{j=0}^n C_{ij} y_j - s_i = d'_i$.
+
+Haciendo \(A'=\begin{bmatrix}
+    A & 0^{m\times p} \\
+    C & -I^{p\times p}
+\end{bmatrix}\), $b''=(b'\;\;d')^T$ y $z = (y\;\;s)^T$. El problema se vuelve:
+\begin{figure}[H]
+\begin{mdframed}
+Encontrar $z$ tal que:
+\begin{align*}
+    A'z &= b'' \\
+    z_i &\geq 0\quad \forall i
+\end{align*}
+donde $z\in\mathbb{N}^{n+p}_0, b''\in\mathbb{N}^{m+p}_0, A'\in\mathbb{Z}^{(m+n)\times (n+p)}$.
+\end{mdframed}
+\end{figure}
+\vspace{-2\baselineskip}
+Con este sistema finalmente podemos aplicar el algoritmo de Simplex de la Definición~\ref{def:simplex}. Como el algoritmo va a maximizar $c^Tx$, podemos tomar $c_i=-1\;\;\forall i$, de esta manera minimizamos $x$ y el algoritmo devuelve las asignaciones de tipos de menor tamaño.
+
+Existe una diferencia, Simplex genera soluciones reales, no necesariamente enteras. Sabemos que si Simplex devuelve una solución entera entonces ya el algoritmo concluye. Si, en cambio, se tiene una solución no entera es necesario aplicar otra técnica conocida como Ramificación y Poda (del inglés ``Branch and Bound''), presentada en la Sección 9.3 del libro~\cite{simplex}. Dado que no es común encontrarse con este caso, se deja como trabajo a futuro explorar e implementarlo (discutido en la Sección~\ref{sec:simplex_future}).
+
+\subsection{Equivalencia con el problema de cubrimiento de vértices mínimo}
+
+En la sección anterior vimos cómo más allá de encontrar un tipado, también puede resultar interesante la pregunta de cuál es el tipado que minimiza el tamaño total de los qubits. Por ejemplo, tiene mucho más sentido tipar la expresión $\lambda x.x$ como $1\multimap 1$ que como $143\multimap 143$. Extraordinariamente, se puede probar que bajo esta premisa el tipado se vuelve \emph{NP-completo}. Para probar esta afirmación basta con ver que es equivalente a otro problema NP-hard, el de cubrimiento de vértices mínimo. 
+
+\begin{lema}
+    Este lema nos sirve para poder introducir variables que no aparecen en el tipo y es útil para reducir la longitud de los árboles de derivaciones. Si ninguna de las variables de un término $t$ aparece en un contexto $\Delta$: 
+    \begin{equation*}
+        \infer[\text{H}\mathtt{ctx}]
+            {\Delta,\Gamma \vdash t \leadsto A,E}
+            {\Gamma \vdash t\leadsto A,E}
+    \end{equation*}\qed
+\end{lema}
+\begin{teorema}[Complejidad del Tipado]\label{teo:hindley_np}
+    Tipar una expresión de $\lambda_\rho$ minimizando la suma de los tamaños de los qubits es NP-completo.
+\end{teorema}
+\begin{proof}
+    Dado un grafo $G=(V,E)$, vamos a construir una expresión de $\lambda_\rho$ cuyo tipado mínimo sea equivalente a encontrar un cubrimiento de vértices mínimo de $G$ en la forma dada por el Teorema~\ref{teo:cover_lin}. La idea de esta expresión es construir un \textsf{letcase} donde cada caso codifique la restricción~\ref{eq:cov2} (del Teorema~\ref{teo:cover_lin}). Cada variable de tipo representa un vértice, el cual vale uno si no forma parte del cubrimiento o dos si lo es cubriendo la restricción~\ref{eq:cov3}. De esta manera minimizar la suma del tamaño de todas las variables equivale a la minimización~\ref{eq:cov1}.
+
+    Sea $e_0, \dots, e_{|E|-1}$ un orden cualquiera del conjunto $E$ y $v_0, \dots, v_{|V|-1}$ un orden cualquiera del conjunto $V$. Necesitamos codificar al menos $|E|$ casos, por lo que necesitamos medir $m=\lceil\log_2|E|\rceil$ qubits. Para el resto de los $2^m-|E|$ casos podemos usar una expresión que no genere ninguna ecuación.
+
+    Utilizando las definiciones auxiliares:
+    \begin{align*}
+        \biglambda_{v\in V}  =\lambda v_0.\;\lambda v_1.\;\lambda v_2.\; \dots \;\lambda v_{n-2}.\;\lambda v_{n-1}\\
+        \bigmultimap_{v\in V}\;T = V_0\multimap V_1 \multimap V_2\multimap \dots\multimap V_{n-2}\multimap V_{n-1} \multimap T\\
+        cs_i= \biglambda_{v\in V}.(\lambda y. \ket{0}\bra{0})\;(\pi^3 (v_p\otimes v_q)) \quad\text{siendo } e_i = pq
+    \end{align*}
+    La expresión es:
+    \begin{align}\label{eq:chi}
+        \chi = \textsf{letcase } x = \pi^m (\ket{0}\bra{0})^m\textsf{ in }\{cs_0, \dots, cs_{|E|-1}, \biglambda_{v\in V}.\ket{0}\bra{0}, \dots\}
+    \end{align}
+
+    A continuación, se muestra derivación del algoritmo de Hindley (Definición~\ref{def:hindley}) para esta expresión. Comenzamos primero por sus subexpresiones:
+\footnotesize
+\begin{adjustwidth}{-30pt}{-30pt}
+\begin{equation}\label{eq:csi_tip}
+\infer[\text{H}\mathtt{ctx}]
+{x:X\vdash \biglambda_{v\in V}.(\lambda y. \ket{0}\bra{0})\;(\pi^3 (v_p \otimes v_q))\leadsto \bigmultimap_{v\in V}\;1, \{S_{pq} =_\mathbb{N} V_p+V_q, S_{pq} \geq 3, Y\multimap 1 =_\rho (3, S_{pq}) \multimap 1\}}
+{\infer[\text{H}\multimap_i]
+    {\vdots}
+    {\infer[\text{H}\multimap_e]
+        {v_i:V_i \;\forall i\vdash (\lambda y. \ket{0}\bra{0})\;(\pi^3 (v_p \otimes v_q)) \leadsto 1, \{S_{pq} =_\mathbb{N} V_p+V_q, S_{pq} \geq 3, Y\multimap 1 =_\rho (3, S_{pq}) \multimap 1\}}
+        {\infer[\text{H}\multimap_i]
+            {\vdash \lambda y. \ket{0}\bra{0} \leadsto Y\multimap 1, \emptyset}
+            {\infer[\text{H}\mathtt{ax}_\rho]
+                {y:Y \vdash \ket{0}\bra{0} \leadsto 1, \emptyset}
+                {}
+            }
+        \quad \infer[\text{H}\mathtt{m}]
+            {v_p:V_p, v_q:V_q \vdash \pi^3 (v_p \otimes v_q) \leadsto (3, S_{pq}), \{S_{pq} =_\mathbb{N} V_p+V_q, S_{pq} \geq 3\}}
+            {\infer[\text{H}\otimes]
+                {v_p:V_p, v_q:V_q \vdash v_p \otimes v_q \leadsto S_{pq}, \{S_{pq} =_\mathbb{N} V_p+V_q\}}
+                {\infer[\text{H}\mathtt{ax}]
+                    {v_p: V_p \vdash v_p \leadsto V_p, \emptyset}
+                    {}
+                \quad \infer[\text{H}\mathtt{ax}]
+                    {v_q: V_q \vdash v_q \leadsto V_q, \emptyset}
+                    {}
+                }
+            }
+        }
+    }
+}
+\end{equation}
+\end{adjustwidth}
+\vspace{\baselineskip}
+\begin{equation}\label{eq:fill_tip}
+\infer[\text{H}\mathtt{ctx}]
+{x:X\vdash \biglambda_{v\in V}.\ket{0}\bra{0}\leadsto \bigmultimap_{v\in V}\;1, \emptyset}
+{\infer[\text{H}\multimap_i]
+    {\vdots}
+    {\infer[\text{H}\mathtt{ax}]
+        {v_i:V_i \;\forall i\vdash \ket{0}\bra{0} \leadsto 1, \emptyset}
+        {}
+    }
+}
+\end{equation}
+\vspace{\baselineskip}
+\begin{equation}\label{eq:meas_var}
+\infer[\text{H}\mathtt{m}]
+{\vdash \pi^m (\ket{0}\bra{0})^m \leadsto (m, m), \{m\geq m\}}
+{\infer[\text{H}\mathtt{ax}_\rho]
+    {\vdash (\ket{0}\bra{0})^m \leadsto m, \emptyset}
+    {}
+}
+\end{equation}
+
+
+\normalsize
+Finalmente, utilizando \ref{eq:csi_tip}, \ref{eq:fill_tip} y \ref{eq:meas_var} podemos concluir: 
+\footnotesize
+\vspace{\baselineskip}
+\begin{equation}
+\infer[\text{H}\mathtt{lc}]
+{\begin{aligned}
+    \vdash \textsf{letcase } x = \pi^m (\ket{0}\bra{0})&^m\textsf{ in }\{cs_0, \dots, cs_{|E|-1}, \biglambda_{v\in V}.\ket{0}\bra{0}, \dots\} \leadsto \bigmultimap_{v\in V} \;1, \\
+&\bigcup \begin{cases}
+    \{S_{pq} =_\mathbb{N} V_p+V_q, S_{pq} \geq 3, Y\multimap 1 =_\rho (3, S_{pq}) 
+    \multimap 1\}\; \forall pq \in E\\
+    \{\bigmultimap_{v\in V}\;1 =_\rho \bigmultimap_{v\in V}\;1 \},\\
+    \{m\geq m\},\\
+    \{(m, m) =_\rho (m, X)\},\\
+    \{X\geq m\}
+\end{cases}
+\end{aligned}}
+{\vdots}
+\end{equation}
+\normalsize
+Si fijamos $X=m, Y=(3, S_{pq})$, las únicas ecuaciones no triviales que quedan definen el siguiente sistema:
+\begin{gather*}
+    V_p + V_q \geq 3 \quad \forall pq \in E \\
+    V_i \geq 1 \quad \forall i \in [0,\dots,|V|]
+\end{gather*}
+Haciendo $x_i \leftarrow V_i-1$
+\begin{gather*}
+    x_p + x_q \geq 1 \quad \forall pq \in E \\
+    x_v \geq 0 \quad \forall v \in V
+\end{gather*}
+Si a su vez pedimos que la suma de los valores de $x_v$ sean los menores posibles, ningún $x_v$ va a ser mayor a uno nunca, y como es un natural se cumple que $x_v \in \{0, 1\}$ y el sistema es:
+\begin{align}
+    \text{minimizar } &\sum_{v\in V} x_v \tag*{}\\
+    \text{sujeto a } &x_p + x_q \geq 1 \quad \forall pq \in E \tag*{}\\
+    &x_v \in \{0, 1\} \quad \forall v \in V\label{eq:sist_chi}
+\end{align}
+Que es igual a la versión de programación lineal del problema de cubrimiento de vértices mínimo presentada en el Teorema~\ref{teo:cover_lin}.
+De esta manera, si existe un algoritmo que encuentra el tipo que minimiza los tamaños de los qubits para la expresión $\chi$(\ref{eq:chi}), por el Teorema~\ref{teo:comp_hindley} de la completitud de Hindley, tal tipo define una solución al sistema~\ref{eq:sist_chi}, que es un problema NP-hard (y NP-completo). Estas observaciones también aplican para las versiones decidibles de los problemas. A su vez, dada una solución es trivial verificar en tiempo lineal que las ecuaciones se cumplen, por lo que el problema es NP-completo.
+\end{proof}

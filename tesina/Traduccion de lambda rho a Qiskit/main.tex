@@ -1,0 +1,80 @@
+\documentclass[12pt, spanish]{report}
+
+\input{code_preamble}
+\title{Compilación del lambda cálculo con matrices densidad en la máquina cuántica IBM-Q}
+\author{Martín Villagra\\V-2719/7}
+\date{\today}	% Fecha
+
+
+\makeatletter
+\let\thetitle\@title
+\let\theauthor\@author
+\let\thedate\@date
+\makeatother
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Martín Villagra}
+\lhead{Traducción de $\lambda_\rho$ en Python con Qiskit}
+\cfoot{\thepage}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%% Portada %%%%%%%%%%%%%%%%%%%%%%%%%
+
+\pagenumbering{gobble}
+\include{0a_titlepage}
+\blankpage
+
+%%%%%%%%%%%%%%%%%%%% Abstract %%%%%%%%%%%%%%%%%%%%%%%%%
+
+\include{0b_abstract}
+
+%%%%%%%%%%%%%%%%% Agradecimientos %%%%%%%%%%%%%%%%%%%%%
+% \ifdraft{}{
+\include{0c_agradecimientos}
+% }
+%%%%%%%%%%%%%%%%%%%%%%%% TOC %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cleardoublepage
+\pagenumbering{arabic}
+\tableofcontents
+
+%%%%%%%%%%%%%%%%%%% Introducción %%%%%%%%%%%%%%%%%%%%%%
+
+\include{0d_introduccion}
+
+%%%%%%%%%%%%%%%%%%% Preliminares %%%%%%%%%%%%%%%%%%%%%
+
+\include{1_preliminares}
+
+%%%%%%%%%%%%%%% Tipado %%%%%%%%%%%%%%
+
+\include{tipado}
+
+%%%%%%%%%%%%%%% Qiskit con Python %%%%%%%%%%%%%%
+
+\include{qiskit_con_python}
+
+%%%%%%%%%%%%%%%%%%% Traduccion %%%%%%%%%%%%%%%%%%%%%
+
+\include{traduccion}
+
+%%%%%%%%%%%%%%%%%%% Implementación %%%%%%%%%%%%%%%%%%%%%
+
+\include{implementacion}
+
+%%%%%%%%%%%%%%%%%%% Conclusiones %%%%%%%%%%%%%%%%%%%%%
+
+\include{conclusiones}
+
+%%%%%%%%%%%%%%%%%%%%%% Anexos %%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{appendices}
+% \include{99_borrador}
+% \end{appendices}
+
+%%%%%%%%%%%%%%%%%%% Bibliografía %%%%%%%%%%%%%%%%%%%%%
+
+\printbibliography[heading=bibintoc]
+\end{document}

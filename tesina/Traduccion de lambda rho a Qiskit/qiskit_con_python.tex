@@ -1,0 +1,263 @@
+\chapter{Qiskit con Python}\label{ch:python}
+
+
+Qiskit~\cite{QiskitOfficial, QiskitTextbook} es un kit de desarrollo de software libre fundado por IBM (especificado en \cite{qiskit_spec}) inicialmente orientado para su servicio de nube de computación cuántica. Provee herramientas para crear y manipular programas cuánticos, permitiendo simularlos localmente y ejecutarlos en dispositivos cuánticos. Puede ser utilizado potencialmente por cualquier hardware cuántico de propósito general.
+
+La versión primaria de Qiskit es una biblioteca disponible para el lenguaje de programación Python. En este trabajo se usará para definir y ejecutar circuitos en términos de compuertas.
+
+
+%%%%%==== Sección ====%%%%%%
+\section{Arquitectura}
+Qiskit permite definir circuitos cuánticos dentro de Python. Una vez declarados es posible enviar estos circuitos a máquinas cuánticas (o simuladores) que devolverán el resultado de las mediciones realizadas. En este sentido Python es nuestro paradigma clásico y por medio de Qiskit podemos acceder a la parte cuántica. Por estas razones el modelo presentado en este trabajo consiste en dos partes, el lenguaje clásico de Python y la máquina abstracta de Qiskit. Debido a la complejidad de ambos sistemas en este trabajo se presentan versiones sumamente simplificadas con el fin de probar la correctitud de la traducción.
+
+%%%%%==== Sección ====%%%%%%
+\section{La máquina abstracta de Qiskit}
+
+Un programa en Qiskit es una lista de instrucciones a ejecutar sobre una lista de qubits que representan la memoria de la máquina cuántica. Contiene también un registro para almacenar el resultado de la medición. Formalmente, un estado del programa está representado por una tripleta $(\ket{\phi}, r, L) \in \Lambda_\textit{qk}$, donde:
+\begin{itemize}
+    \item $\ket{\phi}$ es un vector normalizado de $\mathlarger{\mathlarger{\otimes}}_{i=0}^{n-1}\mathbb{C}^2 $ para algún $n > 0$.
+    \item $r \in \mathbb{N}_0$ es el resultado de la última medición efectuada.
+    \item $L$ es una lista ordenada de instrucciones ($\subseteq \mathfrak{I}_\textit{qk}$) que se muestran en la Definición~\ref{qiskit_def}.
+\end{itemize}
+
+\begin{definicion}[Instrucciones de Qiskit, $\mathfrak{I}_Q$]
+\label{qiskit_def}
+\leavevmode
+\smallskip
+\begin{center}
+\begin{tabularx}{\textwidth}{l X}
+    \hline
+    \textbf{Init} $[c_0, \dots, c_{2^n-1}]$ &  Inicializa el estado cuántico al vector estado provisto.\vspace{3pt}\\
+    \hline
+    \textbf{Gate} $G$ $[q_0, \dots, q_{n-1}]$ &  Aplica la compuerta $G$ sobre los qubits $q_0, \dots, q_{n-1}$.\vspace{3pt}\\
+    \hline 
+    \textbf{Measure} $[q_0, \dots, q_{n-1}]$ & Mide los qubits $q_0, \dots, q_{n-1}$.\vspace{3pt}\\
+    \hline
+    % \textbf{Reset} $n$ & Inicializa $n$ qubits a $\ket{0}$.\\ 
+    % \hline
+\end{tabularx}
+\end{center}
+donde:
+\begin{itemize}
+    \item $G \in \{U^{\theta, \phi, \lambda}, CU^{\theta, \phi, \lambda}, \textrm{SWAP}, \textrm{CSWAP}\}$, con $\theta, \phi, \lambda \in \mathbb{R}$.
+\end{itemize}
+\end{definicion}
+
+
+\section{Semántica operacional de Qiskit}
+La máquina abstracta ejecuta las instrucciones en orden, modificando su estado como se describe a continuación. La definición de cada compuerta es análoga a la provista en la Definición~\ref{def:lamrho_gates}. Cabe destacar que Qiskit inicializa todos los qubits a $\ket{0}$ al inicio de toda ejecución. Definimos formalmente la ejecución con la función $\redqk : \Lambda_\textit{qk} \rightarrow \Lambda_\textit{qk}$.
+\begin{definicion}[Semántica operacional de Qiskit]
+\label{def:qk_rules}
+\begin{align*}
+%     (\ket{\phi}, r, \textbf{Reset}\;n;L) \redqk_1& (\ket{0}^n, r, L)
+% \intertext{Si $U'$ es la matriz que representa la compuerta que aplica $U$ sobre los qubits $qs$:}
+\intertext{Si $\ket{\phi'} = \begin{bsmallmatrix}
+    c_0 & \dots & c_{2^n-1}
+\end{bsmallmatrix}^*$:}
+    (\ket{\phi}, r, \textbf{Init}\;[c_0,\dots,c_{2^n-1}];L) \redqk_1& (\ket{\phi'}, r, L)
+\intertext{Si $G'$ es la compuerta que aplica $G$ a los qubits $q_0,\dots,q_{n-1}$:}
+    (\ket{\phi}, r, \textbf{Gate}\;G\;[q_0,\dots,q_{n-1}];L) \redqk_1& (G' \ket{\phi}, r, L)
+\intertext{Si $\{\pi_0, \dots, \pi_{2^n-1}\}$ son los operadores que miden los qubits $q_0,\dots,q_{n-1}$:}
+    (\ket{\phi}, r, \textbf{Measure}\;[q_0,\dots,q_{n-1}];L) \redqk_{p_i}& \left(\frac{\pi_i\ket{\phi}}{\sqrt{\bra{\phi}\pi_i^\dagger \pi_i\ket{\phi}}}, i, L\right)
+\intertext{con $p_i=\bra{\phi}\pi_i^\dagger \pi_i\ket{\phi}$}
+\end{align*}
+\end{definicion}
+
+
+
+%%%%%==== Sección ====%%%%%%
+\section{Python}
+Python~\cite{PythonReference} es un lenguaje interpretado de alto nivel. Actualmente, se encuentra entre los más utilizados del mundo \cite{kuhlman2011python}. Su filosofía de diseño se centra en la legibilidad del código, y se caracteriza por ser dinámicamente tipado, con recolector de basura. Su paradigma es procedimental, orientado a objetos y con programación funcional.
+
+Debido a la alta complejidad del lenguaje está fuera del alcance de este trabajo especificarlo en su totalidad. A su vez dicha especificación haría muy difícil probar cualquier propiedad sobre el mismo. En su lugar se define a continuación una versión reducida que contiene las características que resultan necesarias para este proyecto. Estas definiciones son esenciales para definir de manera concisa la traducción que se presentará en el capítulo~\ref{ch:traduccion} y probar propiedades sobre la misma.
+
+\subsection{Modelo de la biblioteca de Qiskit}\label{sub:qiskit_model}
+Para modelar la biblioteca de Qiskit en Python se diseñó un wrapper `Circuit' que simplifica lo más posible su interfaz. Las variables internas del wrapper se modelan como un par $(I, L)$ donde $I$ es una lista de números complejos representando el vector de estado inicial del circuito y $L$ es la lista de instrucciones a ejecutar. De esta forma los métodos del wrapper son:
+\begin{description}
+    \item[\texttt{Circuit(I, L)}] Simplemente inicializa el estado interno a $(I, L)$.
+    \item[\texttt{gate}] agrega una instrucción para aplicar una compuerta a la lista de instrucciones.
+    \item[\texttt{compose}] dado otro circuito devuelve la composición de ambos. El nuevo circuito generado contiene la concatenación de las listas de instrucciones de los circuitos iniciales.
+    \item[\texttt{measure}] utiliza el simulador/computadora cuántica de Qiskit para ejecutar la lista de instrucciones y devuelve el resultado de la medición.
+    
+\end{description} 
+
+
+\subsection{Definición de Python}
+
+Nuestra simplificación contiene:
+\begin{itemize}
+    \item Las funciones de lambda de Python, que se asemejan mucho a las expresiones lambda de $\lambda_\rho$, por lo que su traducción es casi directa.
+    \item La clase `Circuit' y sus métodos explicados en la Sección~\ref{sub:qiskit_model}.
+    \item La expresión de \texttt{letcase}, que simplemente es un azúcar sintáctico para la indexación de listas.
+\end{itemize}
+
+La especificación formal de los términos de Python ($\Lambda_\textit{py}$) se muestra en la Definición~\ref{def:python}.
+
+Notar que no se va a dar un tipado para Python porque la traducción que se presenta en el Capítulo~\ref{ch:traduccion} ya valida el tipado de la expresión de $\lambda_\rho$. Resulta entonces innecesario volverla a tipar luego de haberla traducido.
+
+\begin{definicion}[Gramática de Python]
+\label{def:python}
+\begin{align*}
+% t ::= &\; \texttt{n} \mid \texttt{x} \mid \texttt{lambda x: t} \mid \texttt{t(t)} \tag{Python estándar}\\
+%  \mid&\; \texttt{Circuit(n, [l, \dots, l])} \tag{Circuitos de Qiskit}\\
+%  \mid&\; \texttt{t.gate(G, [n, \dots, n])} \tag{Aplicación de compuertas}\\
+%  \mid&\; \texttt{t.measure([n, \dots, n])} \tag{Medición de circuitos}\\
+%  \mid&\; \texttt{t.compose(t)} \tag{Composición de circuitos}\\
+%  \mid&\; \texttt{letcase(t, [t, \dots, t])} \tag{Letcase}
+t ::= &\; v\\
+ \mid&\; \texttt{t(t)} \tag{Aplicación de lambda}\\
+ \mid&\; \texttt{t.gate(G, [r, \dots, r])} \tag{Aplicación de compuertas}\\
+ \mid&\; \texttt{t.measure([n, \dots, n])} \tag{Medición de circuitos}\\
+ \mid&\; \texttt{t.compose(t)} \tag{Composición de circuitos}\\
+ \mid&\; \texttt{t.size()} \tag{Cantidad de qubits del circuito}\\
+ \mid&\; \texttt{letcase(t, [t, \dots, t])} \tag{Letcase}\\
+ \mid&\; \texttt{(t, t)} \tag{Pares}\\
+ \mid&\; \texttt{t+t} \mid \texttt{t-t} \mid \texttt{t*t} \mid \texttt{t/t} \mid \texttt{t**t} \tag{Aritmética}\\\\
+v ::= &\; b \mid \texttt{n} \mid \texttt{Circuit([c, \dots, c], [l, \dots, l])} \tag{Valores}\\\\
+b ::= &\; \texttt{x} \mid \texttt{lambda x: t} \tag{Términos base}
+\end{align*}
+donde
+\begin{itemize}
+    \item
+    \item $\texttt{l} \in \mathfrak{I}_{\textit{qk}}, \texttt{n} \in \mathbb{N}_0, \texttt{c} \in \mathbb{C}, \texttt{r} \in \mathbb{R}$.
+    \item $\texttt{G} \in \{U^{\theta, \phi, \lambda}, UC^{\theta, \phi, \lambda}, \textrm{SWAP}, \textrm{CCNOT}, \textrm{CSWAP}\}$, con $\theta, \phi, \lambda \in \mathbb{R}$.
+\end{itemize}
+\end{definicion}
+
+\subsection{Estrategia de reducción de Python}
+El mecanismo básico de la reducción es que dado una expresión del tipo `Circuit().compuerta()`, la misma se reducirá a un `Circuit()', donde el estado interno de la clase `Circuit' fue modificado para agregar dicha compuerta. Las mediciones sobre un circuito devuelven un entero.
+
+Para la composición de circuitos notar que además de concatenar las listas de instrucciones se tienen que incrementar las referencias a los qubits del segundo circuito, para ello se define la función $\textit{shift}$.
+
+El resto de las reglas son similares a la del lambda cálculo afín.
+
+\begin{definicion}[Estrategia de reducción de Python]
+\label{def:reduccion_python}
+\begin{align*}
+    \texttt{Circuit(I,}&\;\texttt{[l$_0$, \dots, l$_{x-1}$]).gate(G, [a$_0$, \dots, a$_{g-1}$])}\\
+    \redpy_1\;& \texttt{Circuit(I, [l$_0$, \dots, l$_{x-1}$, \textbf{Gate} G\;[a$_0$, \dots, a$_{g-1}$] ])} \tag{$G_\textit{py}$}
+\end{align*}
+Si $|\texttt{J}| = 2^m$, es decir \texttt{J} es un vector de estado de $m$ qubits:
+\begin{align*}
+    \texttt{Circuit(I,}&\;\texttt{[l$_0$, \dots, l$_{x-1}$]).compose(Circuit(J, [c$_0$, \dots, c$_{y-1}$]))} \\
+    \redpy_1\;& \texttt{Circuit(I}\otimes\texttt{J, [\textit{shift}(l$_0$, m), \dots, \textit{shift}(l$_{x-1}$, m),} \\
+    &\qquad \texttt{c$_0$, \dots, c$_{y-1}$}\\
+    &\;\texttt{])}  \tag{$\otimes_\textit{py}$}\\
+    \texttt{Circuit(J,}&\;\texttt{[\dots]).size()} \redpy_1\; \log_2|\texttt{J}| = \texttt{m} \tag{\text{sz}$_\textit{py}$}
+\end{align*} 
+Si $(\ket{0}^n, 0, \textbf{Init }\texttt{I};\;\texttt{l}_0;\;\dots\;;\;\texttt{l}_{x-1};\;\textbf{Measure } [\texttt{q}_0, \dots, \texttt{q}_s]) \redqk_p^* (\ket{\phi}, r, [\;])$: \footnotemark
+\begin{align*}
+    \texttt{Circuit(I,}&\;\texttt{[l$_0$, \dots, l$_{x-1}$]).measure([q$_0$, \dots, q$_s$])} \redpy_p \texttt{$r$}  \tag{$\pi_\textit{py}$}
+\end{align*}
+\vspace{-1.5\baselineskip}
+\begin{align*}
+    \texttt{(lambda x.t)(v)} \redpy_1&\; [ \texttt{v}/\texttt{x}]\texttt{t}\text{, donde } \texttt{v} \text{ es un valor} \tag{$\lambda_\textit{py}$}\\
+    \texttt{letcase(((i, m), rho), [t$_0$, \dots, t$_{m-1}$])} \redpy_1&\; \texttt{t$_i$(rho)}\text{, con }0\leq i < m \tag{\text{let}$_\textit{py}$}
+\end{align*}
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{cc}
+     \infer[Lr_\textit{py}]
+     {\texttt{t(s)} \redpy_p \texttt{r(s)}}
+     {\texttt{t} \redpy_p \texttt{r}}
+     &
+     \infer[Rr_\textit{py}]
+     {\texttt{v(t)} \redpy_p \texttt{v(r)}}
+     {\texttt{t} \redpy_p \texttt{r} \quad v\text{ es un valor}}
+     % &
+     %     \infer
+     %     {\texttt{t(v)} \redpy_p \texttt{r(v)}}
+     %     {\texttt{t} \redpy_p \texttt{r} \quad \texttt{v}\text{ es un valor}}
+   \end{array}
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{c}
+         \infer[Gr_\textit{py}]
+         {\texttt{t.gate(G, A)} \redpy_p \texttt{r.gate(G, A)}}
+         {\texttt{t} \redpy_p \texttt{r}}
+   \end{array}
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{c}
+         \infer[\pi r_\textit{py}]
+         {\texttt{t.measure(A)} \redpy_p \texttt{r.measure(A)}}
+         {\texttt{t} \redpy_p \texttt{r}}
+   \end{array} 
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{c}
+         \infer[L\otimes_\textit{py}]
+         {\texttt{t.compose(s)} \redpy_p \texttt{r.compose(s)}}
+         {\texttt{t} \redpy_p \texttt{r}}
+   \end{array} 
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{c}
+         \infer[R\otimes_\textit{py}]
+         {\texttt{v.compose(t)} \redpy_p \texttt{v.compose(r)}}
+         {\texttt{t} \redpy_p \texttt{r} \quad \texttt{v}\text{ es un valor}}
+   \end{array}
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{c}
+     \infer[\text{letr}_\textit{py}]
+     {\texttt{letcase(t, TC)} \redlam_p \texttt{letcase(r, TC)}}
+     {t \redlam_p r}
+   \end{array}
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{cc}
+     \infer[L\oplus_\textit{py}]
+     {\texttt{t}\oplus \texttt{s} \redpy_p \texttt{r} \oplus \texttt{s}}
+     {\texttt{t} \redpy_p \texttt{r}}
+     &
+     \infer[R\oplus_\textit{py}]
+     {\texttt{v} \oplus \texttt{t} \redpy_p \texttt{v} \oplus \texttt{r}}
+     {\texttt{t} \redpy_p \texttt{r} \quad v\text{ es un valor}}
+   \end{array}
+ \]
+ \vspace{-2\baselineskip}
+ \begin{multicols}{2}\noindent
+ \begin{align}
+     \texttt{a + b} &\redpy_1 (a+b) \tag{$+_\textit{py}$}\\
+     \texttt{a - b} &\redpy_1 (a-b) \tag{$-_\textit{py}$}\\
+     \texttt{a * b} &\redpy_1 (a*b) \tag{$*_\textit{py}$}
+ \end{align}
+ \columnbreak
+\begin{align}
+     \texttt{a / d} &\redpy_1 \lceil \nicefrac{a}{d}\rceil \tag{$/_\textit{py}$}\\
+     \texttt{a ** b} &\redpy_1 (a^c) \tag{$**_\textit{py}$}
+\end{align}
+\end{multicols}
+ \vspace{-2\baselineskip}
+donde:
+\begin{itemize}
+    \item $\oplus \in \{\texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{**}\}$.
+    \item $a,b,d\in\mathbb{C}, d\neq 0$.
+    \item La función $\textit{shift}(\;\cdot\;, n)$ hace que todos los operadores actúen $n$ posiciones a la derecha. Formalmente:
+ \vspace{-0.5\baselineskip}
+    \begin{align*}
+    \textit{shift}(\textbf{Gate } G\;[a_0, \dots, a_{m-1}], n) &= \textbf{Gate } G\;[a_0+n, \dots, a_{m-1}+n] \\
+    \textit{shift}(\textbf{Measure } [a_0, \dots, a_{m-1}], n) &= \textbf{Measure } [a_0+n, \dots, a_{m-1}+n]
+    \end{align*}
+\end{itemize}
+ \vspace{0.1\baselineskip}
+\footnotetext{$^1$es decir si ejecutar y medir el circuito $Q$ en Qiskit devuelve la medición $r$ con probabilidad $p$.}
+\end{definicion}
+
+
+% \subsection{Tipado de Python}
+
+% {Creo que esto debería irse porque Python no tiene tipos? Aunque podría usar los typehints}
+
+
+
+
+% \[
+%  \infer[^\tax] {x:\Psi\vdash x:\Psi} {}
+%  \qquad
+%  \infer[^{\tax_{\vec 0}}] {\vdash \z:S(A)} {}
+%  \qquad
+%  \infer[^{\tax_{\ket 0}}] {\vdash\ket 0:\B} {}
+%  \quad
+%  \infer[^{\tax_{\ket 1}}] {\vdash\ket 1:\B} {}
+% \]

@@ -1,0 +1,235 @@
+
+\chapter{Implementación}\label{ch:implementacion}
+
+La implementación del parsing, tipado y traducción se elaboró enteramente en \emph{Haskell} bajo la herramienta \emph{Stack} para gestionar el proyecto. En este capítulo comentamos sobre el papel de las mónadas, como se testeó el código, bibliotecas empleadas y estructuración de los módulos.
+
+El código se encuentra disponible en \url{https://gitlab.com/martinv/quantum-lambda-calculus-with-density-matrix}, bajo la licencia de código abierto ``Licencia Pública General de GNU'' (GNU GPL).
+
+\section{Uso de mónadas}
+La mónada de error (\textsf{Except}) aparece extensamente en casi todos los módulos para devolver errores en el tipado o parsing, entre otros casos.
+
+
+En el algoritmo de Hindley se utilizaron las siguientes mónadas:
+\begin{itemize}
+    \item La mónada de error (\textsf{Except}) para representar errores durante el tipado.
+    \item Una mónada de estado (\textsf{State}), cuyo estado consiste en un entero y sirve para crear variables frescas.
+    \item Una mónada de \textsf{Reader} que almacena el entorno de tipado (un \emph{map} de variables a tipos).
+\end{itemize}
+Las mismas fueron combinadas utilizando los respectivos transformadores de mónadas incluidos en el lenguaje de Haskell estándar, resultando en los siguientes tipos:
+\begin{verbatim}
+newtype TypeEnv = TypeEnv (M.Map T.Text QType)
+type ExceptInfer = Except TypeError
+type TypeState = Int
+type HindleyM a = ReaderT
+                      TypeEnv -- Entorno de tipado
+                      (StateT
+                          TypeState  -- Estado del tipado
+                          ExceptInfer) -- Errores
+                      a -- Valor de retorno de la función
+\end{verbatim}
+
+
+\section{Testing}
+
+Haciendo uso de las bibliotecas disponibles (listadas en la Sección~\ref{sec:bibliotecas}) se escribieron una diversa variedad de tests para corroborar la implementación. Estos pueden dividirse en cuatro tipos:
+\begin{description}
+    \item[Tests unitarios] Verifican módulos individuales del proyecto mediante casos de entrada individuales.
+    \item[Tests automáticos] Dada una propiedad sobre una función a testear se derivan muchos casos de entrada.
+\begin{ejemplo}
+    Para testar la función $\log_2$, una propiedad que podemos probar es: $\log_2(2^x) = x$. La biblioteca QuickCheck recibe esta propiedad y testea x para muchos valores posibles (intentando incluir casos bordes como 0, 1, 0.5, etc.).
+\end{ejemplo}
+    \item[Tests de integración] Comprueban la validez del resultado ejecutando varias etapas del programa en cada test, por ejemplo un test puede tomar una expresión de $\Lambda_\rho^*$, parsearla, tiparla, traducirla y verificar que dio el resultado esperado.
+    \item[Tests de extremo a extremo] Estos tests abarcan todo el proceso de la traducción y su correcta ejecución en Python. El texto con la expresión de $\Lambda_\rho^*$ pasa por el lexer, el parser, el algoritmo de tipado, la traducción y finalmente la ejecución en Python. El resultado de Python es procesado y validado.
+\end{description}
+
+\subsection{Cobertura de pruebas}
+Si bien es difícil de medir objetivamente cuan bueno es un conjunto de pruebas, una cosa es segura: tal conjunto debe ejecutar toda la lógica del código. Si este no es el caso si hay fallas en lugares nunca ejecutados resultaría imposible detectarlos con tal conjunto. Así es como para guiar la creación de pruebas, resulta muy útil saber que partes del código son ejecutadas durante la ejecución de todos los tests. Afortunadamente, Haskell posee una poderosa herramienta para medir esto llamada \emph{Haskell Program Coverage}(HPC), que fue definida en \cite{hpc}.
+
+El enfoque tradicional para calcular la cobertura es inadecuado para los lenguajes funcionales \emph{lazy} como Haskell, donde cada expresión es evaluada solo cuando es necesario. A diferencia de cualquier otra herramienta de cobertura conocida, HPC detecta cualquier expresión, sin importar cuan pequeña sea, que nunca es evaluada en la ejecución de un programa.
+\begin{ejemplo}
+    Si en el código tenemos una expresión similar a esta:
+    \begin{verbatim}
+        if (condicion1 && condicion2 && condicion3)
+            then valor1
+            else valor2
+    \end{verbatim}
+    HPC puede detectar si cada una de las tres condiciones fue evaluada. Por ejemplo puede informar si \texttt{condicion1} es siempre verdadera para todos los casos, lo que causa que \texttt{condicion2} y \texttt{condicion3} nunca se evalúen. En estas condiciones el programador puede agregar tests que hagan la \texttt{condicion1} falsa para poder testear las otras condiciones.
+\end{ejemplo}
+
+Gracias a la extensa cantidad de tests se logró una cobertura del 100\% de todas las expresiones del código (quitando el módulo autogenerado del parser y el lexer).
+
+
+\section{Bibliotecas y programas auxiliares}\label{sec:bibliotecas}
+
+Se listan a continuación las distintas herramientas empleadas para elaborar el compilador para verificar la correctitud de la implementación.
+
+
+\begin{description}
+    \item[GHC] El Glasgow Haskell Compiler es un compilador nativo de código libre para Haskell.
+    \item[Stack] Programa multiplataforma para desarrollar proyectos en Haskell similar a `cmake' para C.
+    \item[Happy] Sistema generador de parsers para Haskell, similar a la herramienta `yacc' para C.
+    \item[Alex] Herramienta para generar analizadores léxicos en Haskell. Es similar a la herramienta `lex' o `flex' para C/C++.
+    \item[matrix, hmatrix, hmatrix-glpk] Diferentes bibliotecas de álgebra lineal que implementan vectores, matrices, descomposición espectral y Simplex, entre otras funcionalidades.
+    \item[Prettyprinter] Esta biblioteca provee un DSL embebido para dar formato a texto de una manera flexible y conveniente.
+    \item[Repline] Un wrapper de Haskeline para crear interfaces similares a GHCi (la consola interactiva de GHC).
+    \item[optparse-applicative] Biblioteca que provee un parser para recibir y procesar los argumentos de la línea de comandos.
+    \item[regex-tdfa] Un motor de expresiones regulares que resulta útil para comprobar los resultados en los tests.
+    \item[Tasty, QuickCheck, SmallCheck] Bibliotecas utilizadas para realizar testing automático y manual.
+    \item[aeson] Biblioteca que provee un parser de JSON, aparece en los tests para verificar el output de los programas de Python.
+\end{description}
+
+
+
+
+\section{Estructuración del código}
+
+Como cualquier proyecto de Haskell la aplicación se organiza en módulos. Se agruparon los módulos en diversas carpetas:
+\begin{description}
+    \item[Parsing] se compone de un módulo para definir el tipo que representan las expresiones de $\Lambda_\rho^*$, y módulos para el lexer y el parser que juntos pueden procesar el texto de entrada.
+    \item[Python] se compone de un módulo para definir el tipo que representa las expresiones de Python, y un módulo para convertir dichas expresiones a texto legible.
+    \item[Translation] contiene el módulo que implementa la traducción, las subpartes más complejas de la misma (como purificación) se implementan en módulos separados.
+    \item[Typing] contiene el conjunto de módulos que declaran el sistema de tipos junto con el algoritmo de tipado, incluye la estructura de datos de los tipos de $\lambda_\rho^*$, el algoritmo de Robinson y el de Hindley, declaración de errores de tipado, etc.
+\end{description}
+
+El archivo \texttt{\textbf{Compiler.hs}} utiliza todas estas subpartes para generar la función que dado un texto de entrada, parsea, realiza el tipado y devuelve la traducción. Finalmente, con esta función \texttt{\textbf{REPL.hs}} implementa una consola interactiva.
+
+Todos los archivos relevantes del código se encuentran listados a continuación.
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+% split dir tree auto,
+[\textbf{app}
+    [Main.hs, content=\treedesc{#1}{Punto de entrada del ejecutable.}]
+    [REPL.hs, content=\treedesc{#1}{Implementa una consola interactiva.}]
+]
+\end{forest}
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+[\textbf{src/Parsing}
+        [LamRhoLexer.x, content=\treedesc{#1}{Lexer de Alex para las expresiones de $\lambda_\rho^*$.}] 
+        [LamRhoParser.y, content=\treedesc{#1}{Parser de Happy para las expresiones de $\lambda_\rho^*$.}] 
+        [LamRhoExp.hs, content=\treedesc{#1}{Define el tipo de las expresiones de $\lambda_\rho^*$.}] 
+]
+\end{forest}
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+[\textbf{src/Python}
+    [PyExp.hs, content=\treedesc{#1}{Define el tipo de las expresiones de Python.}] 
+    [PyRender.hs, content=\treedesc{#1}{Contiene la lógica para convertir expresiones de Python a texto legible.}] 
+]
+\end{forest}
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+[\textbf{src/Translation}
+    [DensMat.hs, content=\treedesc{#1}{Operaciones sobre matrices de densidad.}] 
+    [Purification.hs, content=\treedesc{#1}{Implementa el algoritmo de purificación.}] 
+    % [StateBuilder.hs, content=\treedesc{#1}{Implementa el algoritmo de transformación a un estado arbitrario.}] 
+    [Translation.hs, content=\treedesc{#1}{Contiene la traducción de $\lambda_\rho^*$ a Qiskit en sí.}]
+]
+\end{forest}
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+[\textbf{src/Typing}
+    [GateChecker.hs, content=\treedesc{#1}{Módulo que verifica que las compuertas son válidas.}] 
+    [Hindley.hs, content=\treedesc{#1}{Implementa el algoritmo de Hindley.}] 
+    [MatrixChecker.hs, content=\treedesc{#1}{Módulo que verifica que las matrices de densidad son válidas.}] 
+    [QType.hs, content=\treedesc{#1}{Especifica la estructura usada para los tipos de $\lambda_\rho^*$.}] 
+    [Robinson.hs, content=\treedesc{#1}{Implementa el algoritmo modificado de Robinson.}] 
+    [Subst.hs, content=\treedesc{#1}{Especifica una sustitución y como aplicarla a los distintos tipos usados durante el tipado.}] 
+    [TypeChecker.hs, content=\treedesc{#1}{El módulo principal que hace el tipado (utilizando los otros módulos).}]
+    [TypeEq.hs, content=\treedesc{#1}{Define la estructura usada para las ecuaciones de tipo.}] 
+]
+\end{forest}
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+[src/Compiler.hs, content=\treedesc{#1}{Define el compilador combinando el parser, con el tipado y la traducción.}]
+\end{forest}
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+[src/CompilerError.hs, content=\treedesc{#1}{Define los errores posibles durante el parseado, tipado y traducción.}]
+\end{forest}
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+[src/Utils.hs, content=\treedesc{#1}{Contiene la función $\log_2$.}]
+\end{forest}
+
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+% split dir tree auto,
+[test, content=\treedesc{#1}{Contiene todos los tests siguiendo la misma estructura que \textbf{src}.}
+    [Parsing, content=\treedesc{#1}{Tests para el parser.}]
+    [Translation, content=\treedesc{#1}{Tests de la traducción.}]
+    [Typing, content=\treedesc{#1}{Tests para el tipado.}]
+    [CompilerTests.hs, content=\treedesc{#1}{Tests de integración que combinan el parser, tipado y traducción.}]
+    [PythonTests.hs, content=\treedesc{#1}{Tests de extremo a extremo que ejecutan la traducción utilizando Python y verifican el resultado.}]
+    [TestSpec.hs, content=\treedesc{#1}{Importa y lista todos los tests que son ejecutados con `stack test`.}]
+    [TestUtils.hs, content=\treedesc{#1}{Contiene funciones auxiliares usadas por los tests.}]
+    % [UtilTests.hs, content=\treedesc{#1}{Tests para $\log_2$.}]
+]
+\end{forest}
+
+
+\begin{forest}
+for tree={
+    folder,
+    font=\ttfamily,
+    grow'=0,
+    fit=band,
+},
+% split dir tree auto,
+[package.yaml, content=\treedesc{#1}{Archivo de Stack que especifica las dependencias, metadata y como se compone el proyecto.}]
+\end{forest}
+

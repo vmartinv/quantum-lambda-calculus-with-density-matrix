@@ -1,0 +1,71 @@
+\chapter*{Introducción}
+\addcontentsline{toc}{chapter}{Introducción}
+
+La computación cuántica, un campo de estudio que ha surgido recientemente en la intersección de la física cuántica y la informática, ha capturado la atención de la comunidad científica y tecnológica en las últimas décadas. La promesa de revolucionar la forma en que abordamos problemas computacionales complejos es una de las razones que han impulsado un crecimiento vertiginoso en esta área.
+
+
+A medida que la computación cuántica ha ido madurando, hemos sido testigos de un hito significativo en su evolución: la disponibilidad de hardware cuántico que ahora se encuentra al alcance de investigadores, científicos y programadores en todo el mundo. Este avance ha sido impulsado por la creciente inversión en investigación y desarrollo por parte de empresas líderes en tecnología, así como por la creación de plataformas de acceso público que permiten ejecutar experimentos cuánticos y desarrollar algoritmos en la nube. Hoy en día, no es necesario contar con un laboratorio de física cuántica de última generación para experimentar con la computación cuántica, ya que se ha vuelto accesible a través de servicios en línea que proporcionan acceso a hardware cuántico remoto. Este acceso democrático a la computación cuántica marca un emocionante capítulo en el avance de esta tecnología y amplía las posibilidades de investigación y desarrollo en este campo fascinante.
+
+\section*{Lambda cálculo cuántico}
+
+Aplicar el cálculo lambda, una abstracción fundamental de la teoría de la computación, en este contexto se presenta como un campo de estudio relevante y de gran potencial. En las últimas décadas, ha habido una abundancia de investigaciones en torno a extensiones cuánticas del lambda cálculo, i.e.\ \cite{van_Tonder_2004, Selinger_2005, high_order_quantum, zorzi_2016, linearlambda, Arrighi_2017, typing_quantum}. En estos trabajos, la representación seleccionada para el estado cuántico fueron los vectores en el espacio de Hilbert. Sin embargo, existe una formulación alternativa para la mecánica cuántica que hace uso de las matrices de densidad. Estas matrices de densidad proporcionan una forma de describir un sistema cuántico de estado mixto; es decir, un conjunto probabilístico de varios estados posibles. Todos los postulados de la mecánica cuántica pueden describirse a través de dicho formalismo y, por lo tanto, toda la computación cuántica también puede describirse a través de él.
+
+El formalismo utilizando matrices de densidad se ha empleado ampliamente en lenguajes de programación cuántica, p.\ ej.\ \cite{SelingerMSCS04, hondt_panangaden_2006, bisimulation, invariants_quantum, quantum_markov, invariants_quantum}. Además, el libro ``Fundamentos de la programación cuántica''~\cite{Ying2016} está escrito íntegramente en el lenguaje de las matrices de densidad. Sin embargo, hasta donde sabemos, el único cálculo lambda con matrices de densidad es el introducido en \cite{lamrho}.
+
+Además de la distinción de lenguajes en función de cómo manejan los estados cuánticos (vectores en un espacio de Hilbert versus matrices de densidad), también podemos diferenciarlos por cómo consideran el control, que puede ser cuántico o clásico. La arquitectura de un modelo de datos cuánticos/control clásico se basa en una computadora cuántica ejecutándose dentro de un dispositivo especializado conectado a una computadora clásica, y que la computadora clásica le indica a la computadora cuántica qué operaciones realizar y lee el resultado después de las mediciones. Muchos estudios se han desarrollado siguiendo este paradigma, p. ej. \cite{Altenkirch, Selinger_2005, Green_2013, high_order_quantum, zorzi_2016}. La idea de tener un lenguaje cuántico donde el control sea clásico y los datos sean cuánticos se describió en el modelo QRAM de Knill~\cite{Knill1996} en 1996. Esto inspiró el trabajo de Selinger sobre lenguajes de programación cuánticos~\cite{SelingerMSCS04}, que más tarde introdujo la creación de un cálculo lambda cuántico en este paradigma~\cite{Selinger_2005}.
+
+% Dual al paradigma de datos cuánticos/control clásico, existe el paradigma de control y datos cuánticos. La idea es proporcionar una definición computacional de la noción de espacio vectorial y funciones bilineales. El control cuántico también se utiliza habitualmente en el ámbito de los paseos cuánticos, p. [ABN+01, AAKV01]. También hay varios lenguajes de alto nivel con control cuántico, p. [AG05, YYF12, YYF14, BP15]. Recientemente se introdujo un cálculo lambda con control cuántico en [DCGMV19] tras una larga línea de trabajo en esa dirección [ADC12, DCP12, ADCP+14, AD17, ADCV17].
+
+En ~\cite{lamrho} se propone una extensión cuántica del cálculo lambda, llamada $\lambda_\rho$ (pronunciado: \textit{lambda rho}), en el paradigma de datos cuánticos/control clásico, donde los datos cuánticos están representados por matrices de densidad. Si bien este lenguaje puramente teórico es sumamente simple, hasta ahora, nunca ha sido ejecutado en una máquina cuántica real.
+
+\section*{Python y Qiskit}
+Python~\cite{PythonReference}, un lenguaje de programación de alto nivel, se ha convertido en una de las herramientas más populares y versátiles en el mundo de la informática y la ciencia de datos. Su sintaxis clara y legible, su amplia comunidad de desarrolladores y su capacidad para integrarse con diversas tecnologías lo convierten en una elección ideal para una variedad de aplicaciones. En este contexto, Python no solo se utiliza para el desarrollo de software convencional, sino que también se ha convertido en un recurso esencial en la vanguardia de la computación cuántica gracias a bibliotecas como Qiskit.
+
+Qiskit, desarrollada por IBM Quantum~\cite{ibmquantum}, es una poderosa y versátil biblioteca de código abierto que permite a los programadores y científicos de datos acceder al mundo de la computación cuántica por medio de Python como lenguaje principal. Esta biblioteca se ha convertido en un componente esencial para aquellos interesados en experimentar y desarrollar algoritmos cuánticos en hardware real o simuladores cuánticos de alta fidelidad. Con Qiskit, los usuarios pueden aprovechar las capacidades emergentes de la computación cuántica, experimentar con algoritmos cuánticos y explorar el fascinante mundo de los qubits y la superposición.
+
+\section*{Enfoque y objetivos}
+
+En el presente trabajo de investigación, presentamos una contribución al campo de la computación cuántica y el cálculo lambda. Queremos establecer un vínculo entre una idea que inicialmente fue puramente teórica, el lenguaje $\lambda_\rho$, con las aplicaciones prácticas de la computación cuántica que están disponibles desde estos últimos años.
+
+Nuestra propuesta se centra en la traducción de $\lambda_\rho$ a un lenguaje de programación ampliamente empleado en la informática clásica, Python. Sin embargo, el objetivo no es simplemente realizar una traducción, sino habilitar la ejecución de código de $\lambda_\rho$ en hardware cuántico real.
+
+Para probar la validez de dicha traducción debemos formalizar su definición y probar propiedades sobre ella. A su vez, cómo la traducción funciona exclusivamente para programas válidos de $\lambda_\rho$, se define un algoritmo de tipado de $\lambda_\rho$.
+
+\section*{Aportes de este trabajo}
+Las contribuciones de este trabajo son las siguientes:
+\begin{description}
+\item[Capítulo~\ref{ch:tipado}] \nameref{ch:tipado}
+
+    \begin{itemize}
+        \item Proveemos un algoritmo de inferencia de tipos en dos etapas para $\lambda_\rho$.
+        \item Probamos la completitud y correctitud de la primera etapa.
+        \item Usando este algoritmo probamos que el tipado es NP-completo cuando se minimiza la suma del tamaño de los tipos.
+    \end{itemize}
+\item[Capítulo~\ref{ch:python}] \nameref{ch:python}
+
+    \begin{itemize}
+        \item Presentamos una versión simplificada de Python con Qiskit para poder probar la correctitud de la traducción.
+    \end{itemize}
+\item[Capítulo~\ref{ch:traduccion}] \nameref{ch:traduccion}
+
+    \begin{itemize}
+        \item Demostramos propiedades sobre el método de la purificación y presentamos una técnica de purificación novedosa que preserva la composición.
+        \item A base de las limitaciones impuestas por Qiskit proponemos una versión modificada de $\lambda_\rho$, $\lambda_\rho^*$.
+        \item Definimos la traducción de $\lambda_\rho^*$ a Python, con prueba de correctitud y retracción a izquierda.
+    \end{itemize}    
+\item[Capítulo~\ref{ch:implementacion}] \nameref{ch:implementacion}
+
+    \begin{itemize}
+        \item Implementamos los algoritmos presentados (tipado y traducción) en Haskell.
+    \end{itemize}    
+\end{description}
+
+% \section*{Estructuración de este documento}
+% El resto de este trabajo tiene la siguiente estructura:
+% \begin{description}
+%     \item[Capítulo~\ref{ch:preliminares}] Repasa conceptos preliminares requeridos para entender este proyecto y presenta la extensión cuántica del cálculo lambda, $\lambda_\rho$.
+%     \item[Capítulo~\ref{ch:tipado}] Trata sobre el algoritmo de inferencia de tipos $\lambda_\rho$.
+%     \item[Capítulo~\ref{ch:python}] Presenta la formalización simplificada de Qiskit y Python.
+%     \item[Capítulo~\ref{ch:traduccion}] Define la traducción de $\lambda_\rho$ y demuestra su solidez.
+%     \item[Capítulo~\ref{ch:conclusiones}] Contiene una discusión de nuestros resultados y posibles trabajos a futuro.
+% \end{description}

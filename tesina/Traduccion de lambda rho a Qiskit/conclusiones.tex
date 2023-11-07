@@ -1,0 +1,65 @@
+\chapter{Conclusiones}\label{ch:conclusiones}
+En el transcurso de esta tesina, hemos explorado la intersección entre la computación cuántica y el cálculo lambda. Nuestro objetivo principal fue traducir una variante del cálculo lambda ($\lambda_\rho$) a Python, lo que permite por medio de la biblioteca Qiskit la ejecución de expresiones de $\lambda_\rho$ en hardware cuántico real.
+
+\section{Desafíos técnicos resueltos}
+En primera instancia se presentó un algoritmo de tipado para $\lambda_\rho$ en dos partes basado en el sistema de inferencia de tipos de Hindley y el algoritmo de unificación de Robinson. Se adaptaron ambas partes para poder resolver inecuaciones del tipo  $A\leq B$, que surgen debido a que $\lambda_\rho$ posee enteros en su tipado. Luego se probó la correctitud y completitud de la primera etapa del tipado. Este resultado permitió demostrar que el tipado pertenece a la clase de complejidad NP-completo, mostrando que es equivalente al problema de cubrimiento por vértices mínimo.
+
+Ya teniendo la expresión tipada, para poder dar la traducción primero tuvimos que especificar los lenguajes involucrados y adaptarlos a este trabajo. Presentamos una simplificación del lenguaje de Python y modificamos ligeramente $\lambda_\rho$ para definir  $\lambda_\rho^*$, que posee un conjunto limitado de compuertas, restricciones en la medición y una estrategia de reducción. Se necesitó codificar estados cuánticos mixtos en estados cuánticos puros utilizando el método de la purificación. A su vez se aplicó una novedosa técnica de permutación de qubits para poder traducir la composición de manera eficiente y concisa. Esta técnica se basa en colocar los qubits adicionales en las posiciones pares al realizar la purificación.
+
+Con la traducción definida, se probó formalmente que esta traducción es correcta, es decir que preserva las reglas de reescritura y a su vez que tiene una retracción por izquierda.
+
+
+Seguidamente, se implementaron estas ideas en el lenguaje de programación funcional \textit{Haskell}, incluyendo un extenso conjunto de tests unitarios, automáticos, de integración y de extremo a extremo para corroborar su correctitud. 
+
+\section{Implicaciones prácticas y teóricas}
+
+En el ámbito práctico, nuestros hallazgos sugieren que es posible ejecutar en hardware existente un lenguaje cuántico y funcional como lo es $\lambda_\rho$ con pequeñas modificaciones. Desde una perspectiva teórica, este trabajo contribuye a la comprensión de cómo las abstracciones de la programación funcional se pueden utilizar en el contexto cuántico.
+
+También descubrimos que agregar enteros a un sistema de tipos puede aumentar significativamente la complejidad de llevar a cabo inferencia de tipos sobre las expresiones del lenguaje.
+
+En resumen, al demostrar la viabilidad de ejecutar un lenguaje que inicialmente era puramente teórico en hardware cuántico real, hemos abierto nuevas vías de investigación y desarrollo en estas áreas. Esto marca un paso en la exploración de cómo la programación funcional puede influir en la forma en que abordamos la computación cuántica. Al ser un campo sumamente novedoso, la intersección entre la computación cuántica y la programación funcional promete desafíos y descubrimientos emocionantes para el futuro.
+
+\section{Trabajo a futuro}\label{sec:trabajo_futuro}
+
+A lo largo de este trabajo identificamos desafíos importantes que pueden abordarse en investigaciones futuras. Más allá de estos desafíos también reconocemos que existe un vasto espacio para explorar dado la corta edad de este campo.
+
+\subsection{Condicionales clásicos en QASM 3.0}\label{sub:qasm3}
+
+En la Sección~\ref{sub:qiskit_lim} se presentó la opción de ejecutar lógica clásica dentro de la computadora cuántica. Esto solo es posible si la arquitectura lo permite. Si tuviéramos estas instrucciones condicionales o de salto sería posible ejecutar programas de $\lambda_\rho$ completamente en estas máquinas, sin necesidad de incluir la lógica clásica en Python. A pesar de que algunas máquinas cuánticas tienen esta capacidad, por el momento no es posible hacerlo en Qiskit debido a que internamente Qiskit compila los circuitos al lenguaje ensamblador cuántico estandarizado OpenQASM en su versión 2.0~\cite{qiskit_spec} y el mismo carece de tales instrucciones.
+
+El lenguaje ensamblador cuántico abierto (OpenQASM 2) se propuso como un lenguaje de programación imperativo para circuitos cuánticos. En principio, cualquier cálculo cuántico podría describirse utilizando OpenQASM 2. Sin embargo, no puede describir cualquier cálculo clásico.
+
+
+Recientemente en septiembre del 2022, se ha publicado la versión 3 de QASM \cite{qasm3}. Tan esperadamente, esta nueva iteración agrega soporte para control de flujo arbitrario, así como también llamadas a funciones clásicas externas, entre otras funcionalidades. Esto permitiría tener control clásico definido en la propia computadora cuántica. El soporte de Qiskit para esta nueva versión de OpenQASM está mejorando día a día.
+
+Es con este nuevo avance de la tecnología que resultaría plausible reformular la traducción de manera que se incluya toda la lógica en la computadora cuántica y así solucionar las limitaciones especificadas en la Sección~\ref{sub:qiskit_lim}.
+
+% \subsection{Reconstrucción del estado luego de la medición}\label{sub:recons_med}
+\subsection{\texorpdfstring{Correctitud del algoritmo de Robinson para $\lambda_\rho$}{Correctitud del algoritmo de Robinson para Lambda Rho}}\label{sec:robinson_proof}
+En la Sección~\ref{sec:robinson} se presentó un algoritmo para resolver las ecuaciones del tipado, sin embargo, no se demostró su correctitud o completitud. Para probar su correctitud es necesario demostrar que:
+\begin{itemize}
+    \item El algoritmo termina.
+    \item Si el algoritmo falla el sistema no tiene solución (por lo que la expresión siendo tipada es inválida).
+    \item La solución satisface las ecuaciones.
+\end{itemize}
+
+Por otro lado, para probar completitud se debería demostrar que si existe una solución a las ecuaciones, entonces el algoritmo de Robinson la encuentra. Estas pruebas no son fáciles, pero a simple vista parecen posibles.
+
+% \begin{definicion}[Solución principal]
+% $\sigma$ es una solución principal del sistema de ecuaciones $E$ si para cualquier solución $\theta$ de $E$, existe una  sustitución $\mu$ tal que $\theta = \mu \circ \sigma$. Escribimos $\sigma = \text{umg}(E)$— unificador más general, la solución principal.
+% \end{definicion}
+% También cabe destacar que esta sustitución no es una solución principal debido a la asignación de unos realizada al final, por lo que no hay completitud en el algoritmo de tipado (es decir si $\vdash t \leadsto A, E\;\wedge\;\vdash t : A' \nRightarrow \exists \sigma / A'= \sigma A$).
+
+
+\subsection{Profundización en la resolución de las ecuaciones de Robinson}\label{sec:simplex_future}
+
+La versión modificada de Robinson provista en la Sección~\ref{sec:robinson} no especifica que algoritmo utilizar para resolver el sistema de ecuaciones sobre enteros generados. En este trabajo se optó por aplicar Simplex porque la minimización de los tamaños de los tipos resulta deseable y las bibliotecas que lo implementan son muy accesibles. Sin embargo, existen dos cuestiones que no fueron completamente investigadas:
+\begin{itemize}
+    \item Realizar una minimización no es necesaria: un algoritmo que encuentre al menos un tipo es satisfactorio para tipar una expresión. Encontrar y enunciar tal algoritmo resulta interesante desde el punto de vista de reducir la complejidad del problema. Debido a la naturaleza de los sistemas generados (es un sistema sobre los naturales y las matrices contienen solo ceros y unos), se estipula que una solución podría encontrarse en tiempo polinomial.
+    \item No se implementó el algoritmo de Ramificación y Poda necesario para resolver los casos cuando Simplex no devuelve una solución entera al sistema de ecuaciones. En tal caso el tipado falla, lo cual sería correcto si efectivamente no hay una solución entera, pero no lo es en el caso de que simplemente Simplex haya encontrado una solución no entera más óptima que la entera.
+\end{itemize}
+
+
+\subsection{Construcción y demostración de la inversa}\label{sub:inversa_futuro}
+
+En la Sección~\ref{sec:retraccion} se dio una inversa por izquierda, pero también se mencionó que es posible definir una traducción inversa general para todas las expresiones de Python, es decir una función $f: \lambda_\textit{py} \rightarrow \Lambda_\rho^*$. Esto es definitivamente posible, no obstante cabe resaltar que la composición con la traducción dada en este trabajo no da la identidad, sino la versión ``purificada'' del programa original. Resultaría entonces factible plantear esta inversa y probar tal propiedad.

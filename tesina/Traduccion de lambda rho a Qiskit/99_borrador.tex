@@ -1,0 +1,159 @@
+% \chapter{Pruebas}
+
+%%%%%==== Sección ====%%%%%%
+% \section{Diferencias entre paper e implementación en la transformación de circuitos}
+
+% \begin{align}
+% \begin{split}
+% \alpha_{j, k}^z&= \qquad\text{(definición de \cite{quantum_states})} \\
+% &\sum_{l=1}^{2^{k-1}}\left(\omega_{(2j-1) 2^{k-1}+l}-\omega_{(2 j-2) 2^{k-1}+l}\right) / 2^{k-1} \\
+% &= \qquad\text{(sustituyendo $l \leftarrow l-1$)} \\
+% &\sum_{l=0}^{2^{k-1}-1}\left(\omega_{(2j-1) 2^{k-1}+l+1}-\omega_{(2 j-2) 2^{k-1}+l+1}\right) / 2^{k-1} \\
+% &= \qquad\text{(sustituyendo $j \leftarrow j-1$)} \\
+% &\sum_{l=0}^{2^{k-1}-1}\left(\omega_{(2j+1) 2^{k-1}+l+1}-\omega_{j 2^k+l+1}\right) / 2^{k-1} \\
+% &= \qquad\text{(cambio de indexación en 1 a 0 para $\omega$)} \\
+% &\sum_{l=0}^{2^{k-1}-1}\left(\omega_{(2j+1) 2^{k-1}+l}-\omega_{j 2^k+l}\right) / 2^{k-1}\\
+% &\text{con } j=0\dots 2^{n-k}-1, k=1\dots n
+% \end{split}
+% \end{align}
+
+
+% \begin{align}
+% \begin{split}
+% \alpha_{j, k}^{y} &= \qquad\text{(definición de \cite{quantum_states})} \\
+% &2 \operatorname{asin}\left(\sqrt{\sum_{l=1}^{2^{k-1}}\left|a_{(2 j-1) 2^{k-1}+l}\right|^{2}} / \sqrt{\sum_{l=1}^{2^k}\left|a_{(j-1) 2^{k}+l}\right|^{2}}\right) \\
+% &= \qquad\text{(sustituyendo $l \leftarrow l-1$)} \\
+% &2 \operatorname{asin}\left(\sqrt{\sum_{l=0}^{2^{k-1}-1}\left|a_{(2 j-1) 2^{k-1}+l+1}\right|^{2}} / \sqrt{\sum_{l=0}^{2^k-1}\left|a_{(j-1) 2^k+l+1}\right|^{2}}\right) \\
+% &= \qquad\text{(sustituyendo $j \leftarrow j-1$)} \\
+% &2 \operatorname{asin}\left(\sqrt{\sum_{l=0}^{2^{k-1}-1}\left|a_{(2 j+1) 2^{k-1}+l+1}\right|^{2}} / \sqrt{\sum_{l=0}^{2^k-1}\left|a_{j 2^k+l+1}\right|^{2}}\right) \\
+% &= \qquad\text{(cambio de indexación en 1 a 0 para $a$)} \\
+% &2 \operatorname{asin}\left(\sqrt{\sum_{l=0}^{2^{k-1}-1}\left|a_{(2 j+1) 2^{k-1}+l}\right|^{2}} / \sqrt{\sum_{l=0}^{2^k-1}\left|a_{j 2^k+l}\right|^{2}}\right)\\
+% &\text{con } j=0\dots 2^{n-k}-1, k=1\dots n
+% \end{split}
+% \end{align}
+
+% \begin{align}
+% \begin{split}
+% \Xi_{y} \Xi_{z}|a\rangle &= \qquad\text{(definición de \cite{quantum_states})} \\
+% &\left(\prod_{j=1}^{n} F_{j}^{j-1}\left(\mathbf{y}, \boldsymbol{\alpha}_{n-j+1}^{y}\right) \otimes I_{2^{n-j}}\right)\left(\prod_{j=1}^{n} F_{j}^{j-1}\left(\mathbf{z}, \boldsymbol{\alpha}_{n-j+1}^z\right) \otimes I_{2^{n-j}}\right)|a\rangle \\
+% &= \qquad\text{(sustituyendo variable $j \leftarrow j-1$)} \\
+% &\left(\prod_{j=0}^{n-1} F_{j+1}^{j}\left(\mathbf{y}, \boldsymbol{\alpha}_{n-j}^{y}\right) \otimes I_{2^{n-j-1}}\right)\left(\prod_{j=0}^{n-1} F_{j+1}^{j}\left(\mathbf{z}, \boldsymbol{\alpha}_{n-j}^z\right) \otimes I_{2^{n-j-1}}\right)|a\rangle \\
+% &= \qquad\text{(cambio de indexación en 1 a 0 para $F$)} \\
+% &\left(\prod_{j=0}^{n-1} F_{j}^{j}\left(\mathbf{y}, \boldsymbol{\alpha}_{n-j}^{y}\right) \otimes I_{2^{n-j-1}}\right)\left(\prod_{j=0}^{n-1} F_{j}^{j}\left(\mathbf{z}, \boldsymbol{\alpha}_{n-j}^z\right) \otimes I_{2^{n-j-1}}\right)|a\rangle
+% \end{split}
+% \end{align}
+
+
+% \begin{align}
+% \begin{split}
+% &\Xi_{y} \Xi_{z}\text{boch}(-\frac{\pi}{4}, \frac{\pi}{3})\\
+% &= \qquad\text{(definición de Boch)}\\
+% &\Xi_{y} \Xi_{z}\left(
+% \cos(-\frac{\pi}{4})\ket{0}+e^{i\frac{\pi}{3}}\sin(-\frac{\pi}{4})\ket{1}\right)\\
+% &= \qquad\text{(trigonometría)}\\
+% &\Xi_{y} \Xi_{z}\left(
+% \frac{1}{\sqrt{2}}\ket{0}+e^{i\frac{\pi}{3}}\left(-\frac{1}{\sqrt{2}}\right)\ket{1}\right)\\
+% &= \qquad\text{(definición de \cite{quantum_states})} \\
+% &\left(\prod_{j=1}^{n} F_{j}^{j-1}\left(\mathbf{y}, \boldsymbol{\alpha}_{n-j+1}^{y}\right) \otimes I_{2^{n-j}}\right)\left(\prod_{j=1}^{n} F_{j}^{j-1}\left(\mathbf{z}, \boldsymbol{\alpha}_{n-j+1}^z\right) \otimes I_{2^{n-j}}\right)\ket{a} \\
+% &= \qquad\text{(n=1)}\\
+% &F_{1}^{0}(\mathbf{y}, \boldsymbol{\alpha}_{1}^{y}) F_{1}^{0}(\mathbf{z}, \boldsymbol{\alpha}_{1}^z)\ket{1}\\
+% &= \qquad\text{($\theta^z_1 = \alpha^z_1 = -\frac{2\pi}{3}, \theta^y_1 = \alpha^y_1 = 0$)}\\
+% &R_y(0) R_z(-\frac{2\pi}{3}) \ket{1}\\
+% &= \qquad\text{($R_z(0)=I$)}\\
+% &R_y(\pi) \ket{1}\\
+% &= \qquad\text{($R_y(\pi)=\begin{pmatrix}0 & -1\\ 1 & 0\end{pmatrix} $)}\\
+% &(-1)\ket{0}\\
+% &= \qquad\text{(definición de $e$)}\\
+% &e^{i\pi}\ket{0}
+% \end{split}
+% \end{align}
+
+% \section{Inversas de compuertas generales $U$ y $UC$}
+% \begin{align*}
+% \begin{split}
+% (U(\theta, \phi, \lambda))^{-1} &= (U(\theta, \phi, \lambda))^H =
+% \begin{pmatrix}
+% \cos(\frac{\theta}{2}) & -e^{i \lambda} \sin(\frac{\theta}{2}) \\
+% e^{i \phi} \sin(\frac{\theta}{2}) & e^{i(\phi+\lambda)} \cos (\frac{\theta}{2})
+% \end{pmatrix}^H \\
+% &= \begin{pmatrix}
+% \cos \left(\frac{\theta}{2}\right) & e^{-i \phi} \sin(\frac{\theta}{2}) \\
+% -e^{-i \lambda} \sin(\frac{\theta}{2}) & e^{-i(\phi+\lambda)} \cos(\frac{\theta}{2})
+% \end{pmatrix} = U(\theta', \phi', \lambda') \\
+%  &\implies
+% \begin{cases}
+% \cos(\frac{\theta}{2}) = \cos(\frac{\theta'}{2}) \quad&\text{(1)}\\
+% e^{-i \phi} \sin(\frac{\theta}{2}) = -e^{i \lambda'} \sin(\frac{\theta'}{2})  \quad&\text{(2)}\\
+% -e^{-i\lambda}\sin(\frac{\theta}{2}) = e^{i\phi'}\sin(\frac{\theta'}{2})  \quad&\text{(3)}\\
+% e^{-i(\phi+\lambda)} \cos(\frac{\theta}{2}) = e^{i(\phi'+\lambda')} \cos(\frac{\theta'}{2}) \quad&\text{(4)}
+% \end{cases}
+% \end{split}
+% \end{align*}
+
+% De (1) y (4):
+% \begin{align*}
+% e^{-i(\phi+\lambda)} = e^{i(\phi'+\lambda')} \implies e^{i(\phi'+\lambda'+\phi+\lambda)} = 1\quad&\text{(5)}
+% \end{align*}
+% De (2) y (3):
+% \begin{align*}
+% e^{-i \phi} \sin\left(\frac{\theta}{2}\right) e^{i\phi'}\sin\left(\frac{\theta'}{2}\right) &= \left(-e^{i \lambda'}\right) \sin\left(\frac{\theta'}{2}\right)\left(-e^{-i\lambda}\right)\sin\left(\frac{\theta}{2}\right) \\
+% \implies \\
+% e^{-i \phi} e^{i\phi'} &= \left(-e^{i \lambda'}\right) \left(-e^{-i\lambda}\right) \\
+% \implies \\
+% e^{i (\phi'-\phi+\lambda-\lambda')} &= 1 \quad&\text{(6)}
+% \end{align*}
+
+% De (5) y (6):
+% \begin{align*}
+% 1 = e^{i(\phi'+\lambda'+\phi+\lambda+\phi'-\phi+\lambda-\lambda')} = e^{2i(\phi'+\lambda)} = e^{i(\phi'+\lambda)}\\
+% \implies \phi'=2\pi n-\lambda, n\in \mathbb{Z} \quad&\text{(7)}
+% \end{align*}
+
+% De (3) y (7):
+% \begin{align*}
+% -e^{-i\lambda}\sin(\frac{\theta}{2}) &= e^{i(2\pi n-\lambda)}\sin(\frac{\theta'}{2}), n \in \mathbb{z} \\
+% \implies \\
+% -\sin\left(\frac{\theta}{2}\right) &= \sin\left(\frac{\theta'}{2}\right) \quad&\text{(8)}
+% \end{align*}
+
+% De (2) y (8):
+% \begin{align*}
+% e^{-i \phi} &= e^{i \lambda'}\\
+% \implies \\
+% \lambda' &= \phi - 2\pi n, n\in \mathbb{Z}
+% \end{align*}
+
+% \begin{align}
+% \begin{split}
+%  &\implies 
+% \begin{cases}
+% \theta' = \theta + 2\pi n, n\in \mathbb{Z} \\
+% i\phi = i\pi+i\lambda' \\
+% i\pi-i\lambda = i\phi' \\
+% -i(\phi+\lambda) = i(\phi'+\lambda')
+% \end{cases}\\
+%  &\implies
+% \begin{cases}
+% \theta' = \theta + 2\pi n, n\in \mathbb{Z} \\
+% \phi' = \pi - \lambda\\
+% \lambda' = -(\phi+\pi)
+% \end{cases}\\
+% &\implies (U(\theta, \phi, \lambda))^{-1} = U(\theta, \pi-\lambda, -(\phi+\pi))
+% \end{split}
+% \end{align}
+
+
+% \begin{align}
+% \begin{split}
+% (UC(\theta, \phi, \lambda))^{-1} = \begin{pmatrix}
+% 1 & 0 & 0 & 0 \\
+% 0 & U(\theta, \phi, \lambda)_{00} & 0 & U(\theta, \phi, \lambda)_{01} \\
+% 0 & 0 & 1 & 0 \\
+% 0 & U(\theta, \phi, \lambda)_{10} & 0 & U(\theta, \phi, \lambda)_{11}
+% \end{pmatrix}^H = UC(\theta, \pi-\lambda, -(\phi+\pi))
+% \end{split}
+% \end{align}
+
+% \chapter{Borrador}
+% Estos son los borradores, tiene las cosas que todavía no agregué al trabajo.
+

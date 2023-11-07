@@ -1,0 +1,973 @@
+\chapter{\texorpdfstring{Traducción de $\lambda_\rho^*$ a Qiskit}{Traducción de Lambda Rho* a Qiskit}}
+\label{ch:traduccion}
+
+En la Sección~\ref{sec:lamrho_classic} se presentó $\lambda_\rho$ tal cual fue definido en \cite{lamrho}. En este capítulo primero veremos como resulta imposible hacer una traducción de este lenguaje y proponemos alteraciones mínimas a este, definiendo $\lambda_\rho^*$, de manera de que la traducción sea posible.
+
+Luego vamos a presentar varios resultados respecto al método de la purificación, que resulta esencial para la traducción. Utilizando esta técnica definimos formalmente la traducción de $\lambda_\rho^*$ a Python.
+
+Finalmente, se demuestra su correctitud y la existencia de la retracción por izquierda.
+
+\section{\texorpdfstring{Limitaciones de Qiskit e introducción de $\lambda_\rho^*$}{Limitaciones de Qiskit e introducción de Lambda Rho*}}\label{sub:qiskit_lim}
+El paradigma que nos presenta Python con Qiskit consiste en construir circuitos cuánticos dentro de Python (computadora clásica). Estos circuitos son compilados y encapsulados dentro de un ``trabajo'' (del inglés \textit{job}), el cual es enviado a algún computador cuántico que los ejecuta, devolviendo los resultados clásicos. Dado que $\lambda_\rho$ posee tanto lógica clásica, una traducción debe elegir entre implementar la lógica clásica dentro del trabajo o fuera de ella:
+\begin{itemize}
+    \item Implementar la lógica clásica dentro de la \textbf{computadora cuántica}. Esto necesita que los trabajos generados tengan instrucciones condicionales o de salto. Desafortunadamente, Qiskit no soporta tales instrucciones aún por lo que se deja como trabajo a futuro (ver Sección~\ref{sub:qasm3}).
+    \item Implementar la lógica clásica dentro de la \textbf{computadora clásica}. Este es el enfoque elegido. Pero existe un inconveniente, en el tiempo que demora la transmisión de las mediciones a la máquina clásica y la preparación de otro trabajo, los qubits pierden coherencia, es decir el estado cuántico se pierde. Bajo esta premisa resulta imposible implementar el lenguaje de $\lambda_\rho$ tal cual es propuesto.
+    
+    \begin{it}
+        Nota: Qiskit puede devolver los qubits luego de la medición lo cual permitiría hacer la traducción completa, sin embargo, esto solo es posible en el caso que se lo configure para hacer una simulación y no con una computadora cuántica real. %Sin embargo existe un método para reconstruir la matriz de densidad de densidad resultante, esto no se implementa en este trabajo pero se discute en la Sección~\ref{sub:recons_med}.
+    \end{it}
+\end{itemize}
+
+
+\subsection{Modificación del operador de medición}\label{sub:lambda_rho_mod}
+En relación con lo mencionado anteriormente, es necesario hacer una modificación al lenguaje definido por Díaz-Caro~\cite{lamrho}. Originalmente la expresión $\pi^m \rho^n$ retorna el resultado de medir los primeros $m$ qubits de $\rho^n$ y la matriz de densidad resultante luego de realizar la medición. Como efectivamente el estado cuántico se pierde, vamos a modificar la medición para que mida siempre todos los qubits del estado. Tal modificación se puede apreciar en la siguiente regla de reducción:
+
+\begin{equation*}
+\pi^m\;\rho^n \redlam_{p_i} (\lceil \nicefrac{i}{2^{n-m}}\rceil, \rho_i^n) \;\, \text{ con }
+\begin{cases}
+p_i = \tr(\adj{{\pi^n}_i}\;\pi^n_i\;\rho^n)\\
+\rho^n_i = (\pi^n_i\;\rho^n\;\adj{{\pi^n}_i})/p_i
+\end{cases} \tag{$\pi_\rho$}
+\end{equation*}
+
+Notar como las matrices de medición utilizadas no son $\overline{\pi^m_i}$, sino $\pi^n_i$. A su vez el entero devuelto por la medición representa los $m$ bits más significativos de la medición. De forma que $0\leq \lceil \nicefrac{i}{2^{n-m}}\rceil < 2^m$. Esta modificación no genera cambios en la gramática ni el tipado.
+
+\subsection{\texorpdfstring{Especificación de compuertas de $\lambda_\rho^*$}{Especificación de compuertas de Lambda Rho*}}
+$\lambda_\rho$ permite definir cualquier compuerta unitaria, sin embargo, Qiskit tiene un conjunto más reducido de compuertas disponibles. Para modelar esto se va a remplazar la regla $U^n t$ por $G\;t$, donde $G$ se especifica en la Definición~\ref{lambda_rho_mod_def}. En general las compuertas $G$ pueden recibir algunos parámetros: $\theta, \phi, \lambda$ y $p$, siendo $p$ el qubit menos significativo sobre el cual actúan. A continuación, se muestra la gramática de $\lambda_\rho^*$, que define los términos de ella ($\Lambda_\rho^*$).
+
+\begin{observacion}
+    Si bien estas compuertas son una selección de todas las compuertas soportadas por Qiskit, es posible extender la implementación con más compuertas fácilmente.
+\end{observacion}
+
+\needspace{15\baselineskip}
+\begin{definicion}[Gramática de $\lambda_\rho^*$]\label{lambda_rho_mod_def}
+\begin{align*}
+t ::=&\; G\;t \mid \dots \\
+\\
+G ::=&\; U^{\theta, \phi, \lambda}_p \tag{Compuerta unaria general}\\
+ \mid&\; CU^{\theta, \phi, \lambda}_p \tag{Compuerta unaria general controlada}\\
+ \mid&\; \textrm{SWAP}_p \tag{Swap}\\
+ \mid&\; \textrm{CSWAP}_p \tag{Compuerta de Fredkin}
+\end{align*}
+donde $\theta, \phi, \lambda \in \mathbb{R}$ y $p \in \mathbb{N}_0$.
+\end{definicion}
+
+\begin{definicion}[Matrices de $\lambda_\rho^*$]
+\label{def:lamrho_gates}
+
+Las matrices presentadas se definen en su forma matricial de la siguiente manera:
+\begin{align*}
+    G_p &= I^p \otimes G_0 \\
+    U_0^{\theta,\phi,\lambda} &= \begin{bmatrix}
+    \cos(\nicefrac{\theta}{2}) & -e^{i\lambda}\sin(\nicefrac{\theta}{2}) \\ 
+    e^{i\phi}\sin(\nicefrac{\theta}{2}) & e^{i(\phi+\lambda)}\cos(\nicefrac{\theta}{2})\end{bmatrix}  \\
+    CU_0^{\theta,\phi,\lambda} &= I^1 \otimes \ket{0}\bra{0} + U_0 \otimes \ket{1}\bra{1} = \begin{bmatrix}
+    1 & 0 & 0 & 0 \\
+    0 & \cos(\nicefrac{\theta}{2}) & 0 & -e^{i\lambda}\sin(\nicefrac{\theta}{2}) \\ 
+    0 & 0 & 1 & 0 \\
+    0 & e^{i\phi}\sin(\nicefrac{\theta}{2}) & 0 & e^{i(\phi+\lambda)}\cos(\nicefrac{\theta}{2})\end{bmatrix}  \\
+    \textrm{SWAP}_0 &= \begin{bmatrix}
+    1 & 0 & 0 & 0 \\
+    0 & 0 & 1 & 0 \\ 
+    0 & 1 & 0 & 0 \\
+    0 & 0 & 0 & 1 \end{bmatrix}  \\
+    \textrm{CSWAP}_0 &= I^2 \otimes \ket{0}\bra{0} + \textrm{SWAP}_0 \otimes \ket{1}\bra{1} = \begin{bmatrix}
+        1 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+        0 & 1 & 0 & 0 & 0 & 0 & 0 & 0\\
+        0 & 0 & 1 & 0 & 0 & 0 & 0 & 0\\
+        0 & 0 & 0 & 0 & 0 & 1 & 0 & 0\\
+        0 & 0 & 0 & 0 & 1 & 0 & 0 & 0\\
+        0 & 0 & 0 & 1 & 0 & 0 & 0 & 0\\
+        0 & 0 & 0 & 0 & 0 & 0 & 1 & 0\\
+        0 & 0 & 0 & 0 & 0 & 0 & 0 & 1
+    \end{bmatrix}
+\end{align*}
+donde $I^n$ es el operador identidad de $n$ qubits.
+\end{definicion}
+
+\begin{definicion}[$|G|$]
+A su vez dado un operador $G$, usamos $|G|$ para denotar la cantidad de qubits sobre los que opera. Formalmente, $|G| = N \Longleftrightarrow G$ es de dimensión $2^N \times 2^N$.
+\end{definicion}
+
+
+\subsection{\texorpdfstring{Estrategia de reducción de $\lambda_\rho^*$}{Estrategia de reducción de Lambda Rho*}}
+En la publicación original~\cite{lamrho}, no se da una estrategia en particular para la reducción por lo que se eligió una al estilo \textit{Call-by-value} puesto que simplifica la traducción. Esta elección se ve reflejada en la Definición~\ref{def:reduccion_lambda} donde algunas reglas aplican solamente si hay un valor involucrado. Vamos a definir formalmente el concepto de valor y presentar la estrategia de reducción, teniendo en cuenta las modificaciones mencionadas anteriormente.
+
+\begin{definicion}[Valor]
+    \label{def:valor}
+    Una expresión $v$ de un lenguaje es un valor si y solo si $\nexists\;r / v \rightarrow r$, donde $\rightarrow$ es la relación de reducción de dicho lenguaje. 
+\end{definicion}
+
+\begin{observacion}
+    Sea $t,r\in\Lambda_\rho^*$. Si $t \redlam_p r \implies t $ no es un valor.
+\end{observacion}
+
+
+\begin{definicion}[Estrategia de reducción de $\lambda_\rho^*$]
+\label{def:reduccion_lambda}
+\begin{align*}
+(\lambda x.t)\;v &\redlam_1 [v/x]t \text{, donde $v$ es un valor} \tag{$\lambda_\rho$}\\
+G\;\rho^n &\redlam_1 {\rho'}^n \qquad \text{ con } {\rho'}^n = \overline{G}\;\rho^n \;\adj{\overline{G}} \tag{$G_\rho$}\\
+\pi^m\;\rho^n &\redlam_{p_i} (\lceil \nicefrac{i}{2^{n-m}}\rceil, \rho_i^n) \;\, \text{ con }
+\begin{cases}
+p_i = \tr(\adj{{\pi^n}_i}\;\pi^n_i\;\rho^n)\\
+\rho^n_i = (\pi^n_i\;\rho^n\;\adj{{\pi^n}_i})/p_i
+\end{cases} \tag{$\pi_\rho$}\\
+\rho \otimes \rho' &\redlam_1 \rho'' \qquad \text{ con } \rho'' = \rho \otimes \rho'  \tag{$\otimes_\rho$}\\
+\textsf{letcase } x = (b^m, \rho^n) &\textsf{ in } \{t_0, \dots, t_{2^m-1}\} \redlam_1 [\rho^n/x] t_{b^m} \tag{$\text{let}_\rho$}
+\end{align*}
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{ccc}
+     % \infer
+     % {\lambda x.t \redlam_p \lambda x.r}
+     % {t \redlam_p r}
+     % &
+         \infer[Lr_\rho]
+         {t\;s\redlam_p r\;s}
+         {t \redlam_p r}
+     &
+         \infer[Rr_\rho]
+         {v\;t\redlam_p v\;r}
+         {t \redlam_p r \quad v\text{ es un valor}}
+     &
+         \infer[Gr_\rho]
+         {G\;t\redlam_p G\;r}
+         {t \redlam_p r}
+   \end{array}
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{cccc}
+     \infer[\pi r_\rho]
+     {\pi^n\;t \redlam_p \pi^n\;r}
+     {t \redlam_p r}
+     &
+         \infer[L\otimes_\rho]
+         {t\otimes s \redlam_p r \otimes s}
+         {t \redlam_p r}
+     &
+         \infer[R\otimes_\rho]
+         {v\otimes t \redlam_p v \otimes r}
+         {t \redlam_p r \quad v\text{ es un valor}}
+   \end{array} 
+ \]
+ \[\arraycolsep=10pt\def\arraystretch{2.6}
+   \begin{array}{c}
+     \infer[\text{letr}_\rho]
+     {\textsf{letcase }x = t \textrm{ in } \{s_0,\dots,s_n\} \redlam_p \textsf{letcase }x = r \textrm{ in } \{s_0,\dots,s_n\} }
+     {t \redlam_p r}
+   \end{array}
+ \]
+\end{definicion}
+% \section{Creación de estado cuántico arbitrario}
+% \{Explicar ~\cite{quantum_states}}
+% \{Explicar como se uso la compuerta general de un qubit.}
+
+% Ejemplo de transformación de circuitos:
+
+% \begin{align}
+% \begin{split}
+% \Xi_{y} \Xi_{z}\ket{1} &= \qquad\text{(definición de \cite{quantum_states})} \\
+% &\left(\prod_{j=1}^{n} F_{j}^{j-1}\left(\mathbf{y}, \boldsymbol{\alpha}_{n-j+1}^{y}\right) \otimes I_{2^{n-j}}\right)\left(\prod_{j=1}^{n} F_{j}^{j-1}\left(\mathbf{z}, \boldsymbol{\alpha}_{n-j+1}^z\right) \otimes I_{2^{n-j}}\right)\ket{1} \\
+% &= \qquad\text{(n=1)}\\
+% &F_{1}^{0}(\mathbf{y}, \boldsymbol{\alpha}_{1}^{y}) F_{1}^{0}(\mathbf{z}, \boldsymbol{\alpha}_{1}^z)\ket{1}\\
+% &= \qquad\text{($\theta^z_1 = \alpha^z_1 = 0, \theta^y_1 = \alpha^y_1 = \pi$)}\\
+% &R_y(\pi) R_z(0) \ket{1}\\
+% &= \qquad\text{($R_z(0)=I$)}\\
+% &R_y(\pi) \ket{1}\\
+% &= \qquad\text{($R_y(\pi)=\begin{pmatrix}0 & -1\\ 1 & 0\end{pmatrix} $)}\\
+% &(-1)\ket{0}\\
+% &= \qquad\text{(definición de $e$)}\\
+% &e^{i\pi}\ket{0}
+% \end{split}
+% \end{align}
+
+% \begin{definicion}[Creación de estados cuánticos]
+% \label{def:circ}
+% En base al algoritmo propuesto, se define la función $\text{circ}: \mathbb{Q}^n \rightarrow \Lambda_\textit{py}$, que dado un estado cuántico $\ket{\phi}$ de $n$ qubits, devuelve el circuito expresado en Python que transforma el estado $\ket{0}^n$ a $\ket{\phi}$. Formalmente:
+
+% Sea $\phi \in \mathbb{Q}^n$, $\text{circ}(\phi) \redpy_1^* \texttt{Circuit(n, L;S)}$ y $(\ket{0}^n, r, L;S) \redqk_1^* (\ket{\phi}, r, S)$
+% \end{definicion}
+
+\section{Purificación del estado mixto}\label{sec:trad_pur}
+Una de las diferencias fundamentales entre $\lambda_\rho$ y Qiskit es que el primero representa el estado cuántico utilizando matrices de densidad con estados mixtos (matrices de $2^n \times 2^n$ denotados $\rho^n$). Qiskit se maneja únicamente con vectores de estados puros (vectores de $2^n$ denotados $\ket{\phi}$), por lo cual una conversión es necesaria. Para ello recurrimos a la técnica de purificación presentada en la Definición~\ref{def:purificación}. Vamos a probar primero como esta purificación clásica ($\pur(\rho^n)\rightarrow\ket{\phi}$) tiene la ventaja de que preserva la aplicación de compuertas y las mediciones, pero no así la composición. Para solventarlo, presentamos una novedosa alteración que preserva las tres operaciones.
+
+\subsection{Propiedades de la purificación clásica}
+
+
+\begin{teorema}[Inversa de la purificación]\label{teo:pur_inv1}
+    La inversa de la purificación está dada por:
+    \begin{equation*}
+        \pur^{-1}(\ket{\phi}) = \tr_B(\ket{\phi}\bra{\phi})
+    \end{equation*}
+\end{teorema}
+\begin{proof}
+    Sea $\rho^n$ una matriz de densidad y $\sum_i^{2^n} \lambda_i \ket{v_i}\bra{v_i}$ su descomposición espectral. Se demuestra que $\pur^{-1}(\pur(\rho^n)) = \rho^n$.
+
+\begin{align*}
+    \pur^{-1}(\pur(\rho^n)) &= \pur^{-1}(\sum_i^{2^n} \sqrt{\lambda_i}\ket{v_i}\otimes\ket{e_i}) \\
+    &= \tr_B\left(\ket{\sum_i^{2^n} \sqrt{\lambda_i}\ket{v_i}\otimes\ket{e_i}}\bra{\sum_i^{2^n} \sqrt{\lambda_i}\ket{v_i}\otimes\ket{e_i}}\right) \\
+    &= \tr_B\left(\sum_i^{2^n} \sum_j^{2^n} \sqrt{\lambda_i}\sqrt{\lambda_j} \ket{v_i}\bra{v_j}\otimes\ket{e_i} \bra{e_j}\right) \\
+    &= \sum_i^{2^n} \sum_j^{2^n} \sqrt{\lambda_i}\sqrt{\lambda_j} \tr_B\left( \ket{v_i}\bra{v_j} \otimes\ket{e_i} \bra{e_j}\right) \\
+    &= \sum_i^{2^n} \sum_j^{2^n} \sqrt{\lambda_i}\sqrt{\lambda_j}  \braket{e_i|e_j} \ket{v_i} \bra{v_j} \\
+    &= \sum_i^{2^n} \sum_j^{2^n} \sqrt{\lambda_i}\sqrt{\lambda_j}  \;\delta_{i,j} \ket{v_i} \bra{v_j}\\
+    &= \sum_i^{2^n} \lambda_i  \ket{v_i} \bra{v_j} = \rho^n
+\end{align*}
+\end{proof}
+
+\begin{teorema}[Evolución de la purificación]
+\label{teo:pur_ev1}
+Sea $\rho^n$ una matriz de densidad y $G$ una compuerta de dimensión $|G|=m$.
+\begin{equation}
+    \pur(\overline{G}\rho^n \adj{\overline{G}}) = (\overline{G}\otimes I^n)\;\pur(\rho^n)
+\end{equation}
+\end{teorema}
+\begin{proof}
+Siendo $\ket{w_i}=\overline{G}\;\ket{v_i}$
+    \begin{align*}
+        \pur(\overline{G}\rho^n \adj{\overline{G}}) &= \pur\left(\overline{G}(\sum_i^{2^n} \lambda_i \ket{v_i}\bra{v_i}) \adj{\overline{G}}\right) = \pur\left(\sum_i^{2^n} \lambda_i \overline{G}\ket{v_i}\bra{v_i}\adj{\overline{G}}\right) \\
+        &= \pur\left(\sum_i^{2^n} \lambda_i \ket{w_i}\bra{w_i}\right) = \sum_i^{2^n} \sqrt{\lambda_i} \ket{w_i}\otimes \ket{e_i} \\
+        &= \sum_i^{2^n} \sqrt{\lambda_i} (\overline{G} \;\ket{v_i})\otimes (I^n\;\ket{e_i}) = \sum_i^{2^n} \sqrt{\lambda_i} (\overline{G} \otimes I^n)\;(\ket{v_i} \otimes \ket{e_i}) \\
+        &= (\overline{G} \otimes I^n)\;\left(\sum_i^{2^n} \sqrt{\lambda_i} \ket{v_i} \otimes \ket{e_i}\right) = (\overline{G} \otimes I^n)\;\pur(\rho^n)
+    \end{align*}
+\end{proof}
+
+    
+\begin{teorema}[Medición de la purificación]
+\label{teo:pur_meas1}
+Sea $\phi = \pur(\rho^n)$. Medir $n$ qubits de $\rho^n$ usando los operadores de medición de la base canónica $\pi = \{\pi_0, \dots, \pi_{2^n-1}\} = \{\ket{e_i}\bra{e_i}, 0\leq i < 2^n\}$ devuelve los mismos resultados que medir el estado purificado $\phi$ con los operadores $\pi' = \{\pi_0 \otimes I^n, \dots, \pi_{2^n-1} \otimes I^n\}$. Es decir:
+
+\begin{equation*}
+    p(i|\pi\;\rho^n) = p(i|\pi'\ket{\phi})
+\end{equation*}
+
+\end{teorema}
+
+\begin{proof}
+\begin{align}
+   \adj{\pi_i}\pi_i &= \adj{(\ket{e_i}\bra{e_i})} \ket{e_i}\bra{e_i} = \ket{e_i}\braket{e_i|e_i}\bra{e_i} = \ket{e_i}\bra{e_i} \label{p:pim3}
+\end{align}
+Siendo $\sum_i^{2^n} \lambda_i \ket{v_i}\bra{v_i}$ la descomposición espectral de $\rho^n$:
+\begin{align}
+    p(i|\pi\;\rho^n) &= \tr(\adj{\pi_i}\pi_i \rho^n) \stackrel{\textrm{\ref{p:pim3}}}{=} \tr\left(\ket{e_i}\bra{e_i} \sum_j^{2^n} \lambda_j \ket{v_j}\bra{v_j}\right) \nonumber \\
+    &= \sum_j^{2^n} \lambda_j\; \tr\left(\ket{e_i}\bra{e_i}\; \ket{v_j}\bra{v_j}\right) \nonumber  \\
+    &= \sum_j^{2^n} \lambda_j \braket{v_j|e_i} \braket{e_i|v_j} = \sum_j^{2^n} \lambda_j  \braket{e_i|v_j} \braket{v_j|e_i}
+\end{align}
+
+\begin{align}
+    {\pi'}_i &= \pi_i \otimes I^n = \ket{e_i}\bra{e_i} \otimes (\sum_k^{2^n} \ket{e_k}\bra{e_k}) = \sum_k^{2^n} \ket{e_i e_k}\bra{e_i e_k} \label{p:pim} \\
+    \adj{{\pi'}_i}{\pi'}_i &\stackrel{\textrm{\ref{p:pim}}}{=} \left(\sum_k^{2^n} \ket{e_i e_k}\bra{e_i e_k}\right) \sum_k^{2^n} \ket{e_i e_k}\bra{e_i e_k} = \sum_k^{2^n} \ket{e_i e_k}\bra{e_i e_k} \label{p:pim2}
+\end{align}
+\begin{align}
+    p(i|\pi'\ket{\phi}) &= \bra{\phi}\adj{{\pi'}_i}{\pi'}_i\ket{\phi} \stackrel{\textrm{\ref{p:pim2}}}{=} \bra{\phi} \left(\sum_k^{2^n} \ket{e_i e_k}\bra{e_i e_k}\right)\ket{\phi} \nonumber \\
+    &= \bra{\phi} \left(\sum_k^{2^n} \ket{e_i e_k}\bra{e_i e_k}\right)\ket{\sum_j^{2^n} \sqrt{\lambda_j}\ket{v_j e_j}} \nonumber \\
+    &= \braket{\phi| \sum_k^{2^n}\sum_j^{2^n}\sqrt{\lambda_j} \ket{e_i e_k}\braket{e_i e_k|v_j e_j}} \nonumber \\
+    &= \braket{\phi| \sum_k^{2^n}\sum_j^{2^n}\sqrt{\lambda_j} \ket{e_i e_k}\braket{e_i|v_j}\braket{e_k|e_j}} \nonumber \\
+    &= \braket{\phi | \sum_k^{2^n}\sum_j^{2^n}\sqrt{\lambda_j} \ket{e_i e_k}\braket{e_i|v_j}\delta_{k,i} } \nonumber \\
+    &= \braket{\phi | \sum_j^{2^n}\sqrt{\lambda_j} \ket{e_i e_j}\braket{e_i|v_j}} \nonumber \\
+    &= \braket{\sum_j^{2^n} \sqrt{\lambda_j}\ket{v_j e_j} | \sum_j^{2^n}\sqrt{\lambda_j} \ket{e_i e_j}\braket{e_i|v_j}} \nonumber \\
+    &= \sum_j^{2^n}\sum_j^{2^n} \sqrt{\lambda_j}^*\sqrt{\lambda_j}\braket{e_i|v_j}\braket{v_j e_j | e_i e_j}  \nonumber \\
+    &= \sum_j^{2^n}\sum_j^{2^n} \sqrt{\lambda_j}^*\sqrt{\lambda_j}\braket{e_i|v_j}\braket{v_j|e_i}\braket{e_j | e_j}\nonumber \\
+    &= \sum_j^{2^n} \lambda_j\braket{e_i|v_j}\braket{v_j|e_i} = p(i|\pi\;\rho^n)  
+\end{align}
+
+\end{proof}
+
+\begin{observacion}
+    Notar que la purificación no es distributiva respecto al producto tensorial, es decir:
+\[\pur(\rho^n \otimes \sigma^m) \neq \pur(\rho^n) \otimes \pur(\sigma^m)\]
+
+Intuitivamente, esto se debe a que, por un lado, $\pur(\rho^n \otimes \sigma^m)$ agrega qubits en los bits menos significativos, mientras que en $\pur(\rho^n) \otimes \pur(\sigma^m)$ esos qubits agregados se encuentran en diferentes posiciones. Existe una forma de solucionar este inconveniente que se expone en la siguiente sección.
+\end{observacion}
+
+\subsection{Purificación con permutaciones}
+Como se vio en la observación anterior la purificación clásica no preserva la composición. Existen dos posibles soluciones a esto, una es redefinir la composición y la otra es redefinir la purificación. Se optó por la segunda opción.
+
+Para redefinir la purificación debemos tener en cuenta el invariante que queremos preservar: las mediciones y operadores que se apliquen al estado purificado deben ser sobre los qubits originales y no sobre los agregados por la purificación, aún luego de componer los estados.
+
+La manera en la que se resolvió este problema es \textbf{colocando los qubits originales en las posiciones pares} y los adicionales en las posiciones impares. De este modo la composición común va a preservar el invariante de que los qubits ``importantes'' estén siempre en las posiciones pares. Por otro lado, las compuertas y operadores de medición pueden ser alterados para actuar solo sobre los qubits pares. En lo que resta de esta sección vamos a probar formalmente estas propiedades.
+
+
+
+\subsection*{Definición de la purificación con permutaciones}
+Al purificar $n$-qubits utilizando la purificación de la Definición~\ref{def:purificación} se agregan otros $n$-qubits al estado en las posiciones menos significativas. Como se mencionó anteriormente, luego de purificar de la manera clásica deseamos colocar los $n$ qubits más significativos en las posiciones pares. La siguiente permutación reordena $2n$ qubits de la manera deseada:
+\begin{equation}
+P_n(x) = \begin{cases}
+        n+\frac{x}{2} \quad\text{si x es par}\\
+        \frac{x-1}{2} \quad\text{si x es impar}
+    \end{cases}
+\end{equation}
+
+\begin{ejemplo}
+    Si tenemos el estado $\ket{i_3 i_2 i_1 i_0}=\ket{1100}$. El estado deseado es
+    
+    $\ket{i_{P_2(3)}\;i_{P_2(2)} \;_{P_2(1)}\;i_{P_2(0)} } = \ket{i_1 i_3 i_0 i_2} = \ket{0101}$.
+\end{ejemplo}
+Según este resultado se debe construir una compuerta $\text{SWP}_n$ que aplique dicha permutación. Para encontrarla basta definirla para los vectores de la base canónica. Si tenemos $2n$ qubits, existen $2^{2n}$ de estos elementos. Sea un elemento de esta base representado en su forma binaria: $\ket{i_0 \dots i_{2n-1}}$, donde cada $i$ es cero o uno. Sabemos que este estado tiene que ser transformado al estado $\ket{i_{P_n(0)} \dots i_{P_n(2n-1)}}$. Por lo tanto, aplicando esta lógica para todos los elementos de la base tenemos:
+
+\begin{equation}
+    \text{SWP}_n = \sum_{i_0,\dots,i_{2n-1}} \ket{i_{P_n(0)} \dots i_{P_n(2n-1)}} \bra{i_0 \dots i_{2n-1}} 
+\end{equation}
+
+\begin{observacion}
+    Así como $\text{SWP}_n$ reordena los qubits de la mitad más significativa a las posiciones pares, $\text{SWP}_n^{-1}$ realiza la operación inversa. Es decir, coloca los qubits de las posiciones pares en las posiciones más significativas.
+\end{observacion}
+
+De esta forma redefinimos la purificación de la siguiente manera:
+
+\begin{definicion}[$\Pur$]\label{def:Pur}
+\begin{equation*}
+    \Pur(\rho^n) = \text{SWP}_n\; \pur(\rho^n) = \text{SWP}_n \left(\sum_i^{2^n} \sqrt{\lambda_i}\ket{v_i}\otimes\ket{e_i}\right)
+\end{equation*}
+\end{definicion}
+
+\begin{observacion}
+Cabe destacar que esta operación puede ser aplicada en tiempo de compilación.
+\end{observacion}
+
+\subsection{Propiedades de la purificación con permutaciones}
+
+\begin{teorema}[Compuerta sobre la purificación]
+\label{teo:pur_gate}
+Aplicar una compuerta $G$ de dimensión $|G|=m$ sobre los qubits pares equivale a aplicar esa compuerta sobre el estado original. Si $G' = I^p \otimes G \otimes I^{n-m-p}$:
+
+$(\Pur(\rho^n), r, \textbf{Gate}\;G\;[p, p+2, p + 2m];L) \redqk_1 (\Pur(G'\;\rho^n \;\adj{G'}), r, L)$
+\end{teorema}
+\begin{proof}$\;$
+
+Utilizando la Definición~\ref{def:qk_rules} donde se define la operación $\textbf{Gate}$, sabemos que el estado resultante debe ser:
+\[G''\;\Pur(\rho^n)\]
+donde $G''$ está definida por:
+\[G''= (G' \otimes I^n)\;\text{SWP}_n^{-1}\]
+Expandiendo y haciendo uso del Teorema~\ref{teo:pur_ev1}:
+\begin{align*}
+G''\;\Pur(\rho^n) &=  (G' \otimes I^n)\;\text{SWP}_n^{-1}\;\text{SWP}_n\;\pur(\rho^n) \\
+&= (G' \otimes I^n)\;\pur(\rho^n)  \stackrel{\textrm{Teo.~\ref{teo:pur_ev1}}}{=} \pur(G'\;\rho^n\;\adj{G'})
+\end{align*}
+
+\end{proof}
+
+\begin{teorema}[Medición de la purificación]
+\label{teo:pur_meas}
+Sea $\theta = \Pur(\rho^n)$. Medir el qubit $2i$-ésimo del estado purificado ($\theta$) en la base canónica equivale a medir el qubit $i$-ésimo del estado original ($\rho^n$). Siendo $\pi = \{\ket{e_i}\bra{e_i}, 0\leq i < 2^n \}$:
+
+$(\theta, r, \textbf{Measure } [0, 2, \dots, 2n];L) \redqk_{q_i} (\theta', i, L)$
+
+con $q_i=\tr(\adj{\pi_i}\;\pi_i\;\rho^n)$.
+
+\end{teorema}
+
+\begin{proof}$\;$
+
+Primero notar que este lema es muy similar al Teorema~\ref{teo:pur_meas1}, donde se utilizaban los siguientes operadores de medición:
+\[\pi' = \{\pi_i \otimes I^{n}, 0\leq i < 2^n \}\] 
+En este caso, los operadores que miden los qubits en posiciones pares son:
+\[\pi'' = \{\pi'_i \; \text{SWP}_n^{-1}, 0\leq i < 2^n \}\]
+
+Si $\phi = \pur(\rho^n)$, es cierto que:
+\begin{align*}
+{\pi''}_i\ket{\theta} &= {\pi''}_i\;\Pur(\rho^n) = \pi'_i \; \text{SWP}_n^{-1}\; \text{SWP}_n\;\pur(\rho^n) \\
+&= {\pi'}_i\;\pur(\rho^n) = {\pi'}_i\;\ket{\phi}
+\intertext{Y análogamente:}
+\bra{\theta}\adj{{\pi''}_i} &= \bra{\phi}\adj{{\pi'}_i}
+\end{align*}
+
+Finalmente, utilizando la Definición~\ref{def:qk_rules} donde se define la operación $\textbf{Measure}$:
+\begin{align*}
+q_i &= \braket{\theta|\adj{{\pi''}_i}{\pi''}_i|\theta} = \braket{\phi|\adj{{\pi'}_i}{\pi'}_i|\phi} \\
+&= p(m|\pi' \ket{\phi}) \stackrel{\textrm{Teo.~\ref{teo:pur_meas1}}}{=} p(m|\pi\;\rho^n) = \tr(\adj{\pi_i}\pi_i\;\rho^n)
+\end{align*}
+\end{proof}
+
+Para poder demostrar el teorema de la composición de la purificación necesitamos dos pequeños lemas primero.
+
+\begin{lema}[Descomposición espectral del producto tensorial]\label{lem:esp_otimes}
+    Sean $\rho^n$ y $\sigma^m$ dos matrices de densidad con descomposición espectral igual a $\sum_i^{2^n} \lambda_i \ket{v_i}\bra{v_i}$ y \newline
+    $\sum_j^{2^m} \mu_j \ket{w_j}\bra{w_j}$, respectivamente.
+    La descomposición espectral de $\rho^n \otimes \sigma^m$ es:
+    \[\sum_i^{2^n}\sum_j^{2^m} \lambda_i  \mu_j \ket{v_iw_j}\bra{v_iw_j}\]
+\end{lema}
+\begin{proof}
+\begin{align*}
+    \rho^n \otimes \sigma^m &=  \left(\sum_i^{2^n} \lambda_i \ket{v_i}\bra{v_i}\right)\otimes\left(\sum_j^{2^m} \mu_j \ket{w_j}\bra{w_j}\right) \\
+    &= \sum_i^{2^n}\sum_j^{2^m} \lambda_i \mu_j \ket{v_i}\bra{v_i}\otimes \ket{w_j}\bra{w_j} \\
+    &= \sum_i^{2^n}\sum_j^{2^m} \lambda_i \mu_j \ket{v_iw_j}\bra{v_iw_j}
+\end{align*}
+Notar que como $\lambda_i\geq 0,  \mu_j\geq 0 \implies \lambda_i \mu_j\geq 0$.
+Basta probar que $\lambda_i \mu_j$ y $\ket{v_iw_j}$ son los autovalores y autovectores de $\rho^n \otimes \sigma^m$, respectivamente:
+\begin{align*}
+    (\rho^n \otimes \sigma^m) \ket{v_iw_j} &= \left(\sum_k^{2^n}\sum_l^{2^m} \lambda_k \mu_l \ket{v_kw_l}\bra{v_kw_l}\right) \ket{v_iw_j} \\
+    &= \sum_k^{2^n}\sum_l^{2^m} \lambda_k \mu_l \ket{v_kw_l}\braket{v_kw_l|v_iw_j} \\
+    &= \sum_k^{2^n}\sum_l^{2^m} \lambda_k \mu_l \ket{v_kw_l}\delta_{k,i}\;\delta_{l,j}\\
+    &= \lambda_i \mu_j \ket{v_iw_j}
+\end{align*}
+\end{proof}
+
+\begin{lema}[$\text{SWP}$]\label{lem:swap}
+Sea $\ket{a}, \ket{b}, \ket{c}, \ket{d}$ vectores de estado de $n, n, m, m$ qubits, respectivamente.
+    \[(\text{SWP}_{n}\otimes \text{SWP}_{m}) \ket{abcd} = \text{SWP}_{n+m} \ket{acbd}\] \qed
+\end{lema}
+\begin{ejemplo}
+    Este lema no se demostrará, pero se puede entender intuitivamente. Veamos para $n=m=3$ que $\text{SWP}_{n+m}^{-1} (\text{SWP}_{n}\otimes \text{SWP}_{m}) \ket{\textcolor{blue}{a}\textcolor{red}{b}\textcolor{teal}{c}\textcolor{black}{d}} = \ket{\textcolor{blue}{a}\textcolor{teal}{c}\textcolor{red}{b}\textcolor{black}{d}}$. Los qubits de $\ket{\textcolor{blue}{a}\textcolor{red}{b}\textcolor{teal}{c}\textcolor{black}{d}}$ están ordenados de la siguiente forma:
+    \begin{align*}
+        \textcolor{blue}{a_2\;a_1\;a_0}\;\textcolor{red}{b_2\;b_1\;b_0}\;\textcolor{teal}{c_2\;c_1\;c_0}\;\textcolor{black}{d_2\;d_1\;d_0}
+    \end{align*}
+    $\text{SWP}_n$ a la primera parte va a mover los qubits de \textcolor{blue}{$\ket{a}$} a las posiciones pares:
+    \begin{align*}
+        \textcolor{red}{b_2}\;\textcolor{blue}{a_2}\;\textcolor{red}{b_1}\;\textcolor{blue}{a_1}\;\textcolor{red}{b_0}\;\textcolor{blue}{a_0}\;\textcolor{teal}{c_2\;c_1\;c_0}\;\textcolor{black}{d_2\;d_1\;d_0}
+    \end{align*}
+    $\text{SWP}_m$ a la segunda parte va a mover los qubits de \textcolor{teal}{$\ket{c}$} a las posiciones pares:
+    \begin{align*}
+        \textcolor{red}{b_2}\;\textcolor{blue}{a_2}\;\textcolor{red}{b_1}\;\textcolor{blue}{a_1}\;\textcolor{red}{b_0}\;\textcolor{blue}{a_0}\;\textcolor{black}{d_2}\;\textcolor{teal}{c_2}\;\textcolor{black}{d_1}\;\textcolor{teal}{c_1}\;\textcolor{black}{d_0}\;\textcolor{teal}{c_0}\;
+    \end{align*}
+    Observar que en las posiciones pares tenemos $\textcolor{blue}{\ket{a}}\otimes\textcolor{teal}{\ket{c}}$ y en las impares $\textcolor{red}{\ket{b}}\otimes\textcolor{black}{\ket{d}}$. Por lo tanto, al aplicar $\text{SWP}_{n+m}^{-1}$:
+    \begin{align*}
+        \textcolor{blue}{a_2\;a_1\;a_0}\;\textcolor{teal}{c_2\;c_1\;c_0}\;\textcolor{red}{b_2\;b_1\;b_0}\;\textcolor{black}{d_2\;d_1\;d_0}
+    \end{align*}
+    Que es exactamente $\ket{\textcolor{blue}{a}\textcolor{teal}{c}\textcolor{red}{b}\textcolor{black}{d}}$.
+\end{ejemplo}
+
+\begin{teorema}[Composición de la purificación]
+\label{teo:pur_compose}
+Componer dos estados purificados equivale a la purificación del estado compuesto:
+
+$\Pur(\rho^n \otimes \sigma^m) = \Pur(\rho^n) \otimes \Pur(\sigma^m)$
+
+\end{teorema}
+\begin{proof}
+Siendo $\pur(\rho^n) = \sum_i^{2^n} \sqrt{\lambda_i} \ket{v_i}\otimes\ket{e_i}$ y $\pur(\sigma^n) = \sum_j^{2^m} \sqrt{\mu_j} \ket{w_j}\otimes\ket{e_j}$.
+\begin{align*}
+\Pur(\rho^n) &\otimes \Pur(\sigma^m) \\
+&= \text{SWP}_n\left( \sum_i^{2^n} \sqrt{\lambda_i} \ket{v_i}\otimes\ket{e_i}\right) \otimes \text{SWP}_m\left(\sum_j^{2^m} \sqrt{\mu_j} \ket{w_j}\otimes\ket{e_j}\right) \\
+&= (\text{SWP}_n \otimes \text{SWP}_m) \left( \sum_i^{2^n} \sqrt{\lambda_i} \ket{v_i}\otimes\ket{e_i}\right) \otimes \left(\sum_j^{2^m} \sqrt{\mu_j} \ket{w_j}\otimes\ket{e_j}\right)\\
+&= (\text{SWP}_n \otimes \text{SWP}_m) \sum_i^{2^n} \sum_j^{2^m} \sqrt{\lambda_i \mu_j} \ket{v_i e_i w_j e_j} \\
+&= \sum_i^{2^n} \sum_j^{2^m} \sqrt{\lambda_i \mu_j}\; (\text{SWP}_n \otimes \text{SWP}_m)\ket{v_i e_i w_j e_j} \\
+&\stackrel{\textrm{Lema~\ref{lem:swap}}}{=} \sum_i^{2^n} \sum_j^{2^m} \sqrt{\lambda_i \mu_j}\; \text{SWP}_{n+m}\ket{v_i w_j e_i e_j} \\
+&= \text{SWP}_{n+m} \sum_i^{2^n} \sum_j^{2^m} \sqrt{\lambda_i \mu_j} \ket{v_i w_j e_i e_j} \\
+&\stackrel{\textrm{Lema~\ref{lem:esp_otimes}}}{=} \text{SWP}_{n+m} \;\pur(\rho^n\otimes \sigma^m) = \Pur(\rho^n\otimes \sigma^m)
+\end{align*}
+\end{proof}
+
+\section{Definición de la traducción}
+Antes de definir la traducción resulta necesario agregar una pequeña función auxiliar a Python. Está función construye un estado puro basado en un entero.
+\begin{definicion}
+    \begin{align*}
+        &\texttt{t} ::= \texttt{from\_int(t, t)} \mid \dots\\\\
+        &\texttt{from\_int(i, n)} \redpy_1 \texttt{Circuit(}\Pur(\pi^n_i)\texttt{, [])} \tag{$\texttt{from\_int}_\textit{py}$}
+    \end{align*}
+    donde $n\in\mathbb{N},i\in\mathbb{N}_0, 0\leq i<2^n$ y $\{\pi^n_i\}$ son las matrices de medición de la base canónica de $n$ qubits.
+\end{definicion}
+\begin{ejemplo}
+    Vamos a reducir $\texttt{from\_int(6, 4)}$. El valor once en binario es $110$. Como se trata de cuatro qubits el vector de estado sería $\ket{0110}$.
+    Luego, $\pi^n_i=\ket{0110}\bra{0110}$. Su purificación es $\Pur(\ket{0110}\bra{0110})=\text{SWP}_4\;\pur(\ket{0110}\bra{0110}) = \text{SWP}_4\ket{01100110} = \ket{00111100}$. De esta forma:
+    \[\texttt{from\_int(6, 4)} \redpy_1 \texttt{Circuit(}\ket{00111100}\texttt{, [])}\]
+\end{ejemplo}
+Utilizando esta función auxiliar y el método de purificación presentado ($\Pur$), la Definición~\ref{def:traduccion} presenta formalmente la traducción de $\lambda_\rho^*$ a Python. Seguidamente, se procede a probar propiedades sobre ella.
+
+
+\begin{definicion}[Traducción de $\lambda_\rho^*$ a Python]
+\label{def:traduccion}$\;$
+
+Se define la función $\transl{\cdot} : \Lambda_\rho^* \rightarrow \Lambda_\textit{py}$:
+\begin{align*}
+\transl{x} &= \texttt{x} \\
+\transl{\lambda x.t} &= \texttt{lambda x:\transl{t}} \\
+\transl{t_1\;t_2} &= \transl{t_1}(\transl{t_2}) \\
+\transl{\rho^n} &= \texttt{Circuit(}\Pur(\rho^n)\texttt{, [])} \\
+\transl{G_p\;t} &= \transl{t}\texttt{.gate(}G\texttt{, [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])} \\
+\transl{t_1 \otimes t_2} &= \transl{t_1}\texttt{.compose(\transl{t_2})} \\
+\transl{(b^m, \rho^n)} &= \texttt{((b, m), }\transl{\rho^n}\texttt{)} \\
+\transl{\textsf{letcase }x = r \textrm{ in } \{t_0,\dots,t_{2^m-1}\} } &= \texttt{letcase(\transl{r}, [\transl{t_0}, \dots, \transl{t_{2^m-1}}])}
+\end{align*}
+\vspace{-2\baselineskip}
+\begin{align*}
+\transl{\pi^m\;t} &= \texttt{(lambda rho: (lambda vi: build\_pair)(meas))(}\transl{t}\texttt{)}
+\end{align*}
+donde
+\begin{itemize}
+    \item $\texttt{vn = rho.size()}$.
+    \item $\texttt{meas = rho.measure(0, 2, \dots, vn)}$.
+    \item $\texttt{build\_pair = ((vi/(2**(vn/2-m)), m), from\_int(vi, vn/2))}$.
+    \item $b\in \mathbb{N}_0,m,n \in  \mathbb{N}$.
+    \item $G \in \{U^{\theta, \phi, \lambda}, UC^{\theta, \phi, \lambda}, \textrm{SWAP}, \textrm{CSWAP}\}$, con $\theta, \phi, \lambda \in \mathbb{R}$.
+\end{itemize}
+\end{definicion}
+
+\section{Correctitud}
+
+Cuando hablamos de correctitud nos referimos a que si una expresión en el lenguaje original reduce a cierta expresión, entonces la expresión traducida también debe reducir a una expresión equivalente.
+
+Como se verá en las pruebas en algunos casos los circuitos generados por la traducción pueden no ser exactamente los mismos a los originales, pero lo que nos interesa es si los mismos producen los mismos vectores de estado. En la Definición~\ref{def:circ_equiv} se formaliza este concepto.
+
+
+\begin{definicion}[Expresiones equivalentes]
+\label{def:circ_equiv}
+Se define la relación de equivalencia $\approx: \Lambda_\textit{py} \times \Lambda_\textit{py}$ que indica cuando dos expresiones difieren únicamente en la manera de construir el circuito.
+\[\arraycolsep=10pt\def\arraystretch{2.6}
+\begin{array}{c}
+     \infer
+     {\texttt{Circuit(I, L)} \approx \texttt{Circuit(J, L')}}
+     {(\ket{0}^n, r, \textbf{Init } \texttt{I};\;\texttt{L}) \redqk_1^* (\ket{\phi}, r, [\;]) \quad (\ket{0}^n, r, \textbf{Init } \texttt{J};\; \texttt{L'}) \redqk_1^* (\ket{\phi}, r, [\;])}
+\end{array}
+\]
+\[\arraycolsep=10pt
+\begin{array}{cc}
+     \infer
+     {\texttt{x}\approx \texttt{x}}
+     {}
+    &
+     \infer
+     {\texttt{t} \approx \texttt{r}}
+     {\texttt{t} \redpy_1 \texttt{r}}
+\end{array}
+\]
+% \[\arraycolsep=10pt
+% \begin{array}{c}
+%      \infer
+%      {\texttt{t} \approx \texttt{r}}
+%      {\texttt{t} \redpy_1 \texttt{r}}
+% \end{array}
+% \]
+\[\arraycolsep=10pt\def\arraystretch{2.6}
+\begin{array}{cc}
+     \infer
+     {\texttt{s(t)} \approx \texttt{u(r)}}
+     {\texttt{t} \approx \texttt{r} \quad \texttt{s} \approx \texttt{u}}
+     &
+     \infer
+     {\texttt{t.gate(G, A)} \approx \texttt{r.gate(G, A)}}
+     {\texttt{t} \approx \texttt{r}}
+\end{array}
+\]
+\[\arraycolsep=10pt\def\arraystretch{2.6}
+\begin{array}{c}
+     \infer
+     {\texttt{t.compose(s)} \approx \texttt{r.compose(u)}}
+     {\texttt{t} \approx \texttt{r} \quad \texttt{s} \approx \texttt{u}}
+\end{array}
+\]
+\[\arraycolsep=10pt\def\arraystretch{2.6}
+\begin{array}{c}
+     \infer
+     {\texttt{letcase(t, [c$_1$, \dots, c$_{2^n}$])} \approx \texttt{letcase(r, [d$_1$, \dots, d$_{2^n}$])}}
+     {\texttt{t} \approx \texttt{r} \quad \texttt{c}_1 \approx \texttt{d}_1 \quad \dots \quad \texttt{c}_{2^n} \approx \texttt{d}_{2^n}}
+\end{array}
+\]
+\end{definicion}
+
+Antes de probar la correctitud resultan útil los siguientes lemas.
+\begin{lema}[Sustitución]
+\label{lem:subst}
+Dado $t, r \in \Lambda_\rho^*$, $\transl{[r/x]t}=[\transl{r}/x]\transl{t}$
+\end{lema}
+\begin{proof}
+Este lema fue demostrado por Agustín B. en ~\cite{agustin} (Lema 3.1.8), utilizando inducción estructural en $t$.
+\end{proof}
+
+\begin{lema}[Preservación de Valores]
+\label{lem:valor}
+% Si $v \in \Lambda_\rho^*$ es un valor, entonces existe un valor $w$ en $\Lambda_\textit{py}$ tal que $\transl{v} \redpy_1^* w$.
+$v \in \Lambda_\rho^*$ es un valor si y solo si $\transl{v}$ es un valor en $\Lambda_\textit{py}$.
+\end{lema}
+\begin{proof}
+
+Se procede por inducción estructural en $v$. Es decir vamos a probar el lema para las posibles formas de $v$, asumiendo que cualquier sub-expresión $w$ de $v$ es un valor si y solo si $\transl{w}$ es un valor. De esta manera se puede concluir que el lema vale para todas las expresiones de $\Lambda_\rho^*$.
+
+\begin{itemize}
+     \item[\textbf{Caso}] $v=x$
+     
+$\transl{x} = \texttt{x}$. Ambos $x$ y \texttt{x} son trivialmente valores.
+
+     
+     \item[\textbf{Caso}] $v=(b^m, \rho^n)$
+     
+$\transl{(b^m, \rho^n)} = \texttt{((b, m), Circuit(}\Pur(\rho^n)\texttt{, [])})$.
+
+Ambos $(b^m, \rho^n)$ y $\texttt{((b, m), Circuit(}\Pur(\rho^n)\texttt{, []))}$ son valores porque no existe ninguna regla de reducción aplicable para ninguno de los dos.
+     
+     \item[\textbf{Caso}] $v=\rho^n$
+     
+$\transl{\rho^n} = \texttt{Circuit(}\Pur(\rho^n)\texttt{, [])}$. Ambos $\rho^n$ y $\texttt{Circuit(}\Pur(\rho^n)\texttt{, [])}$ son trivialmente valores.
+
+     \item[\textbf{Caso}] $v=\lambda x.t$
+     
+\begin{itemize}
+    \item[$\implies$)] $\transl{\lambda x.t} = \texttt{lambda x:}\transl{t}$.
+No existe ninguna regla en la Definición~\ref{def:reduccion_python} que tenga \texttt{lambda x} como operación más externa, por lo que es un valor.
+    \item[$\impliedby$)] No existe ninguna regla en la Definición~\ref{def:reduccion_lambda} que tenga $\lambda x$ como operación más externa, por lo que es un valor.
+\end{itemize}
+     \item[\textbf{Caso}] $v=t_1\;t_2$
+
+$\transl{t_1\;t_2} = \transl{t_1}(\transl{t_2})$
+
+Debido a la forma de $t_1\;t_2$ solo se pueden aplicar las reglas $Lr_\rho$, $Rr_\rho$ y $\lambda_\rho$. Debido a la forma de  $\transl{t_1\;t_2}$ solo se pueden aplicar las reglas $Lr_\textit{py}$, $Rr_\textit{py}$ y $\lambda_\textit{py}$. Veamos que si asumimos que una es no aplicable la otra tampoco lo es, respectivamente.
+\begin{itemize}
+    \item La regla $Lr_\rho$ no se puede aplicar sobre $t_1\;t_2$ $\Leftrightarrow$ $t_1$ es un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{t_1}$ es un valor $\Leftrightarrow$ La regla $Lr_\textit{py}$ no se puede aplicar sobre $\transl{t_1\;t_2}$.
+    \item La regla $Rr_\rho$ no se puede aplicar sobre $t_1\;t_2$ $\Leftrightarrow$ $t_1$ no es un valor o bien $t_2$ es un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{t_1}$ no es un valor o bien $\transl{t_2}$ es un valor $\Leftrightarrow$ La regla $Rr_\textit{py}$ no se puede aplicar sobre $\transl{t_1\;t_2}$.
+    \item  La regla $\lambda_\rho$ no se puede aplicar sobre $t_1\;t_2$ $\Leftrightarrow$ $t_1$ no es de la forma $\lambda x.r$ o bien $t_2$ no es un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{t_1}$ no es de la forma \texttt{lambda x:r} o bien $\transl{t_2}$ no es un valor $\Leftrightarrow$ La regla $\lambda_\textit{py}$ no se puede aplicar sobre $\transl{t_1\;t_2}$.
+\end{itemize}
+
+Por lo tanto, $t_1\;t_2$ es un valor $\Leftrightarrow$ $\transl{t_1\;t_2}$ es un valor.
+    
+     \item[\textbf{Caso}] $v=G\;t$
+
+$\transl{G\;t} =  \transl{t}\texttt{.gate(}G\texttt{, [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])}$
+
+Debido a la forma de $G\;t$ solo se pueden aplicar las reglas $Gr_\rho$ y $G_\rho$. Debido a la forma de  $\transl{G\;t}$ solo se pueden aplicar las reglas $Gr_\textit{py}$ y $G_\textit{py}$. Veamos que si asumimos que una es no aplicable la otra tampoco lo es, respectivamente.
+\begin{itemize}
+    \item La regla $Gr_\rho$ no se puede aplicar sobre $G\;t$ $\Leftrightarrow$ $t$ debe ser un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{t}$ es un valor $\Leftrightarrow$ La regla $Gr_\textit{py}$ no se puede aplicar sobre $\transl{G\;t}$.
+    \item  La regla $G_\rho$ no se puede aplicar sobre $G\;t$ $\Leftrightarrow$ $t$ no es de la forma $\rho^n$ $\Leftrightarrow$ $\transl{t}$ no es de la forma \texttt{Circuit(I, L)} $\Leftrightarrow$ La regla $G_\textit{py}$ no se puede aplicar sobre $\transl{G\;t}$.
+\end{itemize}
+
+Por lo tanto, $G\;t$ es un valor $\Leftrightarrow$ $\transl{G\;t}$ es un valor.
+
+     \item[\textbf{Caso}] $v=t_1\otimes t_2$
+     
+$\transl{t_1 \otimes t_2} = \transl{t_1}\texttt{.compose(\transl{t_2})}$
+
+Debido a la forma de $t_1 \otimes t_2$ solo se pueden aplicar las reglas $L\otimes_\rho$, $R\otimes_\rho$ y $\otimes_\rho$. Debido a la forma de  $\transl{t_1 \otimes t_2}$ solo se pueden aplicar las reglas $L\otimes_\textit{py}$, $R\otimes_\textit{py}$ y $\otimes_\textit{py}$. Veamos que si asumimos que una es no aplicable la otra tampoco lo es, respectivamente.
+\begin{itemize}
+    \item La regla $L\otimes_\rho$ no se puede aplicar sobre $t_1 \otimes t_2$ $\Leftrightarrow$ $t_1$ es un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{t_2}$ es un valor $\Leftrightarrow$ La regla $L\otimes_\textit{py}$ no se puede aplicar sobre $\transl{t_1 \otimes t_2}$.
+    \item La regla $R\otimes_\rho$ no se puede aplicar sobre $t_1 \otimes t_2$ $\Leftrightarrow$ $t_1$ no es un valor o bien $t_2$ es un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{t_1}$ no es un valor o bien $\transl{t_2}$ es un valor $\Leftrightarrow$ La regla $R\otimes_\textit{py}$ no se puede aplicar sobre $\transl{t_1 \otimes t_2}$.
+    \item  La regla $\otimes_\rho$ no se puede aplicar sobre $t_1 \otimes t_2$ $\Leftrightarrow$ $t_1$ ó $t_2$ no es de la forma $\rho^n$ $\Leftrightarrow$ $\transl{t_1}$ ó $\transl{t_1}$ no es de la forma \texttt{Circuit(I, L)} $\Leftrightarrow$ La regla $\otimes_\textit{py}$ no se puede aplicar sobre $\transl{t_1 \otimes t_2}$.
+\end{itemize}
+
+Por lo tanto, $t_1 \otimes t_2$ es un valor $\Leftrightarrow$ $\transl{t_1 \otimes t_2}$ es un valor.
+
+     \item[\textbf{Caso}] $v=\textsf{letcase }x = r \textsf{ in } \{t_0,\dots,t_{2^m-1}\}$ 
+     
+$\transl{\textsf{letcase }x = r \textrm{ in } \{t_0,\dots,t_{2^m-1}\} } = \texttt{letcase(\transl{r}, [\transl{t_0}, \dots, \transl{t_{2^m-1}}])}$
+
+Debido a la forma de $\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\} $ solo se pueden aplicar las reglas $\text{letr}_\rho$ y $\text{let}_\rho$. Debido a la forma de  $\transl{\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\} }$ solo se pueden aplicar las reglas $\text{letr}_\textit{py}$ y $\text{let}_\textit{py}$. Veamos que si asumimos que una es no aplicable la otra tampoco lo es, respectivamente.
+\begin{itemize}
+    \item La regla $\text{letr}_\rho$ no se puede aplicar sobre $\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\} $ $\Leftrightarrow$ $r$ debe ser un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{r}$ es un valor $\Leftrightarrow$ La regla $\text{letr}_\textit{py}$ no se puede aplicar sobre $\transl{\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\} }$.
+    \item  La regla $\text{let}_\rho$ no se puede aplicar sobre $\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\} $ $\Leftrightarrow$ $r$ no es de la forma $(b^m, \rho^n)$ $\Leftrightarrow$ $\transl{r}$ no es de la forma $\texttt{((b, m), rho)}$ $\Leftrightarrow$ La regla $\text{let}_\textit{py}$ no se puede aplicar sobre $\transl{\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\} }$.
+\end{itemize}
+
+Por lo tanto,
+
+$\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\} $ es un valor $\Leftrightarrow$ $\transl{\textsf{letcase }x = r \textrm{ in } \{t_1,\dots,t_m\}}$ es un valor.
+
+     \item[\textbf{Caso}] $v=\pi^m\;t$
+     
+$\transl{\pi^m\;t} = \texttt{(lambda rho: (lambda vi: build\_pair)(meas))(}\transl{t}\texttt{)}$
+
+Debido a la forma de $\pi^m\;t$ solo se pueden aplicar las reglas $\pi r_\rho$ y $\pi_\rho$. Debido a la forma de  $\transl{\pi^m\;t}$ solo se pueden aplicar las reglas $Rr_\textit{py}$ y $\lambda_\textit{py}$. Veamos que si asumimos que una es no aplicable la otra tampoco lo es, respectivamente.
+\begin{itemize}
+    \item La regla $\pi r_\rho$ no se puede aplicar sobre $\pi^m\;t$ $\Leftrightarrow$ $t$ debe ser un valor $\stackrel{\textrm{HI}}{\Leftrightarrow}$ $\transl{t}$ es un valor $\Leftrightarrow$ La regla $Rr_\textit{py}$ no se puede aplicar sobre $\transl{\pi^m\;t}$.
+    \item Como la expresión $\pi^m\;t$ tiene un tipo y la regla de tipado $\pi$ es la única aplicable, debe ser que $t: n$, para algún $n\geq m \implies$si $t$ es un valor, el único valor posible es de la forma $\rho^n$.
+    \item  La regla $\pi_\rho$ no se puede aplicar sobre $\pi^m\;t$ $\Leftrightarrow$ $t$ no es de la forma $\rho^n$ $\Leftrightarrow$ $t$ no es un valor $\Leftrightarrow$ $\transl{t}$ no es un valor $\Leftrightarrow$ La regla $\lambda_\textit{py}$ no se puede aplicar sobre $\transl{\pi^m\;t}$.
+\end{itemize}
+
+Por lo tanto, $\pi^m\;t$ es un valor $\Leftrightarrow$ $\transl{\pi^m\;t}$ es un valor.
+     
+\end{itemize}
+\end{proof}
+Por último agregamos dos lemas necesarios para demostrar la correctitud sobre la regla $\pi_\rho$.
+\begin{lema}\label{lem:rhosize}
+La purificación de una matriz de densidad de $n$ qubits posee $2n$ qubits, es decir:
+    \[\texttt{\transl{\rho^n}.size()} \redpy_1 2n\]
+\end{lema}
+\begin{proof}
+    \begin{align*}
+        \texttt{\transl{\rho^n}.size()} &= \texttt{Circuit(}\Pur(\rho^n)\texttt{, []).size()} \\
+        &\redpy_1 \log_2|\Pur(\rho^n)| \stackrel{\textrm{Def.~\ref{def:Pur}}}{=} \log_2(2^{2n}) = 2n
+    \end{align*}
+\end{proof}
+
+\begin{lema}\label{lem:measpy}
+    \[\transl{\rho^n}\texttt{.measure([0, 2, \dots, 2n])} \redpy_{p_i} \texttt{i}\]
+    donde $p_i= \tr(\adj{{\pi^n}_i}{\pi^n}_i\rho^n)$
+\end{lema}
+\begin{proof}
+\begin{align*}
+    \transl{\rho^n}&\texttt{.measure([0, 2, \dots, 2n])} \\
+    &= \texttt{Circuit(}\Pur(
+    \rho^n)\texttt{, []).measure([0, 2, \dots, 2n])}\\
+    &\redpy_{p_i} \texttt{i}
+\end{align*}
+Donde la última reducción es válida porque:
+\begin{align*}
+(\ket{0}^{2n}, &0, \textbf{Init}\;\Pur(\rho^n); \textbf{Measure } [0, 2, \dots, 2n]) \\
+&\redqk_1 (\Pur(\rho^n), 0, \textbf{Measure } [0, 2, \dots, 2n])\\
+&\redqk_{p_i} (\phi, i, [\;])
+\end{align*}
+Donde la última reducción es válida por el Teorema~\ref{teo:pur_meas}.
+\end{proof}
+\begin{lema}\label{lem:measall}
+Sea $\rho^n$ una matriz de densidad, $\{ \pi_i \} = \{\ket{e_i}\bra{e_i}, 0\leq i < 2^n\}$ (las matrices de medición de la base canónica). El estado del sistema al aplicar la medición $\{\pi_i \}$ luego obtener el resultado $i$ es: 
+\[\pi_i\]
+\end{lema}
+\begin{proof}
+Por la Ecuación~\ref{eq:probmeas}, la probabilidad de obtener el resultado $i$ al medir con $\{ \pi \}$ es:
+\[p_i = \tr(\adj{\pi_i}\pi_i\rho^n).\]
+Notar que como $\pi_i$ es simétrico, $\adj{\pi_i}=\pi_i$. Por la Ecuación~\ref{eq:statemeas}, el estado luego de obtener el resultado $i$ es:
+\[\rho^n_i = \frac{\pi_i\rho^n\adj{\pi_i}}{p_i}\]
+
+Vamos a expandir el denominador y el numerador. Sea $\sum_j \lambda_j \ket{v_j}\bra{v_j}$ la descomposición espectral de $\rho^n$. 
+\begin{align}
+p_i &= \tr(\adj{\pi_i}\pi_i\rho^n) = \tr(\pi_i\pi_i\rho^n) = \tr\left(\pi_i\pi_i\sum_j \lambda_j \ket{v_j}\bra{v_j}\right) \nonumber\\
+&= \sum_j \lambda_j \tr\left(\pi_i\pi_i \ket{v_j}\bra{v_j}\right) = \sum_j \lambda_j \bra{v_j}\pi_i\pi_i\ket{v_j} \nonumber\\
+&= \sum_j \lambda_j \braket{v_j|e_i}\braket{e_i|e_i}\braket{e_i|v_j} = \sum_j \lambda_j \braket{v_j|e_i}\braket{e_i|v_j} \nonumber\\
+&= \sum_j \lambda_j \braket{e_i|v_j}\braket{v_j|e_i} \label{eq:pi}
+\end{align}
+\begin{align}
+\pi_i\rho^n\adj{\pi_i} &= \pi_i\rho^n\pi_i = \pi_i\left(\sum_j \lambda_j \ket{v_j}\bra{v_j}\right)\pi_i = \sum_j \lambda_j \pi_i\ket{v_j}\bra{v_j}\pi_i\nonumber\\
+&= \sum_j \lambda_j \ket{e_i}\braket{e_i|v_j}\braket{v_j|e_i}\bra{e_i} = \sum_j \lambda_j \pi_i\braket{e_i|v_j}\braket{v_j|e_i}\nonumber\\
+&=  \pi_i \sum_j \lambda_j\braket{e_i|v_j}\braket{v_j|e_i} \label{eq:piest}
+\end{align}
+Finalmente, utilizando los resultados \ref{eq:pi} y \ref{eq:piest}:
+\begin{align*}
+\rho^n_i = \frac{\pi_i\rho^n\adj{\pi_i}}{p_i} = \frac{\pi_i \sum_j \lambda_j\braket{e_i|v_j}\braket{v_j|e_i}}{p_i} = \frac{\pi_i \sum_j \lambda_j\braket{e_i|v_j}\braket{v_j|e_i}}{\sum_j \lambda_j \braket{e_i|v_j}\braket{v_j|e_i}} = \pi_i
+\end{align*}
+\end{proof}
+\begin{teorema}[Correctitud]
+%classic
+% Sea $t, r \in \Lambda_\rho^*$. Si $t \redlam_p r$, entonces  $\transl{t} \redpy_p^* \transl{r}$.
+Sea $t, r \in \Lambda_\rho^*$.
+
+Si $t \redlam_p r$, entonces  $\exists r'$ tal que $\transl{t} \redpy_p^* r' \approx \transl{r}$.
+\end{teorema}
+\begin{proof}
+Se procede por inducción en la definición de la relación $\redlam_p$.
+\begin{itemize}
+    \item[\textbf{Caso}] $(\lambda x.t)\;v \redlam_1 [v/x]t$, donde $v$ es un valor
+
+$\transl{(\lambda x.t)\;v} = \texttt{(lambda x:}\transl{t}\texttt{)}(\transl{v}) \stackrel{\textrm{Lema~\ref{lem:valor}}}{\redpy_1} [\transl{v}/x]\transl{t}  \stackrel{\textrm{Lema~\ref{lem:subst}}}{=} \transl{[v/x]t}$
+
+    \item[\textbf{Caso}] $G_p\;\rho^n \redlam_1 {\rho'}^n \qquad \text{ con }{\rho'}^n = \overline{G_p}\;\rho^n \;\adj{\overline{G_p}}$
+
+\(\transl{G_p\;\rho^n} =\\
+\texttt{Circuit(}\Pur(\rho^n)\texttt{, []).gate(}G\texttt{, [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])} \\
+\redpy_1 \texttt{Circuit(}\Pur(\rho^n)\texttt{, [Gate G [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])}\)
+
+$\transl{{\rho'}^n} = \texttt{Circuit(}\Pur(\overline{G}\;\rho^n \;\adj{\overline{G}})\texttt{, [])}$
+
+Se debe probar que los circuitos generados por
+\begin{align*}
+L&=\texttt{[Init }\Pur(\rho^n)\texttt{, Gate G [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{]}\\
+L'&=\texttt{[Init }\Pur(\overline{G}\;\rho^n \;\adj{\overline{G}})\texttt{]}
+\end{align*}
+son equivalentes. Por la Definición~\ref{def:qk_rules}:
+\begin{align*}
+(\ket{0}^n, r, L') \redqk_1 (\pur(\overline{G}\;\rho^n \;\adj{\overline{G}}), r, [\;])
+\end{align*}
+Usando la Definición~\ref{def:qk_rules} y el Teorema~\ref{teo:pur_gate}:
+\begin{align*}
+    (\ket{0}^n, r, L) &\redqk_1 (\Pur(\rho^n), r, \textbf{Gate}\;G\;[p, p+2, \dots, p+2|G|) \\
+    &\redqk_1 (\Pur(\overline{G_p}\;\rho^n \;\adj{\overline{G_p}}), r, [\;])
+\end{align*}
+De esta forma:
+\begin{gather*}
+\texttt{Circuit(}\Pur(\rho^n)\texttt{, [Gate G [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])} \\
+\approx \\
+\texttt{Circuit(}\Pur(\overline{G}\;\rho^n \;\adj{\overline{G}})\texttt{, [])} = \transl{{\rho'}^n}
+\end{gather*}
+
+    \item[\textbf{Caso}] $\rho \otimes \rho' \redlam_1 \rho'' \qquad \text{ con } \rho'' = \rho \otimes \rho'$
+
+Siendo $\rho$ y $\rho'$ de $n$ y $m$ qubits respectivamente:
+\begin{align*}
+\transl{\rho \otimes \rho'} &= \texttt{Circuit(}\Pur(\rho)\texttt{, []).compose(Circuit(}\Pur(\rho')\texttt{, [])} \\
+&\redpy_1^* \texttt{Circuit(}\Pur(\rho)\otimes\Pur(\rho')\texttt{, [])}\\
+&\stackrel{\textrm{Teo.~\ref{teo:pur_compose}}}{=}\texttt{Circuit(}\Pur(\rho \otimes \rho')\texttt{, [])} = \transl{\rho''}
+\end{align*}
+    \item[\textbf{Caso}] $\textsf{letcase }x = (b^m, \rho^n) \textrm{ in } \{t_0,\dots,t_{2^m-1}\} \redlam_1 [\rho^n/x]t_{b^m}$
+\begin{align*}
+    \transl{\textsf{letcase }x &= (b^m, \rho^n) \textrm{ in } \{t_0,\dots,t_{2^m-1}\}} =\\
+    &\texttt{letcase(((b, m), \transl{\rho^n}), [\transl{t_0}, \dots, \transl{t_{2^m-1}}])} \\
+    &\redpy_1 \transl{t_\texttt{b}}\texttt{(\transl{\rho^n})} \\
+    &\stackrel{\textrm{Lema~\ref{lem:valor}}}{\redpy_1} [\transl{\rho^n}/x]\transl{t_\texttt{b}} \\
+    &\stackrel{\textrm{Lema~\ref{lem:subst}}}{=} \transl{[\rho^n/x]t_{b^m}}
+\end{align*}
+% esta regla se saca cuando se fija la estrategia de lambda rho en CBV
+%     \item[\textbf{Caso}] $\lambda x.t \redlam_p \lambda x.r$, con $t \redlam_p r$
+
+    \item[\textbf{Caso}] $t\;s\redlam_p r\;s$, con $t \redlam_p r$
+
+Por hipótesis de inducción, $\exists \texttt{u}\approx \transl{r} / \transl{t} \redpy_p^* \texttt{u}$.
+
+$\transl{t\;s} = \transl{t}\texttt{(}\transl{s}\texttt{)} \redpy^*_p \texttt{u(}\transl{s}\texttt{)} \approx \transl{r}\texttt{(}\transl{s}\texttt{)} = \transl{r\;s}$
+
+    \item[\textbf{Caso}] $v\;t\redlam_p v\;r$, con $t \redlam_p r$, donde $v$ es un valor
+
+Por hipótesis de inducción, $\exists \texttt{u}\approx \transl{r} / \transl{t} \redpy_p^* \texttt{u}$.
+
+$\transl{v\;t} = \transl{v}\texttt{(}\transl{t}\texttt{)} \stackrel{\textrm{Lema~\ref{lem:valor}}}{\redpy^*_p} \transl{v}\texttt{(u)} \approx \transl{v}\texttt{(}\transl{r}\texttt{)} = \transl{v\;r}$
+
+    \item[\textbf{Caso}] $v\otimes t \redlam_p v \otimes r$, con $t \redlam_p r$, donde $v$ es un valor
+
+Por hipótesis de inducción, $\exists \texttt{u}\approx \transl{r} / \transl{t} \redpy_p^* \texttt{u}$.
+
+$\transl{v\otimes t} = \transl{v}\texttt{.compose(\transl{t})} \stackrel{\textrm{Lema~\ref{lem:valor}}}{\redpy^*_p} \transl{v}\texttt{.compose(u)} \approx \transl{v}\texttt{.compose(\transl{r})} = \transl{v \otimes r}$
+
+    \item[\textbf{Caso}] $t\otimes s \redlam_p r \otimes s$, con $t \redlam_p r$
+
+Por hipótesis de inducción, $\exists \texttt{u}\approx \transl{r} / \transl{t} \redpy_p^* \texttt{u}$.
+
+$\transl{t\otimes s} = \transl{t}\texttt{.compose(\transl{s})} \redpy_p^* \texttt{u.compose(\transl{s})} \approx \transl{r}\texttt{.compose(\transl{s})} = \transl{r \otimes s}$
+
+    \item[\textbf{Caso}] $\textsf{letcase }x = t \textrm{ in } \{s_0,\dots,s_n\} \redlam_p \textsf{letcase }x = r \textrm{ in } \{s_0,\dots,s_n\}$, con $t \redlam_p r$
+
+Por hipótesis de inducción, $\exists \texttt{u}\approx \transl{r} / \transl{t} \redpy_p^* \texttt{u}$.
+
+$\transl{\textsf{letcase }x = t \textrm{ in } \{s_0,\dots,s_n\}} = \texttt{letcase(\transl{t}, [\transl{s_0},\dots,\transl{s_n}])}$
+
+
+$\redpy_p^* \texttt{letcase(u, [\transl{s_0},\dots,\transl{s_n}])} \approx \texttt{letcase(\transl{r}, [\transl{s_0},\dots,\transl{s_n}])}$
+
+
+$= \transl{\textsf{letcase }x = r \textrm{ in } \{s_0,\dots,s_n\}}$
+
+    \item[\textbf{Caso}] $\pi^m\;t \redlam_p \pi^m\;r$, con $t \redlam_p r$
+
+Por hipótesis de inducción, $\exists \texttt{u}\approx \transl{r} / \transl{t} \redpy_p^* \texttt{u}$.
+\begin{align*}
+ \transl{\pi^m\;t} &= \texttt{(lambda rho: (lambda i: build\_pair)(meas))(}\transl{t}\texttt{)}\\
+ &\redpy_p^* \texttt{(lambda rho: (lambda i: build\_pair)(meas))(u)} \\
+ &\approx \texttt{(lambda rho: (lambda i: build\_pair)(meas))(}\transl{r}\texttt{)} \\
+ &= \transl{\pi^m\;r}
+\end{align*}
+
+    \item[\textbf{Caso}] \(\pi^m\;\rho^n \redlam_{p_i} (\lceil \nicefrac{i}{2^{n-m}}\rceil, \rho_i^n) \;\, \text{ con }
+\begin{cases}
+p_i = \tr(\adj{{\pi^n}_i}\;\pi^n_i\;\rho^n)\\
+\rho^n_i = (\pi^n_i\;\rho^n\;\adj{{\pi^n}_i})/p_i
+\end{cases}\)
+
+Recordando las definiciones auxiliares:
+\begin{itemize}
+    \item $\texttt{vn = rho.size()}$
+    \item $\texttt{meas = rho.measure(0, 2, \dots, vn)}$.
+    \item $\texttt{build\_pair = ((vi/(2**(vn/2-m)), m), from\_int(vi, vn/2))}$.
+\end{itemize}
+Tenemos que:
+\begin{align*}
+\transl{\pi^m\;\rho^n} &= \texttt{(lambda rho: (lambda vi: build\_pair)(meas))(\transl{\rho^n})} \\
+\stackrel{\textrm{Lema~\ref{lem:valor}}}{\redpy_1} &\texttt{(lambda vi: }[\transl{\rho^n}/\texttt{rho}]\texttt{build\_pair)}\\
+&\qquad\qquad \texttt{(\transl{\rho^n}.measure(0, 2, \dots, \transl{\rho^n}.size()))} \\
+\stackrel{\textrm{Lema~\ref{lem:rhosize}}}{\redpy_1} &\texttt{(lambda vi: }[\transl{\rho^n}/\texttt{rho}]\texttt{build\_pair)}\\
+&\qquad\qquad \texttt{(\transl{\rho^n}.measure(0, 2, \dots, $2n$))} \\
+=\quad\;\,&\texttt{(lambda vi: }[\transl{\rho^n}/\texttt{rho}]\texttt{build\_pair)}\\
+&\qquad\qquad \texttt{(\transl{\rho^n}.measure(0, 2, \dots, $2n$))} \\
+\stackrel{\textrm{Lema~\ref{lem:measpy}}}{\redpy_{p_i}} &\texttt{(lambda vi: }[\transl{\rho^n}/\texttt{rho}]\texttt{build\_pair)(i)} \\
+\redpy_1 \quad &[\texttt{i}/\texttt{vi}][\transl{\rho^n}/\texttt{rho}]\texttt{build\_pair)} \\
+=\quad\;\,&\texttt{((i/(2**(\transl{\rho^n}.size()/2-m)), m), from\_int(i, \transl{\rho^n}.size()/2))}\\
+\stackrel{\textrm{Lema~\ref{lem:rhosize}}}{\redpy_1} &\texttt{((i/(2**($2n$/2-m)), m), from\_int(i, \transl{\rho^n}.size()/2))}\\
+\redpy^*_1 \quad&\texttt{((}\lceil \nicefrac{i}{2^{n-m}}\rceil\texttt{, m), from\_int(i, \transl{\rho^n}.size()/2))}\\
+\stackrel{\textrm{Lema~\ref{lem:rhosize}}}{\redpy_1}&\texttt{((}\lceil \nicefrac{i}{2^{n-m}}\rceil\texttt{, m), from\_int(i, $2n$/2))}\\
+\redpy_1 \quad&\texttt{((}\lceil \nicefrac{i}{2^{n-m}}\rceil\texttt{, m), from\_int(i, $n$))}\\
+\redpy_1\quad &\texttt{((}\lceil \nicefrac{i}{2^{n-m}}\rceil\texttt{, m), \transl{\pi^n_i})}\\
+\stackrel{\textrm{Lema~\ref{lem:measall}}}{\redpy_1}&\texttt{((}\lceil \nicefrac{i}{2^{n-m}}\rceil\texttt{, m), } \transl{\rho_i^n}\texttt{)}\\
+=\quad\;\,&\transl{(\lceil \nicefrac{i}{2^{n-m}}\rceil, \rho_i^n)}
+\end{align*}
+\end{itemize}
+\end{proof}
+
+\section{\texorpdfstring{Retracción de Python a $\lambda_\rho^*$}{Retracción de Python a Lambda Rho*}}\label{sec:retraccion}
+
+Si bien la formalización dada de Python es lo suficientemente poderosa como para poder definir una traducción inversa $f: \lambda_\textit{py} \rightarrow \Lambda_\rho^*$, no es posible definirla de manera tal que la composición con la traducción dada previamente de la función identidad. 
+Así como la traducción $\Lambda_\rho^* \rightarrow \lambda_\textit{py}$ reduce a circuitos equivalentes debido a la purificación y construcción del estado, componer $f$ con la traducción no genera la identidad, sino que genera la versión ``purificada'' del programa original.
+
+Sin embargo, nos interesaría definir una inversa por izquierda (también conocida como retracción) para la traducción definida en la Definición~\ref{def:traduccion}, para probar que $\transl{\cdot}$ no pierde información de los términos originales.
+
+\begin{teorema}[Inversa de la purificación]\label{teo:pur_inv}
+    La inversa de la función de purificación ($\Pur$) está dada por:
+    \[\Pur^{-1}(\ket{\phi}) = \pur^{-1}(\text{SWP}^{-1}\;\ket{\phi})\]
+\end{teorema}
+\begin{proof}
+Sea $\rho^n$ una matriz de densidad.
+\begin{align*}
+    \Pur^{-1}(\Pur(\rho^n)) &= \Pur^{-1}(\text{SWP}\;\pur(\rho^n)) = \pur^{-1}(\text{SWP}^{-1}\;\text{SWP}\;\pur(\rho^n)) \\
+    &= \pur^{-1}(\pur(\rho^n))
+    % {\textrm{Teo.}~\ref{teo:pur_inv1}}{=} \rho^n
+\end{align*}
+Donde la última expresión equivale a $\rho^n$ por el Teorema~\ref{teo:pur_inv1}.
+\end{proof}
+
+\begin{definicion}[Inversa por izquierda de la traducción]
+\label{def:inversa}
+Se define inductivamente la inversa por izquierda de la traducción:
+\[\transli{\cdot}: Im(\transl{\cdot}) \rightarrow \Lambda_\rho^*\]
+\begin{align*}
+\transli{\texttt{x}} &= x \\
+\transli{\texttt{lambda x:t}} &= \lambda x.\transli{t} \\
+\transli{\texttt{t$_1$(t$_2$)}} &= \transli{\texttt{t$_1$}}\;\;\transli{\texttt{t$_2$}}\\
+\transli{\texttt{Circuit(I, [])}} &= \Pur^{-1}(\texttt{I}) \\
+\transli{\texttt{t.gate(}G\texttt{, [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])}} &= G_p\;\transli{t} \\
+\transli{\texttt{t$_1$.compose(t$_2$)}} &= \transli{\texttt{t$_1$}} \otimes \transli{\texttt{t$_2$}} \\
+\transli{\texttt{((b, m), Circuit(I, [])}} &= (b^m, \Pur^{-1}(I)) \\
+\transli{\texttt{letcase(r, [t$_0$, \dots, t$_{2^m-1}$])}} &= \\
+\textsf{letcase }x = \transli{\texttt{r}} &\textrm{ in } \{\transli{\texttt{t$_0$}},\dots,\transli{\texttt{t$_{2^m-1}$}}\}
+\end{align*}
+\vspace{-2\baselineskip}
+\begin{align*}
+\transli{\texttt{(lambda rho: (lambda vi: build\_pair)(meas))(t)}} &=  \pi^m\;\transli{\texttt{t}}
+\end{align*}
+donde
+\begin{itemize}
+    \item $\texttt{vn = rho.size()}$
+    \item $\texttt{meas = rho.measure(0, 2, \dots, vn)}$.
+    \item $\texttt{build\_pair = ((vi/(2**(vn/2-m)), m), from\_int(vi, vn/2))}$.
+    \item $b \in \mathbb{N}_0,m,n \in  \mathbb{N}$
+    \item $G \in \{U^{\theta, \phi, \lambda}, UC^{\theta, \phi, \lambda}, \textrm{SWAP}, \textrm{CSWAP}\}$, con $\theta, \phi, \lambda \in \mathbb{R}$.
+\end{itemize}
+\end{definicion}
+
+\begin{teorema}
+Sea $t \in \Lambda_\rho^*$, entonces $\transli{\transl{t}} \redlam^* t$.
+\end{teorema}
+\begin{proof}
+Se procede por inducción en $t$.
+\begin{itemize}
+    \item[\textbf{Caso}] $x$
+    
+$\transli{\transl{x}} = \transli{\texttt{x}} = x$
+
+    \item[\textbf{Caso}] $\lambda x.t$
+    
+$\transli{\transl{\lambda x.t}} = \transli{\texttt{lambda x:\transl{t}}} = \lambda x.\transli{\transl{t}} \stackrel{\textrm{HI}}{=} \lambda x.t$
+
+    \item[\textbf{Caso}] $t_1\;t_2$
+    
+$\transli{\transl{t_1\;t_2}} = \transli{\transl{t_1}(\transl{t_2})} = \transli{\transl{t_1}}\;\transli{\transl{t_2}} \stackrel{\textrm{HI}}{=} t_1\;t_2$
+
+    \item[\textbf{Caso}] $\rho^n$
+    
+$\transli{\transl{\rho^n}} = \transli{\texttt{Circuit(}\Pur(\rho^n)\texttt{, [])}} = \Pur^{-1}(\Pur(\rho^n))$
+
+Que por el Teorema~\ref{teo:pur_inv} es igual a $\rho^n$.
+
+    \item[\textbf{Caso}] $G_p\;t$
+    
+$\transli{\transl{G_p\;t}} = \transli{\transl{t}\texttt{.gate(}G\texttt{, [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])}} =  G_p\;\transli{\transl{t}} = \stackrel{\textrm{HI}}{=} G_p\;t$
+
+    \item[\textbf{Caso}] $t_1 \otimes t_2$
+    
+$\transli{\transl{t_1 \otimes t_2}} = \transli{\transl{t_1}\texttt{.compose(\transl{t_2})}} = \transli{\transl{t_1}} \otimes \transli{\transl{t_2}} \stackrel{\textrm{HI}}{=} t_1 \otimes t_2$
+
+
+    \item[\textbf{Caso}] $(b^m, \rho^n)$
+\begin{flalign*}
+\transli{\transl{(b^m, \rho^n)}} &= \transli{\texttt{((b, m), Circuit(}\Pur(\rho^n)\texttt{, []))}} &&\\
+&= (b^m, \Pur^{-1}(\Pur(\rho^n)))
+\end{flalign*}
+Que por el Teorema~\ref{teo:pur_inv} es igual a $(b^m, \rho^n)$.
+
+
+    \item[\textbf{Caso}] $\textsf{letcase }x = r \textrm{ in } \{t_0,\dots,t_{2^m-1}\} $
+\begin{align*}
+    \transli{\transl{\textsf{letcase }x = r &\textrm{ in } \{t_0,\dots,t_{2^m-1}\}}} \\
+    &= \transli{\texttt{letcase(\transl{r}, [\transl{t_0}, \dots, \transl{t_{2^m-1}}])}} \\
+    &= \textsf{letcase }x = \transli{\transl{r}} \textrm{ in } \{\transli{\transl{t_0}},\dots,\transli{\transl{t_{2^m-1}}}\} \\
+    &\stackrel{\textrm{HI}}{=}  \textsf{letcase }x = r \textrm{ in } \{t_0,\dots,t_{2^m-1}\}
+\end{align*}
+
+    \item[\textbf{Caso}] $\pi^m\;t$
+\begin{flalign*}
+\transli{\transl{\pi^m\;t}} &= \transli{\texttt{(lambda rho: (lambda vi: build\_pair)(meas))(\transl{t})}}&&\\
+&= \pi^m\;\transli{\transl{t}}\stackrel{\textrm{HI}}{=} \pi^m\;t&&
+\end{flalign*}
+\end{itemize}
+\end{proof}
+
+
