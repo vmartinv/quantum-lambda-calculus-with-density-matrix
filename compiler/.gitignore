@@ -23,3 +23,10 @@ cabal.project.local~
 .ghc.environment.*
 .ipynb_checkpoints
 .fuse_hidden*
+.stack-work/
+compiler.cabal
+*~
+.history
+venv/
+__pycache__/
+*.sublime*
