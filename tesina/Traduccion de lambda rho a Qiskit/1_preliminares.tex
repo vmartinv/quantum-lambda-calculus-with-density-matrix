@@ -1,10 +1,10 @@
 \chapter{Preliminares}\label{ch:preliminares}
 
-Este capítulo contiene dos partes muy importantes para entender la base teórica del trabajo. En la primera parte se den definiciones generales sobre el álgebra lineal, las cuales son necesarias para la segunda parte en la que se introduce la mecánica cuántica en términos de matrices de densidad.
+Este capítulo contiene dos partes muy importantes para entender la base teórica del trabajo. En la primera parte se dan definiciones generales sobre el álgebra lineal, las cuales son necesarias para la segunda parte en la que se introduce la mecánica cuántica en términos de matrices de densidad.
 Al final se detallan algunos conceptos adicionales que resultan útiles más adelante.
 
 \section{Álgebra Lineal}
-El álgebra lineal es el estudio de espacios vectoriales y operaciones lineales sobre esos espacios. Para entender mecánica cuántica es necesario un conocimiento firme en álgebra lineal. En esta sección se definen algunos conceptos y notaciones que serán útiles más adelante, inspirados los libros \cite{quantum_computer_science} y \cite{purification}.
+El álgebra lineal es el estudio de espacios vectoriales y operaciones lineales sobre esos espacios. Para entender mecánica cuántica es necesario un conocimiento firme en álgebra lineal. En esta sección se definen algunos conceptos y notaciones que serán útiles más adelante, inspirados en los libros \cite{quantum_computer_science} y \cite{purification}.
 
 \subsection{Vectores}
 
@@ -14,7 +14,7 @@ La notación estándar en mecánica cuántica de un vector en un espacio vectori
 
 $\phi$ es una etiqueta del vector y la notación $\ket{\cdot}$ es usada para indicar que el objeto es un vector columna. El objeto $\ket{\phi}$ es conocido también como \emph{ket}.
 
-El espacio vectorial contiene también un elemento especial $\vec{0}$, el vector cero. El mismo cumple con la propiedad $\ket{v} + \vec{0} = \ket{v} \;\forall \ket{v}$. Es importante no confundir este vector con $\ket{0}$ el cual se reserva para significar algo completamente distinto.
+El espacio vectorial contiene también un elemento especial $\vec{0}$, el vector cero. El mismo cumple con la propiedad $\ket{v} + \vec{0} = \ket{v} \;\forall \ket{v}$. Es importante no confundir este vector con $\ket{0}$ el cual se reserva para significar algo completamente distinto (en la Sección~\ref{sub:postulados}).
 
 \subsection{Bases e independencia lineal}
 Un \emph{generador} es un conjunto de vectores $\ket{v_1}, \dots, \ket{v_n}$ de un espacio vectorial $V$ tales que cualquier vector $\ket{v}\in V$ puede ser escrito como una combinación lineal $\ket{v} = \sum_i a_i \ket{v_i}$ de los vectores del conjunto. 
@@ -50,7 +50,7 @@ Un conjunto de vectores no nulos $\ket{v1}, \dots, \ket{v_n}$ es \emph{linealmen
 \end{definicion}
 
 
-Se dice que un conjunto de vectores es linealmente independiente si no es linealmente dependiente. Se puede demostrar que cualquier conjunto de vectores independientes que generan un espacio vectorial $V$ contienen la misma cantidad de elementos. Llamamos a tal conjunto una base de $V$. Además, tal base siempre existe. El número de elementos de la base se define como la dimensión de $V$. En este trabajo estamos interesados solamente en espacios vectoriales con dimensiones finitas.
+Se dice que un conjunto de vectores es linealmente independiente si no es linealmente dependiente. Se puede demostrar que cualquier conjunto de vectores independientes que generan un espacio vectorial $V$ contiene la misma cantidad de elementos. Llamamos a tal conjunto una base de $V$. Además, tal base siempre existe. El número de elementos de la base se define como la dimensión de $V$. En este trabajo estamos interesados solamente en espacios vectoriales con dimensiones finitas.
 
 \subsection{Operadores lineales}
 Un operador lineal entre los espacios vectoriales $V$ y $W$ se define como una función $A: V \rightarrow W$ que es lineal en su entrada, es decir:
@@ -119,7 +119,7 @@ Un vector unitario es un vector $\ket{v}$ tal que $\norma{\ket{v}} = 1$. Tambié
 \end{cases}\).
 `
 \begin{definicion}[Adjunto]
-El adjunto de un operador $A$ se nota por $A^\dagger$ y se define como el operador transpuesto y conjugado de $A$. Es decir, si $\alpha_{ij}=\braket{u_i|A|u_j}$ son las componentes de $A$, las componentes de $A^\dagger$ son $\alpha^*_{ij} = \braket{u_j|A_|u_i}^* = \braket{u_i|A^\dagger|u_j}$.
+El adjunto de un operador $A$ se nota por $A^\dagger$ y se define como el operador transpuesto y conjugado de $A$. Es decir, si $\alpha_{ij}=\braket{u_i|A|u_j}$ son las componentes de $A$, las componentes de $A^\dagger$ son $\alpha^*_{ij} = \braket{u_j|A|u_i}^* = \braket{u_i|A^\dagger|u_j}$.
 \end{definicion}
 
 \begin{definicion}[Operador Hermitiano]
@@ -127,12 +127,12 @@ El adjunto de un operador $A$ se nota por $A^\dagger$ y se define como el operad
 \end{definicion}
 
 \begin{definicion}[Operador normal]
-Un operador $A$ que es normal si $AA^\dagger = A^\dagger A$. Claramente, un operador Hermitiano es también normal. 
+Un operador $A$ es normal si $AA^\dagger = A^\dagger A$. Claramente, un operador Hermitiano es también normal. 
 \end{definicion}
 
 \subsection{Espacio de Hilbert}\label{sub:hilbert}
 
-La mecánica cuántica gira en torno a los \emph{espacios de Hilbert} porque son utilizados para describir el estado de los sistemas cuánticos. En el espacio dimensional finito y complejo con el que se trabaja en computación e información cuántica, un espacio de prehilbertiano es automáticamente un espacio de Hilbert. Se prefiere el término espacio de Hilbert, pero basta con saber que si se trata de espacios prehilbertianos con infinitas dimensiones, el mismo debe satisfacer requerimientos adicionales para ser considerado espacio de Hilbert.
+La mecánica cuántica gira en torno a los \emph{espacios de Hilbert} porque son utilizados para describir el estado de los sistemas cuánticos. En el espacio dimensional finito y complejo con el que se trabaja en computación e información cuántica, un espacio prehilbertiano es automáticamente un espacio de Hilbert. Se prefiere el término espacio de Hilbert, pero basta con saber que si se trata de espacios prehilbertianos con infinitas dimensiones, el mismo debe satisfacer requerimientos adicionales para ser considerado espacio de Hilbert.
 
 
 
@@ -144,7 +144,7 @@ Con estas convenciones, al producto interno de un espacio de Hilbert se le puede
 
 De esta manera el producto interno de dos vectores es igual al producto vectorial interno entre las dos representaciones matriciales de esos vectores, asumiendo que ambas representaciones son sobre la misma base ortonormal. También vemos como el vector dual $\bra{v}$ se puede representar como el vector fila donde sus componentes son el conjugado complejo de las componentes del vector columna de la representación de $\ket{v}$.
 
-Existe una forma útil de representar operadores lineales que hace uso del producto interno, conocido como representación del producto externo. Sea $\ket{v}$ un vector en un espacio prehilbertiano $V$ y $\ket{w}$ un vector en un espacio prehilbertiano $W$. Definimos $\ket{w}\bra{v}$ como el operador lineal de $V$ a $W$ cuya acción es definida por:
+Una manera útil de representar operadores lineales es a través del producto interno, con un método conocido como representación del producto externo. Sea $\ket{v}$ un vector en un espacio prehilbertiano $V$ y $\ket{w}$ un vector en un espacio prehilbertiano $W$. Definimos $\ket{w}\bra{v}$ como el operador lineal de $V$ a $W$ cuya acción es definida por:
 \begin{equation}
     (\ket{w}\bra{v}) (\ket{v'}) = \ket{w} \braket{v|v'} = \braket{v|v'} \ket{w}.
 \end{equation}
@@ -216,7 +216,7 @@ Si bien la computación cuántica es un campo muy interesante y en rápida evolu
 
 % Se expone aquí los conceptos requeridos para entender este trabajo en función de los postulados de la mecánica cuántica.
 
-\subsection{Postulados de la mecánica cuántica}
+\subsection{Postulados de la mecánica cuántica}\label{sub:postulados}
 
 La mecánica cuántica es un marco matemático para el desarrollo de teorías físicas. Por sí sola, la mecánica cuántica no revela qué leyes debe obedecer un sistema físico, pero sí proporciona un marco matemático y conceptual para el desarrollo de dichas leyes. En las próximas secciones, se ofrece una descripción completa de los postulados básicos de la mecánica cuántica y como se aplican a este trabajo. Estos postulados establecen una conexión entre el mundo físico y el formalismo matemático de la mecánica cuántica.
 
@@ -254,7 +254,7 @@ El mismo cumple con la definición dada en la Ecuación~\ref{eq:qubit} con $a=\f
 
 \subsubsection{Evolución}
 
-¿Cómo el estado de un sistema cuántico cambia con el tiempo? El siguiente postulado da una descripción de tales cambios en el sistema.
+¿Cómo cambia con el tiempo el estado de un sistema cuántico? El siguiente postulado da una descripción de tales cambios en el sistema.
 
 \begin{displayquote}
     \textbf{Postulado 2}
@@ -430,7 +430,7 @@ cuántico en el cual el estado no se conoce del todo.
 \end{definicion}
 \begin{ejemplo}
   \label{ex:OpDens}
-  El operador densidad del conjunto $\{(\nicefrac 13,\ket+);(\nicefrac 23,\ket 1)\}$ tiene operador de densidad:
+  El operador densidad del conjunto $\{(\nicefrac 13,\ket+);(\nicefrac 23,\ket 1)\}$ es:
   
   \begin{equation*}
     \rho=\nicefrac 13\ket +\bra ++\nicefrac 23\ket 1\bra 1 = \nicefrac 16\ket
@@ -699,6 +699,17 @@ subsistemas de un sistema cuántico compuesto. Tal descripción viene dada por e
 \emph{operador densidad reducido}.
 
 \begin{figure}[H]
+\begin{definicion}[Traza parcial]
+  Sean $A$ y $B$ dos sistemas físicos. La traza parcial sobre el sistema $B$ ($\tr_B$) es un operador lineal definido por
+  \[
+    \tr_B\left(\ket{a_1}\bra{a_2}\otimes\ket{b_1}\bra{b_2}\right) =
+    \ket{a_1}\bra{a_2}\tr(\ket{b_1}\bra{b_2})=\braket{b_2|b_1}\ket{a_1}\bra{a_2}
+  \]
+  para todo $\ket{a_1},\ket{a_2}$ en el espacio de estados de $A$ y $\ket{b_1}$,
+  $\ket{b_2}$ en el espacio de estados de $B$.
+\end{definicion}
+\end{figure}
+\begin{figure}[H]
 \begin{definicion}[Operador densidad reducido]
   Sean $A$ y $B$ dos sistemas físicos tales que su estado es descrito por el
   operador densidad $\rho^{AB}$. El operador densidad reducido para $A$ se
@@ -706,14 +717,6 @@ subsistemas de un sistema cuántico compuesto. Tal descripción viene dada por e
   \[
     \rho^A = \tr_B(\rho^{AB})
   \]
-  donde $\tr_B$ es la \emph{traza parcial sobre el sistema $B$}, y es un
-  operador lineal definido por
-  \[
-    \tr_B(\ket{a_1}\bra{a_2}\otimes\ket{b_1}\bra{b_2}) =
-    \ket{a_1}\bra{a_2}\tr(\ket{b_1}\bra{b_2})=\braket{b_2|b_1}\ket{a_1}\bra{a_2}
-  \]
-  para todo $\ket{a_1},\ket{a_2}$ en el espacio de estados de $A$ y $\ket{b_1}$,
-  $\ket{b_2}$ en el espacio de estados de $B$.
 \end{definicion}
 \end{figure}
 
@@ -751,7 +754,7 @@ subsistemas de un sistema cuántico compuesto. Tal descripción viene dada por e
 \subsection{Purificación}
 Modelar sistemas cuánticos utilizando matrices de densidad puede resultar muy conveniente dependiendo del contexto. Como se verá más adelante estas representan la parte central del lenguaje $\lambda_\rho$. Sin embargo, hay que tener en cuenta que las máquinas cuánticas y sus lenguajes operan al nivel de qubits, es decir únicamente con estados puros.
 
-Afortunadamente, existe una técnica descrita en~\cite{agustin} (Sección 3.1.1, que fue basada en ~\cite{purification}, Parte I-Sección 2.5) para convertir un estado mixto dado por una matriz de densidad en un estado puro. Esta operación se denomina purificación y la idea es agregar algunos qubits al sistema para codificar el estado mixto como parte de un estado puro.
+Afortunadamente, existe una técnica descrita por Borgna~\cite{agustin} (Sección 3.1.1, que fue basada en ~\cite{purification}, Parte I-Sección 2.5) para convertir un estado mixto dado por una matriz de densidad en un estado puro. Esta operación se denomina purificación y la idea es agregar algunos qubits al sistema para codificar el estado mixto como parte de un estado puro.
 
 
 
@@ -772,7 +775,7 @@ Sea $B$ otro sistema cuántico de $n$-qubits y $\{\ket{e_i}\}_{i=1,\dots,2^n}$ u
 \end{definicion}
 
 \section{Clases de complejidad}
-En esta sección vamos a presentar los conceptos básicos de la teoría de la intratabilidad: las clases P y NP de problemas. Estas son clasificaciones fundamentales para comprender la dificultad computacional de los problemas. Para hablar de complejidad de un problema siempre nos referimos a la máxima cantidad de instrucciones a ejecutar con una máquina de Turing determinista en función del tamaño de la entrada $n$ para poder obtener el resultado del problema. Estas nociones están basadas a las explicadas en el libro~\cite{lenguajes}.
+En esta sección vamos a presentar los conceptos básicos de la teoría de la intratabilidad: las clases P y NP de problemas. Estas son clasificaciones fundamentales para comprender la dificultad computacional de los problemas. Para hablar de complejidad de un problema siempre nos referimos a la máxima cantidad de instrucciones a ejecutar con una máquina de Turing determinista en función del tamaño de la entrada $n$ para poder obtener el resultado del problema. Estas nociones están basadas a las explicadas en el libro ``Introducción a la teoría de autómatas, lenguajes y computación''~\cite{lenguajes}.
 
 También vamos a definir el concepto de ``NP-completo'', una propiedad que tienen determinados problemas de NP. Se trata de problemas como mínimo tan complejos (salvo diferencias polinómicas de tiempo) como cualquier problema de NP.
 
@@ -829,16 +832,16 @@ Por último, aseguramos que la clase de complejidad de este problema es \emph{NP
 \begin{teorema}
     Encontrar el cubrimiento por vértices mínimo es NP-completo.
 \end{teorema}
-\begin{proof}
-    Este teorema fue probado por primera vez en 1972 por Richard Karp en su famosa publicación ``Reducibility Among Combinatorial Problems''~\cite{cover_np}, donde se prueba que 21 problemas diferentes son NP-completos.
-\end{proof}
+
+Este teorema fue probado por primera vez en 1972 por Richard Karp en su famosa publicación ``Reducibility Among Combinatorial Problems''~\cite{cover_np}, donde se prueba que 21 problemas diferentes son NP-completos.
+
 \begin{observacion}
     Lo que es NP-completo es la versión decidible del problema. Es decir aquella que devuelve sí o no. En este caso el problema sería dado un grafo $G=(V,E)$ y un número $k$, responder si existe un cubrimiento de $E$, $S \subseteq V$ tal que $|S|\leq k$. Cabe destacar que si se puede responder esta pregunta en tiempo polinomial, entonces es posible reconstruir el cubrimiento mínimo en tiempo polinomial.
 \end{observacion}
 
 \section{El Método Simplex}\label{sec:simplex}
 
-La \emph{programación lineal} es un extenso campo del álgebra lineal dedicado a maximizar o minimizar (optimizar) una función lineal, de tal forma que las variables estén sujetas a una serie de restricciones expresadas mediante un sistema de ecuaciones también lineales. La técnica tradicionalmente usada para resolver problemas de programación lineal es el método Simplex. El mismo se encuentra explicado en el Capítulo 4 de \cite{simplex}. Este algoritmo resulta útil más adelante en el tipado de $\lambda_\rho$ y se enuncia a continuación.
+La \emph{programación lineal} es un extenso campo del álgebra lineal dedicado a maximizar o minimizar (optimizar) una función lineal, de tal forma que las variables estén sujetas a una serie de restricciones expresadas mediante un sistema de ecuaciones también lineales. La técnica tradicionalmente usada para resolver problemas de programación lineal es el método Simplex. El mismo se encuentra explicado en el Capítulo 4 de ``Operations Research: Applications and Algorithms''~\cite{simplex}. Este algoritmo resulta útil más adelante en el tipado de $\lambda_\rho$ y se enuncia a continuación.
 
 \begin{definicion}[Método Simplex]\label{def:simplex}
     El algoritmo de Simplex soluciona el problema de maximizar $c^T x$ sujeto a las restricciones $Ax=b$ y $x\geq 0$. Donde $x\in \mathbb{R}^n, c\in \mathbb{R}^n, b\in \mathbb{R}^m, A\in \mathbb{R}^{m\times n}$.
@@ -856,7 +859,7 @@ La posibilidad de combinar mónadas resulta atractiva para implementar la traduc
 Haskell tiene la capacidad de hacer esto empleando los transformadores de mónadas, que son variantes de las mónadas tradicionales. Sus constructores de tipo están parametrizados sobre un constructor de tipo de mónada y producen tipos monádicos combinados~\cite{monads}.
 
 \subsection{Constructores de tipo transformador}
-Los constructores de tipos juegan un papel fundamental en el soporte de mónadas de Haskell. En particular, el tipo \texttt{Reader r a} representa  valores de tipo \texttt{a} dentro de una mónada de \texttt{Reader} con un entorno de tipo \texttt{r}. El constructor de tipos \texttt{Reader r} es una instancia de la clase \texttt{Monad}, y la función \texttt{runReader::(r->a)} ejecuta una computación en la mónada Reader y devuelve el resultado del tipo \texttt{a}.
+Los constructores de tipos juegan un papel fundamental en el soporte de mónadas de Haskell. En particular, el tipo \texttt{Reader r a} representa  valores de tipo \texttt{a} dentro de una mónada \texttt{Reader} con un entorno de tipo \texttt{r}. El constructor de tipos \texttt{Reader r} es una instancia de la clase \texttt{Monad}, y la función \texttt{runReader::(r->a)} ejecuta una computación en la mónada Reader y devuelve el resultado del tipo \texttt{a}.
 
 Existe una versión transformadora de la mónada Reader, llamada \texttt{ReaderT}, que agrega un constructor de tipo de mónada como parámetro adicional. \texttt{ReaderT r m a} representan los valores de la mónada combinada en la que Reader es la mónada base y \texttt{m} es la mónada interna. \texttt{ReaderT r m} es una instancia de la clase \texttt{Monad}, y la función \texttt{runReaderT::(r -> m a)} realiza un cálculo en la mónada combinada y devuelve un resultado de tipo \texttt{m a}.
 
@@ -887,7 +890,7 @@ Se puede entender a $\lambda_\rho$ como una extensión del lambda cálculo simpl
 \begin{align*}
 t ::= &\;x \mid \lambda x.t \mid t\;t \tag{Lambda cálculo estándar}\\
  \mid&\; \rho^n \mid U^n t \mid \pi^m t \mid t \otimes t \tag{Postulados cuánticos}\\
- \mid&\; (b^m, \rho^n) \mid \textsf{letcase }x = r \textsf{ in } \{t,\dots,t\} \tag{Control clásico}
+ \mid&\; (b^m, \rho^n) \mid \textsf{letcase }x = t \textsf{ in } \{t,\dots,t\} \tag{Control clásico}
 \end{align*}
 donde:
 \begin{itemize}
@@ -904,6 +907,14 @@ donde:
 
 \subsection{\texorpdfstring{Tipado de $\lambda_\rho$}{Tipado de Lambda Rho}}
 El sistema de tipos de $\lambda_\rho$ es afín, por lo que las variables pueden ser usadas a lo sumo una sola vez. Otra característica peculiar es que contiene enteros. Por ejemplo, el tipo `3' representa un estado cuántico de 3 qubits. Mientras que el tipo `$(3, 5)$' es el resultado de una medición de 3 qubits sobre un estado de 5 qubits. Sobre estos valores se agregan las funciones de alto orden del cálculo lambda afín.
+
+Para formalizar el tipado introducimos contextos que son un mapeo entre variables y sus tipos. Por ejemplo $\Delta = x:A$ es un contexto que le asigna el tipo $A$ a la variable $x$. Dados dos contextos $\Delta$ y $\Gamma$, denotamos \emph{$\Delta,\Gamma$} como la unión de ambos contextos:
+\[
+(\Delta,\Gamma)(x) = \begin{cases}
+    \Delta(x) \text{ si } x\in\mathrm{dom}(\Delta) \\
+    \Gamma(x) \text{ si } x\in\mathrm{dom}(\Gamma)
+\end{cases}
+\]
 
 \begin{definicion}[Tipado de $\lambda_\rho$]
 \label{def:tipado_lambda}

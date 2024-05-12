@@ -1,9 +1,9 @@
-\documentclass[12pt, spanish]{report}
+\documentclass[12pt, spanish, twoside]{report}
 
 \input{code_preamble}
 \title{Compilación del lambda cálculo con matrices densidad en la máquina cuántica IBM-Q}
 \author{Martín Villagra\\V-2719/7}
-\date{\today}	% Fecha
+\date{2023-12-20}	% Fecha
 
 
 \makeatletter
@@ -15,7 +15,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \rhead{Martín Villagra}
-\lhead{Traducción de $\lambda_\rho$ en Python con Qiskit}
+\lhead{Compilación del lambda cálculo con matrices densidad}
 \cfoot{\thepage}
 
 \begin{document}
@@ -52,19 +52,19 @@
 
 \include{tipado}
 
-%%%%%%%%%%%%%%% Qiskit con Python %%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%% Qiskit con Python %%%%%%%%%%%%%%
 
 \include{qiskit_con_python}
 
-%%%%%%%%%%%%%%%%%%% Traduccion %%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%% Traduccion %%%%%%%%%%%%%%%%%%%%%
 
 \include{traduccion}
 
-%%%%%%%%%%%%%%%%%%% Implementación %%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%% Implementación %%%%%%%%%%%%%%%%%%%%%
 
 \include{implementacion}
 
-%%%%%%%%%%%%%%%%%%% Conclusiones %%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%% Conclusiones %%%%%%%%%%%%%%%%%%%%%
 
 \include{conclusiones}
 

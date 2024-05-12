@@ -15,9 +15,10 @@ Qiskit permite definir circuitos cuánticos dentro de Python. Una vez declarados
 
 Un programa en Qiskit es una lista de instrucciones a ejecutar sobre una lista de qubits que representan la memoria de la máquina cuántica. Contiene también un registro para almacenar el resultado de la medición. Formalmente, un estado del programa está representado por una tripleta $(\ket{\phi}, r, L) \in \Lambda_\textit{qk}$, donde:
 \begin{itemize}
+    \item $\Lambda_\textit{qk}$ es el conjunto de estados de Qiskit.
     \item $\ket{\phi}$ es un vector normalizado de $\mathlarger{\mathlarger{\otimes}}_{i=0}^{n-1}\mathbb{C}^2 $ para algún $n > 0$.
     \item $r \in \mathbb{N}_0$ es el resultado de la última medición efectuada.
-    \item $L$ es una lista ordenada de instrucciones ($\subseteq \mathfrak{I}_\textit{qk}$) que se muestran en la Definición~\ref{qiskit_def}.
+    \item $L$ es una lista ordenada de instrucciones ($\subseteq \mathfrak{I}_\textit{qk}$). Las instrucciones se muestran en la Definición~\ref{qiskit_def}.
 \end{itemize}
 
 \begin{definicion}[Instrucciones de Qiskit, $\mathfrak{I}_Q$]
@@ -45,7 +46,7 @@ donde:
 
 
 \section{Semántica operacional de Qiskit}
-La máquina abstracta ejecuta las instrucciones en orden, modificando su estado como se describe a continuación. La definición de cada compuerta es análoga a la provista en la Definición~\ref{def:lamrho_gates}. Cabe destacar que Qiskit inicializa todos los qubits a $\ket{0}$ al inicio de toda ejecución. Definimos formalmente la ejecución con la función $\redqk : \Lambda_\textit{qk} \rightarrow \Lambda_\textit{qk}$.
+La máquina abstracta ejecuta las instrucciones en orden, modificando su estado como se describe a continuación. La definición de cada compuerta es análoga a la provista en la Definición~\ref{def:lamrho_gates}. Cabe destacar que Qiskit inicializa todos los qubits a $\ket{0}$ al inicio de toda ejecución. Definimos formalmente la ejecución a través de la función $\redqk : \Lambda_\textit{qk} \rightarrow \Lambda_\textit{qk}$.
 \begin{definicion}[Semántica operacional de Qiskit]
 \label{def:qk_rules}
 \begin{align*}
@@ -86,9 +87,10 @@ Para modelar la biblioteca de Qiskit en Python se diseñó un wrapper `Circuit' 
 
 Nuestra simplificación contiene:
 \begin{itemize}
-    \item Las funciones de lambda de Python, que se asemejan mucho a las expresiones lambda de $\lambda_\rho$, por lo que su traducción es casi directa.
+    \item Las funciones de lambda de Python, que se asemejan mucho a las expresiones lambda de $\lambda_\rho$, por lo que su traducción es casi directa. En nuestra simplificación, la diferencia es meramente sintáctica.
     \item La clase `Circuit' y sus métodos explicados en la Sección~\ref{sub:qiskit_model}.
     \item La expresión de \texttt{letcase}, que simplemente es un azúcar sintáctico para la indexación de listas.
+    \item Utiliza $\mathbb{N}$, $\mathbb{R}$, $\mathbb{C}$ para los tipos $\texttt{int}$, $\texttt{float}$ y  $\texttt{complex}$ respectivamente. Esta simplificación es necesaria puesto que modelar la representación interna de los números volvería la traducción sumamente compleja y no es relevante para el presente trabajo.
 \end{itemize}
 
 La especificación formal de los términos de Python ($\Lambda_\textit{py}$) se muestra en la Definición~\ref{def:python}.

@@ -1,7 +1,7 @@
 \chapter{\texorpdfstring{Traducción de $\lambda_\rho^*$ a Qiskit}{Traducción de Lambda Rho* a Qiskit}}
 \label{ch:traduccion}
 
-En la Sección~\ref{sec:lamrho_classic} se presentó $\lambda_\rho$ tal cual fue definido en \cite{lamrho}. En este capítulo primero veremos como resulta imposible hacer una traducción de este lenguaje y proponemos alteraciones mínimas a este, definiendo $\lambda_\rho^*$, de manera de que la traducción sea posible.
+En la Sección~\ref{sec:lamrho_classic} se presentó $\lambda_\rho$ tal cual fue definido en \cite{lamrho}. En este capítulo primero veremos que resulta imposible hacer una traducción de este lenguaje y proponemos alteraciones mínimas a este, definiendo $\lambda_\rho^*$, de manera de que la traducción sea posible.
 
 Luego vamos a presentar varios resultados respecto al método de la purificación, que resulta esencial para la traducción. Utilizando esta técnica definimos formalmente la traducción de $\lambda_\rho^*$ a Python.
 
@@ -560,7 +560,7 @@ Antes de probar la correctitud resultan útil los siguientes lemas.
 Dado $t, r \in \Lambda_\rho^*$, $\transl{[r/x]t}=[\transl{r}/x]\transl{t}$
 \end{lema}
 \begin{proof}
-Este lema fue demostrado por Agustín B. en ~\cite{agustin} (Lema 3.1.8), utilizando inducción estructural en $t$.
+Este lema fue demostrado por Agustín B. para $\lambda_\rho$ en ~\cite{agustin} (Lema 3.1.8), utilizando inducción estructural en $t$. La adaptación de la prueba a $\lambda_\rho^*$ es trivial.
 \end{proof}
 
 \begin{lema}[Preservación de Valores]
@@ -661,11 +661,16 @@ Debido a la forma de $\pi^m\;t$ solo se pueden aplicar las reglas $\pi r_\rho$ y
 Por lo tanto, $\pi^m\;t$ es un valor $\Leftrightarrow$ $\transl{\pi^m\;t}$ es un valor.
      
 \end{itemize}
+
 \end{proof}
 Por último agregamos dos lemas necesarios para demostrar la correctitud sobre la regla $\pi_\rho$.
 \begin{lema}\label{lem:rhosize}
 La purificación de una matriz de densidad de $n$ qubits posee $2n$ qubits, es decir:
-    \[\texttt{\transl{\rho^n}.size()} \redpy_1 2n\]
+\vspace{0pt plus 20pt}
+\begin{equation*}
+    \texttt{\transl{\rho^n}.size()} \redpy_1 2n
+\end{equation*}
+\vspace{0pt plus 20pt}
 \end{lema}
 \begin{proof}
     \begin{align*}
@@ -914,7 +919,7 @@ donde
 \end{definicion}
 
 \begin{teorema}
-Sea $t \in \Lambda_\rho^*$, entonces $\transli{\transl{t}} \redlam^* t$.
+Sea $t \in \Lambda_\rho^*$, entonces $\transli{\transl{t}} = t$.
 \end{teorema}
 \begin{proof}
 Se procede por inducción en $t$.
@@ -939,7 +944,7 @@ Que por el Teorema~\ref{teo:pur_inv} es igual a $\rho^n$.
 
     \item[\textbf{Caso}] $G_p\;t$
     
-$\transli{\transl{G_p\;t}} = \transli{\transl{t}\texttt{.gate(}G\texttt{, [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])}} =  G_p\;\transli{\transl{t}} = \stackrel{\textrm{HI}}{=} G_p\;t$
+$\transli{\transl{G_p\;t}} = \transli{\transl{t}\texttt{.gate(}G\texttt{, [}p\texttt{, }p+2\texttt{, \dots, }p+2|G|\texttt{])}} =  G_p\;\transli{\transl{t}} \stackrel{\textrm{HI}}{=} G_p\;t$
 
     \item[\textbf{Caso}] $t_1 \otimes t_2$
     
